@@ -1,5 +1,6 @@
 .env
 node_modules/
-uploads/
+backend/uploads/*
+!backend/uploads/seed/
 *.log
 
