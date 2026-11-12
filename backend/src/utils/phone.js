@@ -25,3 +25,4 @@ function normalizeWaNumber(raw) {
 }
 
 module.exports = { normalizeWaNumber };
+

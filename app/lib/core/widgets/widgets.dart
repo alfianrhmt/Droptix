@@ -1,5 +1,6 @@
 export 'app_background.dart';
 export 'app_header.dart';
+export 'app_text_field.dart';
 export 'badges.dart';
 export 'banner_carousel.dart';
 export 'category_row.dart';

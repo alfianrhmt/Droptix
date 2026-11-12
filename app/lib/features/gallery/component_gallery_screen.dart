@@ -6,7 +6,9 @@ import 'sample_data.dart';
 /// Layar Component Gallery untuk memverifikasi semua komponen bersama
 /// dengan data contoh sebelum membuat layar fitur satu per satu.
 class ComponentGalleryScreen extends StatefulWidget {
-  const ComponentGalleryScreen({super.key});
+  const ComponentGalleryScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<ComponentGalleryScreen> createState() => _ComponentGalleryScreenState();
@@ -57,20 +59,13 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
             ))
         .toList();
 
-    return AppBackground(
-      child: Scaffold(
-        bottomNavigationBar: DroptixBottomNav(
-          currentIndex: _navIndex,
-          unreadCount: 12,
-          onTap: (i) => setState(() => _navIndex = i),
-        ),
-        body: SafeArea(
-          bottom: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+    final content = SafeArea(
+      bottom: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
                 AppHeader(
                   city: _selectedCity,
                   onLocationTap: () => setState(() {
@@ -250,7 +245,18 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
               ],
             ),
           ),
+        );
+
+    if (widget.embedded) return content;
+
+    return AppBackground(
+      child: Scaffold(
+        bottomNavigationBar: DroptixBottomNav(
+          currentIndex: _navIndex,
+          unreadCount: 12,
+          onTap: (i) => setState(() => _navIndex = i),
         ),
+        body: content,
       ),
     );
   }

@@ -1,15 +1,10 @@
-# HANDOFF.md — Droptix
+# HANDOFF — Droptix
 
 ## Selesai
-
-- **M0 (T0.1–T0.4)** — Backend health, tema token, komponen bersama, Component Gallery.
-- **T1.1 & T1.2** — Migrasi `001_init.sql`, pool koneksi, `migrate`, dan `seed` idempoten + aset PNG lokal.
-- **T1.3** — Backend auth & `/me`: format error seragam (`utils/errors.js`), validasi `zod`, JWT (`middleware/auth.js`), rate limit (`middleware/rateLimit.js`), `POST /auth/register`, `POST /auth/login`, `GET/PUT /me`, `PUT /me/password`. 4 suite / 18 tes Jest lulus (mock DB).
+- **T1.4**: Klien API Dio + interceptor token, `TokenStorage` & `AuthController`, layar Login & Register (dengan kotak persetujuan syarat), layar Profil, Edit Profil, Ganti Password, logout, dan alur "login saat aksi" untuk tamu di `AppShell`.
 
 ## Sedang
-
-Menunggu perintah "lanjut".
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T1.5.
 
 ## Langkah berikutnya
-
-- **T1.4** — Flutter: klien API (`dio`, interceptor token), layar login dan register (kotak persetujuan syarat), sesi tersimpan, edit profil, ganti password, logout, alur "login saat aksi" untuk tamu.
+- **T1.5**: Backend daftar & detail event (`GET /events`, `GET /events/:id`), daftar ticket listing per event dengan filter & sort, endpoint `POST /events/suggest` untuk usulan event, dan seed minimal 5 event nyata Indonesia.

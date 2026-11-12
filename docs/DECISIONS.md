@@ -9,4 +9,5 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 3 | iOS, linux, macos, web, windows folder diabaikan di .gitignore | AGENTS.md: Android dulu, iOS tidak wajib, platform lain di luar scope |
 | 4 | Skrip `migrate` melacak migrasi di tabel `schema_migrations` | Membuat migrasi idempoten dan tiap file `.sql` dijalankan atomik dalam satu transaksi |
 | 5 | Memakai `bcryptjs` (pure JS) untuk hash password | Menghindari kendala kompilasi native di Windows dan Alpine Docker |
+| 6 | Memakai `shared_preferences` untuk penyimpanan token sesi & `API_BASE_URL` via `--dart-define` (default `http://10.0.2.2:3000/api/v1`) | Sederhana tanpa setup keystore tambahan di Windows/emulator serta mudah di-mock di widget/unit test |
 

@@ -81,3 +81,4 @@ function createRequireAuth(db) {
 }
 
 module.exports = { signToken, verifyToken, createRequireAuth, getJwtSecret };
+
