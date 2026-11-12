@@ -275,3 +275,4 @@ class _GallerySectionLabel extends StatelessWidget {
     );
   }
 }
+

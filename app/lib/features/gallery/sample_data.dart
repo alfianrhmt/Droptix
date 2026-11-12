@@ -106,3 +106,4 @@ abstract final class GallerySampleData {
     ),
   ];
 }
+
