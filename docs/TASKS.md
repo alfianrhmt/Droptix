@@ -24,7 +24,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 - [x] **T0.1** Struktur repo sesuai `AGENTS.md`, `docker-compose.yml` (API + PostgreSQL), backend Express dengan `GET /api/v1/health`, `.env.example`, README awal.
 - [x] **T0.2** Proyek Flutter: token (warna, tipografi, jarak, radius) di `core/theme`, tema gelap Poppins, `AppBackground` dengan glow teal.
-- [ ] **T0.3** Komponen bersama (`DESIGN.md` bagian 4 dan 9b): `AppHeader`, `SearchBar`, `BannerCarousel`, `ResellTypeTiles`, `QuickDateGrid`, `CategoryRow`, `SectionHeader`, `PosterCard`, `ListingRow`, `FilterChipRow`, badge, `BottomNav`, `PrimaryButton`, `StatsCard`, `UnreadBadge`, `ConversationRow`, `ChatListingCard`, `ChatBubble`, `ChatInput`, keadaan loading/kosong/error.
+- [x] **T0.3** Komponen bersama (`DESIGN.md` bagian 4 dan 9b): `AppHeader`, `SearchBar`, `BannerCarousel`, `ResellTypeTiles`, `QuickDateGrid`, `CategoryRow`, `SectionHeader`, `PosterCard`, `ListingRow`, `FilterChipRow`, badge, `BottomNav`, `PrimaryButton`, `StatsCard`, `UnreadBadge`, `ConversationRow`, `ChatListingCard`, `ChatBubble`, `ChatInput`, keadaan loading/kosong/error.
 - [ ] **T0.4** Layar **Component Gallery** berisi semua komponen dengan data contoh. **BERHENTI. Tunggu persetujuan pengguna sebelum lanjut.**
 
 **Selesai jika:** gallery tampil sesuai `DESIGN.md` di 390×844 dan 360×740, hanya memakai token, tanpa blur, tanpa warna kuning.
