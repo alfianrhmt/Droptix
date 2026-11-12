@@ -8,4 +8,5 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 2 | `main.dart` menampilkan layar preview token sementara | T0.2 hanya token dan AppBackground; layar nyata dan navigasi (go_router) dikerjakan mulai T0.3 |
 | 3 | iOS, linux, macos, web, windows folder diabaikan di .gitignore | AGENTS.md: Android dulu, iOS tidak wajib, platform lain di luar scope |
 | 4 | Skrip `migrate` melacak migrasi di tabel `schema_migrations` | Membuat migrasi idempoten dan tiap file `.sql` dijalankan atomik dalam satu transaksi |
+| 5 | Memakai `bcryptjs` (pure JS) untuk hash password | Menghindari kendala kompilasi native di Windows dan Alpine Docker |
 

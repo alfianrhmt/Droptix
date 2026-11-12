@@ -32,7 +32,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 ## M1 — Database dan akun
 
 - [x] **T1.1** Migrasi `001_init.sql` dari `DATABASE.md`, skrip `migrate`, pool koneksi.
-- [ ] **T1.2** Seed idempoten (kategori, venue, pengguna, event, listing, percakapan dan pesan, favorit). Koordinat venue diverifikasi, bukan dikarang.
+- [x] **T1.2** Seed idempoten (kategori, venue, pengguna, event, listing, percakapan dan pesan, favorit). Koordinat venue diverifikasi, bukan dikarang.
 - [ ] **T1.3** Backend: format error seragam, middleware validasi (zod), auth JWT, rate limit; `POST /auth/register` (dengan `setuju_syarat`), `POST /auth/login` (tolak akun `banned_at`), `GET/PUT /me`, `PUT /me/password`.
 - [ ] **T1.4** Flutter: klien API (dio, interceptor token), layar login dan register (kotak persetujuan syarat), sesi tersimpan, edit profil, ganti password, logout, alur "login saat aksi" untuk tamu.
 - [ ] **T1.5** Tes Jest untuk auth (registrasi, email ganda, login salah, akun dibekukan, token kedaluwarsa).

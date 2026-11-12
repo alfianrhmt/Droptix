@@ -17,6 +17,11 @@ cp .env.example .env
 # Jalankan API + database
 docker compose up -d
 
+# Jalankan migrasi dan seed awal
+cd backend
+npm run migrate
+npm run seed
+
 # Cek health
 curl http://localhost:3000/api/v1/health
 ```
@@ -52,7 +57,13 @@ Droptix/
 
 Lihat `docs/DATABASE.md` bagian 5 untuk daftar query manual moderasi (blokir akun, hapus listing, dsb.).
 
-## Akun contoh
+## Akun contoh (hanya untuk pengembangan)
 
-Tersedia setelah menjalankan seed (akan ditambahkan di M1).
+Password untuk semua akun contoh: `Droptix123!`
+
+| Nama | Email | Kota | No. WhatsApp |
+|---|---|---|---|
+| Raka Pratama | `raka@droptix.dev` | Surabaya | `6281234567801` |
+| Dina Larasati | `dina@droptix.dev` | Surabaya | `6281234567802` |
+| Bagas Wijaya | `bagas@droptix.dev` | Jakarta | `6281234567803` |
 
