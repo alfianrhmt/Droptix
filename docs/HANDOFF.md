@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T1.4**: Klien API Dio + interceptor token, `TokenStorage` & `AuthController`, layar Login & Register (dengan kotak persetujuan syarat), layar Profil, Edit Profil, Ganti Password, logout, dan alur "login saat aksi" untuk tamu di `AppShell`.
+- **T1.5**: Tes Jest untuk auth ([auth.test.js](file:///c:/Users/bstar/Desktop/Droptix/backend/tests/auth.test.js)) — registrasi, email ganda, validasi syarat/password, login salah (email/password), akun dibekukan (login & `/me`), token kedaluwarsa/tidak valid, ganti password, dan rate limit (`4 suites, 18 tests passed`). Milestone M1 selesai.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T1.5.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M2 (**T2.1**).
 
 ## Langkah berikutnya
-- **T1.5**: Backend daftar & detail event (`GET /events`, `GET /events/:id`), daftar ticket listing per event dengan filter & sort, endpoint `POST /events/suggest` untuk usulan event, dan seed minimal 5 event nyata Indonesia.
+- **T2.1**: Backend `GET /categories`, `GET /venues`, `GET /events`, `POST /events` (cek nama mirip, `force`, batas 5 per hari), `PUT /events/:id` (kunci), `POST /uploads` (validasi isi berkas).

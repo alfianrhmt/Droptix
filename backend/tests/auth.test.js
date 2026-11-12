@@ -79,7 +79,7 @@ function createMockDb() {
   };
 }
 
-describe('Auth, /me, validasi, format error & rate limit (T1.3)', () => {
+describe('Auth, /me, validasi, format error & rate limit (T1.3 & T1.5)', () => {
   it('normalizeWaNumber mengubah 08... dan +62... ke format 62...', () => {
     expect(normalizeWaNumber('0812-3456-7890')).toBe('6281234567890');
     expect(normalizeWaNumber('+62 812 3456 7890')).toBe('6281234567890');
@@ -154,6 +154,13 @@ describe('Auth, /me, validasi, format error & rate limit (T1.3)', () => {
     expect(ok.status).toBe(200);
     expect(ok.body.data.token).toBeDefined();
 
+    const wrongEmail = await request(app).post('/api/v1/auth/login').send({
+      email: 'tidakada@example.com',
+      password: 'password123',
+    });
+    expect(wrongEmail.status).toBe(401);
+    expect(wrongEmail.body.error.code).toBe('UNAUTHORIZED');
+
     const wrong = await request(app).post('/api/v1/auth/login').send({
       email: 'sari@example.com',
       password: 'salah',
@@ -222,6 +229,23 @@ describe('Auth, /me, validasi, format error & rate limit (T1.3)', () => {
       .set('Authorization', `Bearer ${expiredToken}`);
     expect(expRes.status).toBe(401);
     expect(expRes.body.error.code).toBe('UNAUTHORIZED');
+
+    const noTokenRes = await request(app).get('/api/v1/me');
+    expect(noTokenRes.status).toBe(401);
+    expect(noTokenRes.body.error.code).toBe('UNAUTHORIZED');
+
+    const badTokenRes = await request(app)
+      .get('/api/v1/me')
+      .set('Authorization', 'Bearer token.tidak.valid');
+    expect(badTokenRes.status).toBe(401);
+    expect(badTokenRes.body.error.code).toBe('UNAUTHORIZED');
+
+    db.users[0].banned_at = new Date().toISOString();
+    const bannedMeRes = await request(app)
+      .get('/api/v1/me')
+      .set('Authorization', `Bearer ${token}`);
+    expect(bannedMeRes.status).toBe(403);
+    expect(bannedMeRes.body.error.code).toBe('ACCOUNT_BANNED');
   });
 
   it('rate limiter mengembalikan 429 RATE_LIMITED setelah melewati batas /auth/*', async () => {
