@@ -1,0 +1,745 @@
+'use strict';
+
+const express = require('express');
+const { z } = require('zod');
+const { validate } = require('../middleware/validate');
+const { Errors } = require('../utils/errors');
+
+const listingIdParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID listing tidak valid.'),
+});
+
+const getListingQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+});
+
+const photoPathSchema = z
+  .string()
+  .trim()
+  .refine((p) => p.startsWith('/uploads/'), {
+    message: 'Path foto harus berasal dari /uploads/.',
+  });
+
+const createListingSchema = z.object({
+  event_id: z.coerce.number().int().positive('Event wajib dipilih.'),
+  venue_id: z.coerce.number().int().positive().nullable().optional(),
+  venue_teks: z.string().trim().max(120).nullable().optional(),
+  kota: z.string().trim().max(60).nullable().optional(),
+  waktu_acara: z.string().datetime({ offset: true }),
+  jenis: z.enum(['limited', 'last_minute']),
+  tipe: z.enum(['digital', 'fisik']),
+  seksi: z.string().trim().max(60).nullable().optional(),
+  no_kursi: z.string().trim().max(60).nullable().optional(),
+  harga: z.coerce.number().int().positive('Harga harus lebih dari 0.'),
+  harga_asli: z.coerce.number().int().positive().nullable().optional(),
+  jumlah_total: z.coerce.number().int().min(1, 'Jumlah tiket minimal 1.'),
+  satuan: z.boolean().optional().default(true),
+  terikat_nama: z.enum(['ya', 'tidak', 'tidak_tahu']),
+  serah_terima: z.array(z.string().trim()),
+  lokasi_penjual_kota: z.string().trim().max(60).nullable().optional(),
+  lokasi_penjual_lat: z.coerce.number().min(-90).max(90).nullable().optional(),
+  lokasi_penjual_lng: z.coerce.number().min(-180).max(180).nullable().optional(),
+  catatan: z.string().trim().max(2000).nullable().optional(),
+  izinkan_wa: z.boolean().optional().default(false),
+  photos: z
+    .array(photoPathSchema)
+    .min(1, 'Minimal 1 foto tiket wajib diunggah.')
+    .max(3, 'Maksimal 3 foto tiket.'),
+});
+
+const updateListingSchema = z.object({
+  event_id: z.coerce.number().int().positive().optional(),
+  venue_id: z.coerce.number().int().positive().nullable().optional(),
+  venue_teks: z.string().trim().max(120).nullable().optional(),
+  kota: z.string().trim().max(60).nullable().optional(),
+  waktu_acara: z.string().datetime({ offset: true }).optional(),
+  jenis: z.enum(['limited', 'last_minute']).optional(),
+  tipe: z.enum(['digital', 'fisik']).optional(),
+  seksi: z.string().trim().max(60).nullable().optional(),
+  no_kursi: z.string().trim().max(60).nullable().optional(),
+  harga: z.coerce.number().int().positive().optional(),
+  harga_asli: z.coerce.number().int().positive().nullable().optional(),
+  jumlah_total: z.coerce.number().int().min(1).optional(),
+  satuan: z.boolean().optional(),
+  terikat_nama: z.enum(['ya', 'tidak', 'tidak_tahu']).optional(),
+  serah_terima: z.array(z.string().trim()).optional(),
+  lokasi_penjual_kota: z.string().trim().max(60).nullable().optional(),
+  lokasi_penjual_lat: z.coerce.number().min(-90).max(90).nullable().optional(),
+  lokasi_penjual_lng: z.coerce.number().min(-180).max(180).nullable().optional(),
+  catatan: z.string().trim().max(2000).nullable().optional(),
+  izinkan_wa: z.boolean().optional(),
+  photos: z.array(photoPathSchema).min(1).max(3).optional(),
+});
+
+const patchStockSchema = z.object({
+  jumlah_terjual: z.coerce.number().int().min(0, 'Jumlah terjual tidak boleh negatif.'),
+});
+
+function computeListingStatus(row) {
+  if (row.deleted_at || row.hidden) return 'dihapus';
+  if (new Date(row.waktu_acara).getTime() <= Date.now()) return 'kedaluwarsa';
+  if (row.jumlah_total - row.jumlah_terjual <= 0) return 'terjual';
+  return 'tersedia';
+}
+
+function computeDiscountPercent(harga, hargaAsli) {
+  if (!hargaAsli || harga >= hargaAsli) return null;
+  return Math.round(((hargaAsli - harga) / hargaAsli) * 100);
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  if (
+    lat1 == null ||
+    lng1 == null ||
+    lat2 == null ||
+    lng2 == null
+  ) {
+    return null;
+  }
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(km * 10) / 10;
+}
+
+function computeRefCoordinates({ tipe, lokasiPenjualLat, lokasiPenjualLng, venue }) {
+  if (tipe === 'fisik') {
+    if (lokasiPenjualLat != null && lokasiPenjualLng != null) {
+      return { refLat: lokasiPenjualLat, refLng: lokasiPenjualLng };
+    }
+    return { refLat: null, refLng: null };
+  }
+  if (venue && venue.lat != null && venue.lng != null) {
+    return { refLat: venue.lat, refLng: venue.lng };
+  }
+  return { refLat: null, refLng: null };
+}
+
+function formatListingDetail(row, photos, userLat = null, userLng = null) {
+  const tersedia = Math.max(0, row.jumlah_total - row.jumlah_terjual);
+  return {
+    id: row.id,
+    event: {
+      id: row.event_id,
+      nama: row.event_nama,
+      poster_url: row.event_poster_url ?? null,
+      category: {
+        id: row.category_id,
+        slug: row.category_slug,
+        nama: row.category_nama,
+      },
+    },
+    venue_nama: row.venue_id ? row.venue_nama : row.venue_teks,
+    kota: row.kota,
+    waktu_acara: row.waktu_acara,
+    jenis: row.jenis,
+    tipe: row.tipe,
+    seksi: row.seksi ?? null,
+    harga: row.harga,
+    harga_asli: row.harga_asli ?? null,
+    diskon_persen: computeDiscountPercent(row.harga, row.harga_asli),
+    jumlah_tersedia: tersedia,
+    jumlah_terjual: row.jumlah_terjual,
+    tertarik: Number(row.tertarik ?? 0),
+    status: computeListingStatus(row),
+    jarak_km: haversineKm(userLat, userLng, row.ref_lat, row.ref_lng),
+    diperbarui: row.updated_at,
+    is_favorite: Boolean(row.is_favorite),
+    no_kursi: row.no_kursi ?? null,
+    izinkan_wa: Boolean(row.izinkan_wa),
+    satuan: Boolean(row.satuan),
+    terikat_nama: row.terikat_nama,
+    serah_terima: row.serah_terima || [],
+    lokasi_penjual_kota: row.lokasi_penjual_kota ?? null,
+    catatan: row.catatan ?? null,
+    photos: photos.map((p) => ({ id: p.id, url: p.url })),
+    venue: row.venue_id
+      ? {
+          id: row.venue_id,
+          nama: row.venue_nama,
+          kota: row.venue_kota,
+          alamat: row.venue_alamat ?? null,
+          lat: row.venue_lat ?? null,
+          lng: row.venue_lng ?? null,
+        }
+      : null,
+    seller: {
+      id: row.seller_id,
+      nama: row.seller_nama,
+      bergabung: row.seller_created_at,
+    },
+    confirmed_at: row.confirmed_at,
+    created_at: row.created_at,
+  };
+}
+
+function validateHandoverAndLocation({
+  tipe,
+  serahTerima,
+  lokasiPenjualKota,
+  venueId,
+  venueTeks,
+  kota,
+}) {
+  const details = [];
+
+  if (!venueId && (!venueTeks || venueTeks.trim().length === 0)) {
+    details.push({
+      field: 'venue_id',
+      message: 'Pilih venue atau isi nama venue secara manual.',
+    });
+  }
+  if (!venueId && (!kota || kota.trim().length === 0)) {
+    details.push({
+      field: 'kota',
+      message: 'Kota wajib diisi jika mengisi venue manual.',
+    });
+  }
+
+  if (tipe === 'digital') {
+    if (
+      !Array.isArray(serahTerima) ||
+      serahTerima.length !== 1 ||
+      serahTerima[0] !== 'transfer_eticket'
+    ) {
+      details.push({
+        field: 'serah_terima',
+        message: 'Tiket digital hanya mendukung serah terima transfer_eticket.',
+      });
+    }
+  } else if (tipe === 'fisik') {
+    const allowed = new Set(['cod', 'ekspedisi']);
+    const unique = [...new Set(serahTerima || [])];
+    if (unique.length === 0 || unique.some((m) => !allowed.has(m))) {
+      details.push({
+        field: 'serah_terima',
+        message: 'Tiket fisik wajib memilih cod dan/atau ekspedisi.',
+      });
+    }
+    if (!lokasiPenjualKota || lokasiPenjualKota.trim().length === 0) {
+      details.push({
+        field: 'lokasi_penjual_kota',
+        message: 'Kota penjual wajib diisi untuk tiket fisik.',
+      });
+    }
+  }
+
+  if (details.length > 0) {
+    throw Errors.validation('Data tidak valid', details);
+  }
+}
+
+async function fetchListingDetail(db, listingId, currentUserId = null, userLat = null, userLng = null) {
+  const { rows } = await db.query(
+    `SELECT l.*,
+            e.nama AS event_nama, e.poster_url AS event_poster_url,
+            c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama,
+            v.nama AS venue_nama, v.kota AS venue_kota, v.alamat AS venue_alamat,
+            v.lat AS venue_lat, v.lng AS venue_lng,
+            u.nama AS seller_nama, u.created_at AS seller_created_at,
+            (SELECT count(*)::int FROM conversations cv WHERE cv.listing_id = l.id) AS tertarik,
+            CASE WHEN $2::int IS NOT NULL THEN EXISTS (
+              SELECT 1 FROM favorites f WHERE f.user_id = $2 AND f.listing_id = l.id
+            ) ELSE false END AS is_favorite
+     FROM listings l
+     JOIN events e ON e.id = l.event_id
+     JOIN categories c ON c.id = e.category_id
+     LEFT JOIN venues v ON v.id = l.venue_id
+     JOIN users u ON u.id = l.seller_id
+     WHERE l.id = $1
+     LIMIT 1`,
+    [listingId, currentUserId]
+  );
+
+  const row = rows[0];
+  if (!row) return null;
+
+  const photoResult = await db.query(
+    'SELECT id, url FROM listing_photos WHERE listing_id = $1 ORDER BY urutan ASC, id ASC',
+    [listingId]
+  );
+
+  return {
+    raw: row,
+    detail: formatListingDetail(row, photoResult.rows, userLat, userLng),
+  };
+}
+
+/**
+ * Router pembuatan, pembacaan, dan pengelolaan listing tiket.
+ */
+function createListingsRouter(db, requireAuth, optionalAuth) {
+  const router = express.Router();
+
+  router.get(
+    '/:id',
+    optionalAuth,
+    validate(listingIdParamSchema, 'params'),
+    validate(getListingQuerySchema, 'query'),
+    async (req, res, next) => {
+      try {
+        const result = await fetchListingDetail(
+          db,
+          req.params.id,
+          req.user ? req.user.id : null,
+          req.query.lat ?? null,
+          req.query.lng ?? null
+        );
+        if (!result || result.detail.status === 'dihapus') {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+        return res.json({ data: result.detail });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.post('/', requireAuth, validate(createListingSchema), async (req, res, next) => {
+    try {
+      const body = req.body;
+
+      if (!req.user.kota || req.user.kota.trim().length === 0) {
+        return next(
+          Errors.validation('Data tidak valid', [
+            { field: 'kota', message: 'Lengkapi kota di profil sebelum menjual tiket.' },
+          ])
+        );
+      }
+      if (body.izinkan_wa && (!req.user.no_wa || req.user.no_wa.trim().length === 0)) {
+        return next(
+          Errors.validation('Data tidak valid', [
+            {
+              field: 'izinkan_wa',
+              message: 'Lengkapi nomor WhatsApp di profil untuk mengaktifkan opsi WhatsApp.',
+            },
+          ])
+        );
+      }
+
+      if (new Date(body.waktu_acara).getTime() <= Date.now()) {
+        return next(
+          Errors.validation('Data tidak valid', [
+            { field: 'waktu_acara', message: 'Waktu acara harus di masa depan.' },
+          ])
+        );
+      }
+
+      validateHandoverAndLocation({
+        tipe: body.tipe,
+        serahTerima: body.serah_terima,
+        lokasiPenjualKota: body.lokasi_penjual_kota,
+        venueId: body.venue_id,
+        venueTeks: body.venue_teks,
+        kota: body.kota,
+      });
+
+      const eventRes = await db.query(
+        'SELECT id, hidden FROM events WHERE id = $1 LIMIT 1',
+        [body.event_id]
+      );
+      const eventRow = eventRes.rows[0];
+      if (!eventRow || eventRow.hidden) {
+        return next(
+          Errors.validation('Data tidak valid', [
+            { field: 'event_id', message: 'Event tidak ditemukan.' },
+          ])
+        );
+      }
+
+      let venueRow = null;
+      if (body.venue_id) {
+        const venueRes = await db.query(
+          'SELECT id, nama, kota, lat, lng FROM venues WHERE id = $1 LIMIT 1',
+          [body.venue_id]
+        );
+        venueRow = venueRes.rows[0] || null;
+        if (!venueRow) {
+          return next(
+            Errors.validation('Data tidak valid', [
+              { field: 'venue_id', message: 'Venue tidak ditemukan.' },
+            ])
+          );
+        }
+      }
+
+      const resolvedKota = (body.kota && body.kota.trim()) || venueRow?.kota;
+      const { refLat, refLng } = computeRefCoordinates({
+        tipe: body.tipe,
+        lokasiPenjualLat: body.lokasi_penjual_lat,
+        lokasiPenjualLng: body.lokasi_penjual_lng,
+        venue: venueRow,
+      });
+
+      const dupRes = await db.query(
+        `SELECT id FROM listings
+         WHERE seller_id = $1
+           AND event_id = $2
+           AND COALESCE(venue_id, 0) = COALESCE($3::int, 0)
+           AND COALESCE(venue_teks, '') = COALESCE($4, '')
+           AND waktu_acara = $5
+           AND harga = $6
+           AND deleted_at IS NULL
+           AND created_at >= now() - interval '10 minutes'
+         LIMIT 1`,
+        [
+          req.user.id,
+          body.event_id,
+          body.venue_id ?? null,
+          body.venue_teks ?? null,
+          body.waktu_acara,
+          body.harga,
+        ]
+      );
+      if (dupRes.rows.length > 0) {
+        return next(
+          Errors.conflict('Listing serupa baru saja dibuat dalam 10 menit terakhir.')
+        );
+      }
+
+      const uniqueHandover = [...new Set(body.serah_terima)];
+      const insertRes = await db.query(
+        `INSERT INTO listings (
+           event_id, seller_id, venue_id, venue_teks, kota, waktu_acara,
+           jenis, tipe, seksi, no_kursi, harga, harga_asli,
+           jumlah_total, satuan, terikat_nama, serah_terima,
+           lokasi_penjual_kota, lokasi_penjual_lat, lokasi_penjual_lng,
+           ref_lat, ref_lng, catatan, izinkan_wa
+         )
+         VALUES (
+           $1, $2, $3, $4, $5, $6,
+           $7, $8, $9, $10, $11, $12,
+           $13, $14, $15, $16,
+           $17, $18, $19,
+           $20, $21, $22, $23
+         )
+         RETURNING id`,
+        [
+          body.event_id,
+          req.user.id,
+          body.venue_id ?? null,
+          body.venue_id ? null : body.venue_teks,
+          resolvedKota,
+          body.waktu_acara,
+          body.jenis,
+          body.tipe,
+          body.seksi ?? null,
+          body.no_kursi ?? null,
+          body.harga,
+          body.harga_asli ?? null,
+          body.jumlah_total,
+          body.satuan,
+          body.terikat_nama,
+          uniqueHandover,
+          body.tipe === 'fisik' ? body.lokasi_penjual_kota : null,
+          body.tipe === 'fisik' ? (body.lokasi_penjual_lat ?? null) : null,
+          body.tipe === 'fisik' ? (body.lokasi_penjual_lng ?? null) : null,
+          refLat,
+          refLng,
+          body.catatan ?? null,
+          Boolean(body.izinkan_wa),
+        ]
+      );
+
+      const newId = insertRes.rows[0].id;
+      for (let i = 0; i < body.photos.length; i++) {
+        await db.query(
+          'INSERT INTO listing_photos (listing_id, url, urutan) VALUES ($1, $2, $3)',
+          [newId, body.photos[i], i]
+        );
+      }
+
+      const created = await fetchListingDetail(db, newId, req.user.id);
+      return res.status(201).json({ data: created.detail });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
+  router.put(
+    '/:id',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    validate(updateListingSchema),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const existingResult = await fetchListingDetail(db, listingId, req.user.id);
+        if (!existingResult || existingResult.detail.status === 'dihapus') {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+
+        const existing = existingResult.raw;
+        if (existing.seller_id !== req.user.id) {
+          return next(Errors.forbidden('Hanya penjual yang dapat mengubah listing ini.'));
+        }
+
+        const body = req.body;
+        const nextTotal = body.jumlah_total ?? existing.jumlah_total;
+        if (nextTotal < existing.jumlah_terjual) {
+          return next(
+            Errors.validation('Data tidak valid', [
+              {
+                field: 'jumlah_total',
+                message: 'Jumlah total tidak boleh lebih kecil dari jumlah terjual.',
+              },
+            ])
+          );
+        }
+
+        const nextWaktu = body.waktu_acara ?? existing.waktu_acara;
+        if (new Date(nextWaktu).getTime() <= Date.now()) {
+          return next(
+            Errors.validation('Data tidak valid', [
+              { field: 'waktu_acara', message: 'Waktu acara harus di masa depan.' },
+            ])
+          );
+        }
+
+        const nextIzinkanWa =
+          body.izinkan_wa !== undefined ? body.izinkan_wa : existing.izinkan_wa;
+        if (nextIzinkanWa && (!req.user.no_wa || req.user.no_wa.trim().length === 0)) {
+          return next(
+            Errors.validation('Data tidak valid', [
+              {
+                field: 'izinkan_wa',
+                message: 'Lengkapi nomor WhatsApp di profil untuk mengaktifkan opsi WhatsApp.',
+              },
+            ])
+          );
+        }
+
+        const nextTipe = body.tipe ?? existing.tipe;
+        const nextSerahTerima = body.serah_terima ?? existing.serah_terima;
+        const nextLokasiKota =
+          body.lokasi_penjual_kota !== undefined
+            ? body.lokasi_penjual_kota
+            : existing.lokasi_penjual_kota;
+        const nextVenueId =
+          body.venue_id !== undefined ? body.venue_id : existing.venue_id;
+        const nextVenueTeks =
+          body.venue_teks !== undefined ? body.venue_teks : existing.venue_teks;
+        const nextKota = body.kota !== undefined ? body.kota : existing.kota;
+
+        validateHandoverAndLocation({
+          tipe: nextTipe,
+          serahTerima: nextSerahTerima,
+          lokasiPenjualKota: nextLokasiKota,
+          venueId: nextVenueId,
+          venueTeks: nextVenueTeks,
+          kota: nextKota,
+        });
+
+        let venueRow = null;
+        if (nextVenueId) {
+          const venueRes = await db.query(
+            'SELECT id, nama, kota, lat, lng FROM venues WHERE id = $1 LIMIT 1',
+            [nextVenueId]
+          );
+          venueRow = venueRes.rows[0] || null;
+          if (!venueRow) {
+            return next(
+              Errors.validation('Data tidak valid', [
+                { field: 'venue_id', message: 'Venue tidak ditemukan.' },
+              ])
+            );
+          }
+        }
+
+        const nextPenjualLat =
+          body.lokasi_penjual_lat !== undefined
+            ? body.lokasi_penjual_lat
+            : existing.lokasi_penjual_lat;
+        const nextPenjualLng =
+          body.lokasi_penjual_lng !== undefined
+            ? body.lokasi_penjual_lng
+            : existing.lokasi_penjual_lng;
+        const { refLat, refLng } = computeRefCoordinates({
+          tipe: nextTipe,
+          lokasiPenjualLat: nextPenjualLat,
+          lokasiPenjualLng: nextPenjualLng,
+          venue: venueRow,
+        });
+
+        await db.query(
+          `UPDATE listings
+           SET event_id = $1,
+               venue_id = $2,
+               venue_teks = $3,
+               kota = $4,
+               waktu_acara = $5,
+               jenis = $6,
+               tipe = $7,
+               seksi = $8,
+               no_kursi = $9,
+               harga = $10,
+               harga_asli = $11,
+               jumlah_total = $12,
+               satuan = $13,
+               terikat_nama = $14,
+               serah_terima = $15,
+               lokasi_penjual_kota = $16,
+               lokasi_penjual_lat = $17,
+               lokasi_penjual_lng = $18,
+               ref_lat = $19,
+               ref_lng = $20,
+               catatan = $21,
+               izinkan_wa = $22,
+               updated_at = now()
+           WHERE id = $23`,
+          [
+            body.event_id ?? existing.event_id,
+            nextVenueId ?? null,
+            nextVenueId ? null : nextVenueTeks,
+            (nextKota && nextKota.trim()) || venueRow?.kota || existing.kota,
+            nextWaktu,
+            body.jenis ?? existing.jenis,
+            nextTipe,
+            body.seksi !== undefined ? body.seksi : existing.seksi,
+            body.no_kursi !== undefined ? body.no_kursi : existing.no_kursi,
+            body.harga ?? existing.harga,
+            body.harga_asli !== undefined ? body.harga_asli : existing.harga_asli,
+            nextTotal,
+            body.satuan !== undefined ? body.satuan : existing.satuan,
+            body.terikat_nama ?? existing.terikat_nama,
+            [...new Set(nextSerahTerima)],
+            nextTipe === 'fisik' ? nextLokasiKota : null,
+            nextTipe === 'fisik' ? (nextPenjualLat ?? null) : null,
+            nextTipe === 'fisik' ? (nextPenjualLng ?? null) : null,
+            refLat,
+            refLng,
+            body.catatan !== undefined ? body.catatan : existing.catatan,
+            nextIzinkanWa,
+            listingId,
+          ]
+        );
+
+        if (body.photos) {
+          await db.query('DELETE FROM listing_photos WHERE listing_id = $1', [listingId]);
+          for (let i = 0; i < body.photos.length; i++) {
+            await db.query(
+              'INSERT INTO listing_photos (listing_id, url, urutan) VALUES ($1, $2, $3)',
+              [listingId, body.photos[i], i]
+            );
+          }
+        }
+
+        const updated = await fetchListingDetail(db, listingId, req.user.id);
+        return res.json({ data: updated.detail });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.patch(
+    '/:id/stock',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    validate(patchStockSchema),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const existingResult = await fetchListingDetail(db, listingId, req.user.id);
+        if (!existingResult || existingResult.detail.status === 'dihapus') {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+        const existing = existingResult.raw;
+        if (existing.seller_id !== req.user.id) {
+          return next(Errors.forbidden('Hanya penjual yang dapat mengubah stok.'));
+        }
+        if (req.body.jumlah_terjual > existing.jumlah_total) {
+          return next(
+            Errors.validation('Data tidak valid', [
+              {
+                field: 'jumlah_terjual',
+                message: 'Jumlah terjual tidak boleh melebihi jumlah total.',
+              },
+            ])
+          );
+        }
+
+        await db.query(
+          'UPDATE listings SET jumlah_terjual = $1, updated_at = now() WHERE id = $2',
+          [req.body.jumlah_terjual, listingId]
+        );
+
+        const updated = await fetchListingDetail(db, listingId, req.user.id);
+        return res.json({ data: updated.detail });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.post(
+    '/:id/confirm',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const existingResult = await fetchListingDetail(db, listingId, req.user.id);
+        if (!existingResult || existingResult.detail.status === 'dihapus') {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+        if (existingResult.raw.seller_id !== req.user.id) {
+          return next(Errors.forbidden('Hanya penjual yang dapat mengonfirmasi listing.'));
+        }
+
+        const confirmRes = await db.query(
+          'UPDATE listings SET confirmed_at = now(), updated_at = now() WHERE id = $1 RETURNING confirmed_at',
+          [listingId]
+        );
+
+        return res.json({
+          data: {
+            confirmed_at: confirmRes.rows[0].confirmed_at,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.delete(
+    '/:id',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const existingResult = await fetchListingDetail(db, listingId, req.user.id);
+        if (!existingResult || existingResult.detail.status === 'dihapus') {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+        if (existingResult.raw.seller_id !== req.user.id) {
+          return next(Errors.forbidden('Hanya penjual yang dapat menghapus listing.'));
+        }
+
+        await db.query(
+          'UPDATE listings SET deleted_at = now(), updated_at = now() WHERE id = $1',
+          [listingId]
+        );
+        return res.status(204).send();
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  return router;
+}
+
+module.exports = {
+  createListingsRouter,
+  computeListingStatus,
+  computeDiscountPercent,
+  computeRefCoordinates,
+};

@@ -80,5 +80,67 @@ function createRequireAuth(db) {
   };
 }
 
-module.exports = { signToken, verifyToken, createRequireAuth, getJwtSecret };
+/**
+ * Middleware autentikasi opsional: mengisi req.user bila Bearer token valid dan akun aktif,
+ * namun tetap melanjutkan sebagai tamu bila tanpa token atau token tidak valid.
+ */
+function createOptionalAuth(db) {
+  return async (req, _res, next) => {
+    try {
+      const header = req.headers.authorization || '';
+      if (!header.startsWith('Bearer ')) {
+        req.user = null;
+        return next();
+      }
+
+      const token = header.slice(7).trim();
+      if (!token) {
+        req.user = null;
+        return next();
+      }
+
+      let payload;
+      try {
+        payload = verifyToken(token);
+      } catch (_err) {
+        req.user = null;
+        return next();
+      }
+
+      const { rows } = await db.query(
+        `SELECT id, nama, email, no_wa, kota, banned_at, created_at
+         FROM users
+         WHERE id = $1
+         LIMIT 1`,
+        [payload.sub]
+      );
+
+      if (rows.length === 0 || rows[0].banned_at) {
+        req.user = null;
+        return next();
+      }
+
+      const user = rows[0];
+      req.user = {
+        id: user.id,
+        nama: user.nama,
+        email: user.email,
+        no_wa: user.no_wa,
+        kota: user.kota,
+        created_at: user.created_at,
+      };
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  };
+}
+
+module.exports = {
+  signToken,
+  verifyToken,
+  createRequireAuth,
+  createOptionalAuth,
+  getJwtSecret,
+};
 

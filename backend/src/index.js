@@ -7,13 +7,14 @@ const cors = require('cors');
 const defaultPool = require('./db/pool');
 const { errorHandler, Errors } = require('./utils/errors');
 const { generalLimiter, authLimiter } = require('./middleware/rateLimit');
-const { createRequireAuth } = require('./middleware/auth');
+const { createRequireAuth, createOptionalAuth } = require('./middleware/auth');
 const { createAuthRouter } = require('./routes/auth');
 const { createMeRouter } = require('./routes/me');
 const { createCategoriesRouter } = require('./routes/categories');
 const { createVenuesRouter } = require('./routes/venues');
 const { createEventsRouter } = require('./routes/events');
 const { createUploadsRouter } = require('./routes/uploads');
+const { createListingsRouter } = require('./routes/listings');
 
 const DEFAULT_UPLOADS_DIR = path.resolve(__dirname, '../uploads');
 
@@ -24,6 +25,7 @@ function createApp({
 } = {}) {
   const app = express();
   const requireAuth = createRequireAuth(db);
+  const optionalAuth = createOptionalAuth(db);
 
   app.use(cors());
   app.use(express.json());
@@ -52,6 +54,7 @@ function createApp({
   app.use('/api/v1/venues', createVenuesRouter(db));
   app.use('/api/v1/events', createEventsRouter(db, requireAuth));
   app.use('/api/v1/uploads', createUploadsRouter(requireAuth, uploadsDir));
+  app.use('/api/v1/listings', createListingsRouter(db, requireAuth, optionalAuth));
 
   // 404 fallback seragam
   app.use((_req, _res, next) => {

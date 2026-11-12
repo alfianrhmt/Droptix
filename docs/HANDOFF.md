@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T2.4**: Melengkapi tes pembuatan event di [master.test.js](file:///c:/Users/bstar/Desktop/Droptix/backend/tests/master.test.js) (nama mirip, kategori berbeda, validasi tanggal/olahraga, batas 5/hari, dan kunci `EVENT_LOCKED`; `5 suites, 25 tests passed`). Milestone **M2** selesai.
+- **T3.1**: Backend CRUD & manajemen listing ([listings.js](file:///c:/Users/bstar/Desktop/Droptix/backend/src/routes/listings.js), [auth.js](file:///c:/Users/bstar/Desktop/Droptix/backend/src/middleware/auth.js) `createOptionalAuth`): `POST /listings` (validasi profil `kota` & `no_wa` untuk `izinkan_wa`, `serah_terima`, foto `/uploads/`, duplikat 10 menit, pengisian `ref_lat`/`ref_lng`), `PUT`, `PATCH /stock`, `POST /confirm`, `DELETE` (soft), `GET /listings/:id` (`6 suites, 29 tests passed`).
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M3 (**T3.1**).
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T3.2.
 
 ## Langkah berikutnya
-- **T3.1**: Backend `POST /listings` dengan semua validasi `API.md` (termasuk `izinkan_wa`), `PUT`, `DELETE` (soft), `PATCH /stock`, `POST /confirm`, `GET /listings/:id`, pengisian `ref_lat`/`ref_lng`, status turunan (termasuk `hidden`).
+- **T3.2**: Flutter alur Sell 5 langkah, indikator kemajuan, sakelar WhatsApp, pratinjau, posting.
