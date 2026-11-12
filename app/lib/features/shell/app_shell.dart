@@ -6,6 +6,7 @@ import '../../core/widgets/widgets.dart';
 import '../gallery/component_gallery_screen.dart';
 import '../location/location_picker_sheet.dart';
 import '../profile/profile_screen.dart';
+import '../sell/sell_screen.dart';
 
 /// Kerangka navigasi utama 4 tab: Home, Activity, Sell, Profile.
 /// Tab Activity dan Sell menerapkan alur "login saat aksi" untuk tamu.
@@ -68,11 +69,8 @@ class _AppShellState extends State<AppShell> {
         );
         break;
       case 2:
-        body = const SafeArea(
-          child: EmptyState(
-            icon: Icons.sell_outlined,
-            message: 'Form jual tiket akan hadir di M3.',
-          ),
+        body = SellScreen(
+          onPosted: () => setState(() => _tabIndex = 1),
         );
         break;
       case 3:

@@ -13,6 +13,7 @@ class AuthRepository {
   AuthRepository(this._client);
 
   final ApiClient _client;
+  ApiClient get client => _client;
 
   Future<AuthResult> register({
     required String nama,

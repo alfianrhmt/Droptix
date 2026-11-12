@@ -13,4 +13,5 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 7 | Validasi isi berkas unggahan (`POST /uploads`) memeriksa magic bytes JPG/PNG/WebP langsung dengan `multer` memoryStorage | Ringan, bebas masalah kompatibilitas ESM/native, dan tidak bergantung pada ekstensi berkas klien |
 | 8 | Pemetaan koordinat GPS ke nama kota memakai jarak Haversine terhadap daftar kota Indonesia di `cities.dart` | Berjalan seragam di Android, Web, dan Windows tanpa plugin reverse-geocoding eksternal |
 | 9 | Crop poster rasio 2:3 di Flutter memakai `InteractiveViewer` + `RepaintBoundary.toImage()` | Berjalan lintas platform (Android, Web, Windows) tanpa konfigurasi native UCrop/cropperjs |
+| 10 | Alur Sell mengunggah foto langsung saat dipilih via `POST /uploads` sebelum posting final | Menghindari payload multipart raksasa di `POST /listings` dan memungkinkan pratinjau instan |
 

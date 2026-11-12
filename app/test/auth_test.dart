@@ -241,7 +241,7 @@ void main() {
 
     // Setelah login, otomatis lanjut ke tab Sell
     expect(auth.isLoggedIn, isTrue);
-    expect(find.text('Form jual tiket akan hadir di M3.'), findsOneWidget);
+    expect(find.textContaining('Jual Tiket (1/5)'), findsOneWidget);
   });
 
   testWidgets(
