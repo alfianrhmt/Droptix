@@ -7,6 +7,7 @@ export 'category_row.dart';
 export 'chat_widgets.dart';
 export 'countdown_timer.dart';
 export 'empty_state.dart';
+export 'event_poster.dart';
 export 'filter_chip_row.dart';
 export 'listing_widgets.dart';
 export 'primary_button.dart';

@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T2.2**: Alur izin lokasi Flutter ([location_controller.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/core/location/location_controller.dart), [cities.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/core/location/cities.dart)) dengan `geolocator`, fallback pilih kota manual lewat [location_picker_sheet.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/location/location_picker_sheet.dart), persistensi `SharedPreferences`, dan pil lokasi di `AppHeader` yang bisa diganti (`12/12` tes lulus).
+- **T2.3**: Pemilih event Flutter ([event_picker_sheet.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/events/event_picker_sheet.dart), [event_repository.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/events/event_repository.dart), [poster_crop_dialog.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/events/poster_crop_dialog.dart), [event_poster.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/core/widgets/event_poster.dart)) lengkap dengan pencarian, "Tambah baru", dialog "Maksudmu ini?", crop poster 2:3, unggah ke `/uploads`, dan poster cadangan (`14/14` tes lulus).
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T2.3.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T2.4.
 
 ## Langkah berikutnya
-- **T2.3**: Flutter pemilih event (pencarian, "Tambah baru", dialog "Maksudmu ini?", unggah dan crop poster 2:3, poster cadangan).
+- **T2.4**: Tes pembuatan event (nama mirip, batas harian, kunci).

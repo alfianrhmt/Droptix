@@ -64,3 +64,4 @@ CityOption? findNearestCity(double lat, double lng, {double maxKm = 80}) {
   }
   return null;
 }
+

@@ -193,3 +193,4 @@ class LocationScope extends InheritedNotifier<LocationController> {
         ?.notifier;
   }
 }
+

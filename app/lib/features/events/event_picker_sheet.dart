@@ -1,0 +1,785 @@
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../core/network/api_error.dart';
+import '../../core/theme/theme.dart';
+import '../../core/widgets/widgets.dart';
+import 'event_models.dart';
+import 'event_repository.dart';
+import 'poster_crop_dialog.dart';
+
+/// Abstraksi pengambilan berkas gambar agar mudah di-mock saat pengujian widget.
+typedef PosterBytesPicker = Future<Uint8List?> Function();
+
+Future<Uint8List?> defaultPosterBytesPicker() async {
+  final picker = ImagePicker();
+  final picked = await picker.pickImage(source: ImageSource.gallery);
+  if (picked == null) return null;
+  return picked.readAsBytes();
+}
+
+/// Membuka bottom sheet pemilih event (pencarian, tambah baru, dialog "Maksudmu ini?", crop poster 2:3).
+Future<EventItem?> showEventPickerSheet(
+  BuildContext context, {
+  required EventRepository repository,
+  PosterBytesPicker? pickPosterBytes,
+  String? initialCategorySlug,
+}) {
+  return showModalBottomSheet<EventItem>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (ctx) => _EventPickerSheet(
+      repository: repository,
+      pickPosterBytes: pickPosterBytes ?? defaultPosterBytesPicker,
+      initialCategorySlug: initialCategorySlug,
+    ),
+  );
+}
+
+class _EventPickerSheet extends StatefulWidget {
+  const _EventPickerSheet({
+    required this.repository,
+    required this.pickPosterBytes,
+    this.initialCategorySlug,
+  });
+
+  final EventRepository repository;
+  final PosterBytesPicker pickPosterBytes;
+  final String? initialCategorySlug;
+
+  @override
+  State<_EventPickerSheet> createState() => _EventPickerSheetState();
+}
+
+class _EventPickerSheetState extends State<_EventPickerSheet> {
+  final _searchController = TextEditingController();
+  bool _createMode = false;
+  bool _loading = true;
+  String? _error;
+
+  List<EventCategory> _categories = const [];
+  List<EventItem> _events = const [];
+  String? _selectedCategorySlug;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategorySlug = widget.initialCategorySlug;
+    _loadInitial();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadInitial() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait([
+        widget.repository.getCategories(),
+        widget.repository.searchEvents(categorySlug: _selectedCategorySlug),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _categories = results[0] as List<EventCategory>;
+        _events = results[1] as List<EventItem>;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Gagal memuat daftar event.';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _search() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final events = await widget.repository.searchEvents(
+        q: _searchController.text,
+        categorySlug: _selectedCategorySlug,
+      );
+      if (!mounted) return;
+      setState(() {
+        _events = events;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.88;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            AppSpacing.md + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: _createMode
+              ? _CreateEventForm(
+                  repository: widget.repository,
+                  categories: _categories,
+                  pickPosterBytes: widget.pickPosterBytes,
+                  initialName: _searchController.text.trim(),
+                  initialCategorySlug: _selectedCategorySlug,
+                  onBack: () => setState(() => _createMode = false),
+                  onCreated: (event) => Navigator.of(context).pop(event),
+                  onSelectExistingId: (similarId) async {
+                    final match = _events.where((e) => e.id == similarId).firstOrNull;
+                    if (match != null) {
+                      Navigator.of(context).pop(match);
+                      return;
+                    }
+                    final refreshed = await widget.repository.searchEvents(
+                      q: _searchController.text,
+                    );
+                    if (!context.mounted) return;
+                    final found =
+                        refreshed.where((e) => e.id == similarId).firstOrNull;
+                    if (found != null) {
+                      Navigator.of(context).pop(found);
+                    }
+                  },
+                )
+              : _buildSearchBody(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBody() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(AppRadius.full),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: Text('Pilih event', style: AppTextStyles.titleMedium),
+            ),
+            TextButton.icon(
+              onPressed: () => setState(() => _createMode = true),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Tambah baru'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppTextField(
+          controller: _searchController,
+          label: 'Cari nama event',
+          hintText: 'Contoh: Nada Senja, Pestapora, Dewa 19',
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_categories.isNotEmpty)
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _CategoryChip(
+                  label: 'Semua',
+                  selected: _selectedCategorySlug == null,
+                  onTap: () {
+                    setState(() => _selectedCategorySlug = null);
+                    _search();
+                  },
+                ),
+                for (final cat in _categories)
+                  Padding(
+                    padding: const EdgeInsets.only(left: AppSpacing.xs),
+                    child: _CategoryChip(
+                      label: cat.nama,
+                      selected: _selectedCategorySlug == cat.slug,
+                      onTap: () {
+                        setState(() => _selectedCategorySlug = cat.slug);
+                        _search();
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSpacing.sm),
+        Flexible(
+          child: _loading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.xl),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Text(
+                          _error!,
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.urgent),
+                        ),
+                      ),
+                    )
+                  : _events.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.lg),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Event belum ditemukan.',
+                                style: AppTextStyles.bodySmall
+                                    .copyWith(color: AppColors.textSecondary),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              PrimaryButton(
+                                label: 'Tambah event baru',
+                                icon: Icons.add_rounded,
+                                onPressed: () =>
+                                    setState(() => _createMode = true),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _events.length,
+                          separatorBuilder: (_, _) => const Divider(
+                            height: 1,
+                            color: AppColors.divider,
+                          ),
+                          itemBuilder: (ctx, i) {
+                            final ev = _events[i];
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.xs,
+                              ),
+                              leading: EventPoster(
+                                title: ev.nama,
+                                posterUrl: ev.posterUrl,
+                                categorySlug: ev.category.slug,
+                                width: 42,
+                                borderRadius: AppRadius.sm,
+                              ),
+                              title: Text(
+                                ev.nama,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.body.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                [
+                                  ev.category.nama,
+                                  if (ev.venue != null) ev.venue!.kota,
+                                ].join(' • '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.caption
+                                    .copyWith(color: AppColors.textSecondary),
+                              ),
+                              trailing: const Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppColors.textSecondary,
+                              ),
+                              onTap: () => Navigator.of(context).pop(ev),
+                            );
+                          },
+                        ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      backgroundColor: AppColors.chipInactive,
+      selectedColor: AppColors.primary,
+      labelStyle: AppTextStyles.caption.copyWith(
+        color: selected ? AppColors.onPrimary : AppColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+    );
+  }
+}
+
+class _CreateEventForm extends StatefulWidget {
+  const _CreateEventForm({
+    required this.repository,
+    required this.categories,
+    required this.pickPosterBytes,
+    required this.initialName,
+    required this.onBack,
+    required this.onCreated,
+    required this.onSelectExistingId,
+    this.initialCategorySlug,
+  });
+
+  final EventRepository repository;
+  final List<EventCategory> categories;
+  final PosterBytesPicker pickPosterBytes;
+  final String initialName;
+  final String? initialCategorySlug;
+  final VoidCallback onBack;
+  final ValueChanged<EventItem> onCreated;
+  final Future<void> Function(int similarId) onSelectExistingId;
+
+  @override
+  State<_CreateEventForm> createState() => _CreateEventFormState();
+}
+
+class _CreateEventFormState extends State<_CreateEventForm> {
+  late final TextEditingController _nameController;
+  EventCategory? _selectedCategory;
+  VenueItem? _selectedVenue;
+  List<VenueItem> _venues = const [];
+  DateTime? _selectedDate;
+  Uint8List? _croppedPosterBytes;
+  String? _uploadedPosterUrl;
+  bool _submitting = false;
+  bool _uploadingPoster = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    if (widget.categories.isNotEmpty) {
+      _selectedCategory = widget.categories
+              .where((c) => c.slug == widget.initialCategorySlug)
+              .firstOrNull ??
+          widget.categories.first;
+    }
+    _loadVenues();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadVenues() async {
+    try {
+      final venues = await widget.repository.getVenues();
+      if (mounted) setState(() => _venues = venues);
+    } catch (_) {}
+  }
+
+  Future<void> _pickAndCropPoster() async {
+    final rawBytes = await widget.pickPosterBytes();
+    if (rawBytes == null || !mounted) return;
+
+    final cropped = await showPosterCropDialog(context, rawBytes);
+    if (cropped == null || !mounted) return;
+
+    setState(() {
+      _croppedPosterBytes = cropped;
+      _uploadingPoster = true;
+      _error = null;
+    });
+    try {
+      final url = await widget.repository.uploadPoster(cropped);
+      if (!mounted) return;
+      setState(() {
+        _uploadedPosterUrl = url;
+        _uploadingPoster = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _uploadingPoster = false;
+      });
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now.add(const Duration(days: 7)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 2)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDate ?? now),
+    );
+    if (!mounted) return;
+    setState(() {
+      _selectedDate = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time?.hour ?? 19,
+        time?.minute ?? 0,
+      );
+    });
+  }
+
+  Future<void> _submit({bool force = false}) async {
+    final cat = _selectedCategory;
+    if (cat == null) {
+      setState(() => _error = 'Pilih kategori event terlebih dahulu.');
+      return;
+    }
+    final nama = _nameController.text.trim();
+    if (nama.length < 3) {
+      setState(() => _error = 'Nama event minimal 3 karakter.');
+      return;
+    }
+    if (cat.requiresVenueAndDate &&
+        (_selectedVenue == null || _selectedDate == null)) {
+      setState(() => _error =
+          'Venue dan tanggal wajib diisi untuk kategori ${cat.nama}.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      final created = await widget.repository.createEvent(
+        categoryId: cat.id,
+        nama: nama,
+        posterUrl: _uploadedPosterUrl,
+        venueId: _selectedVenue?.id,
+        tanggal: _selectedDate,
+        force: force,
+      );
+      if (mounted) widget.onCreated(created);
+    } on SimilarEventException catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      await _showSimilarDialog(e.similar);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _submitting = false;
+      });
+    }
+  }
+
+  Future<void> _showSimilarDialog(List<SimilarEventItem> similar) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Maksudmu ini?', style: AppTextStyles.titleMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Ada event serupa yang sudah terdaftar. Pilih salah satu atau tetap buat event baru.',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final item in similar)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: EventPoster(
+                  title: item.nama,
+                  posterUrl: item.posterUrl,
+                  width: 36,
+                  borderRadius: AppRadius.sm,
+                ),
+                title: Text(item.nama, style: AppTextStyles.body),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.primary,
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  widget.onSelectExistingId(item.id);
+                },
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _submit(force: true);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+            child: const Text('Tetap buat event baru'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final requiresVenue = _selectedCategory?.requiresVenueAndDate ?? false;
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: widget.onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: AppColors.textPrimary,
+              ),
+              Expanded(
+                child: Text(
+                  'Tambah event baru',
+                  style: AppTextStyles.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (widget.categories.isNotEmpty) ...[
+            Text('Kategori', style: AppTextStyles.label),
+            const SizedBox(height: AppSpacing.xs),
+            DropdownButtonFormField<int>(
+              isExpanded: true,
+              initialValue: _selectedCategory?.id,
+              dropdownColor: AppColors.surfaceHigh,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.surfaceHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: [
+                for (final c in widget.categories)
+                  DropdownMenuItem(
+                    value: c.id,
+                    child: Text(c.nama, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (id) {
+                setState(() {
+                  _selectedCategory =
+                      widget.categories.where((c) => c.id == id).firstOrNull;
+                });
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          AppTextField(
+            controller: _nameController,
+            label: 'Nama event',
+            hintText: 'Contoh: Nada Senja Live in Surabaya',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (_venues.isNotEmpty) ...[
+            Text(
+              requiresVenue ? 'Venue (wajib)' : 'Venue (opsional)',
+              style: AppTextStyles.label,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            DropdownButtonFormField<int?>(
+              isExpanded: true,
+              initialValue: _selectedVenue?.id,
+              dropdownColor: AppColors.surfaceHigh,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.surfaceHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: [
+                if (!requiresVenue)
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text(
+                      'Tanpa venue khusus',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                for (final v in _venues)
+                  DropdownMenuItem<int?>(
+                    value: v.id,
+                    child: Text(
+                      '${v.nama} (${v.kota})',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (id) {
+                setState(() {
+                  _selectedVenue = id == null
+                      ? null
+                      : _venues.where((v) => v.id == id).firstOrNull;
+                });
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          OutlinedButton.icon(
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_today_rounded, size: 18),
+            label: Text(
+              _selectedDate == null
+                  ? (requiresVenue
+                      ? 'Pilih tanggal & jam (wajib)'
+                      : 'Pilih tanggal & jam (opsional)')
+                  : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year} '
+                      '${_selectedDate!.hour.toString().padLeft(2, '0')}:'
+                      '${_selectedDate!.minute.toString().padLeft(2, '0')}',
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, AppTouchTarget.min),
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              EventPoster(
+                title: _nameController.text,
+                posterUrl: _uploadedPosterUrl,
+                previewBytes: _croppedPosterBytes,
+                categorySlug: _selectedCategory?.slug,
+                width: 64,
+                borderRadius: AppRadius.sm,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Poster event (2:3)',
+                      style: AppTextStyles.label,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _uploadedPosterUrl != null
+                          ? 'Poster siap dipakai.'
+                          : 'Opsional — memakai poster cadangan jika kosong.',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    TextButton.icon(
+                      onPressed: _uploadingPoster ? null : _pickAndCropPoster,
+                      icon: const Icon(Icons.crop_rounded, size: 18),
+                      label: Text(_uploadingPoster
+                          ? 'Mengunggah...'
+                          : 'Unggah & crop 2:3'),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        foregroundColor: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error!,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.urgent),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          PrimaryButton(
+            label: 'Simpan Event',
+            isLoading: _submitting,
+            onPressed: () => _submit(),
+          ),
+        ],
+      ),
+    );
+  }
+}

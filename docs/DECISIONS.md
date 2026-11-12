@@ -12,4 +12,5 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 6 | Memakai `shared_preferences` untuk penyimpanan token sesi & `API_BASE_URL` via `--dart-define` (default `http://10.0.2.2:3000/api/v1`) | Sederhana tanpa setup keystore tambahan di Windows/emulator serta mudah di-mock di widget/unit test |
 | 7 | Validasi isi berkas unggahan (`POST /uploads`) memeriksa magic bytes JPG/PNG/WebP langsung dengan `multer` memoryStorage | Ringan, bebas masalah kompatibilitas ESM/native, dan tidak bergantung pada ekstensi berkas klien |
 | 8 | Pemetaan koordinat GPS ke nama kota memakai jarak Haversine terhadap daftar kota Indonesia di `cities.dart` | Berjalan seragam di Android, Web, dan Windows tanpa plugin reverse-geocoding eksternal |
+| 9 | Crop poster rasio 2:3 di Flutter memakai `InteractiveViewer` + `RepaintBoundary.toImage()` | Berjalan lintas platform (Android, Web, Windows) tanpa konfigurasi native UCrop/cropperjs |
 
