@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T1.5**: Tes Jest untuk auth ([auth.test.js](file:///c:/Users/bstar/Desktop/Droptix/backend/tests/auth.test.js)) — registrasi, email ganda, validasi syarat/password, login salah (email/password), akun dibekukan (login & `/me`), token kedaluwarsa/tidak valid, ganti password, dan rate limit (`4 suites, 18 tests passed`). Milestone M1 selesai.
+- **T2.1**: Backend `GET /categories`, `GET /venues`, `GET /events`, `POST /events` (validasi kategori wajib venue/tanggal, cek nama mirip `409 SIMILAR_EVENT_EXISTS`, `force`, batas 5/hari), `PUT /events/:id` (`403 EVENT_LOCKED`), dan `POST /uploads` + sajian statis `/uploads` dengan validasi magic bytes (`5 suites, 22 tests passed`).
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M2 (**T2.1**).
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T2.2.
 
 ## Langkah berikutnya
-- **T2.1**: Backend `GET /categories`, `GET /venues`, `GET /events`, `POST /events` (cek nama mirip, `force`, batas 5 per hari), `PUT /events/:id` (kunci), `POST /uploads` (validasi isi berkas).
+- **T2.2**: Flutter alur izin lokasi dengan fallback pilih kota manual, pil lokasi di header yang bisa diganti.

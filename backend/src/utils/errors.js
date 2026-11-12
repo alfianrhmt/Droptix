@@ -21,6 +21,13 @@ const Errors = {
     new AppError(404, 'NOT_FOUND', message),
   conflict: (message = 'Data sudah ada.') =>
     new AppError(409, 'CONFLICT', message),
+  similarEvent: (similar) =>
+    new AppError(409, 'SIMILAR_EVENT_EXISTS', 'Ada event yang mirip', null, {
+      similar,
+    }),
+  eventLocked: (
+    message = 'Event sudah memiliki listing dari penjual lain sehingga tidak dapat diubah.'
+  ) => new AppError(403, 'EVENT_LOCKED', message),
   validation: (message = 'Data tidak valid', details = null) =>
     new AppError(422, 'VALIDATION_ERROR', message, details),
   rateLimited: (message = 'Terlalu banyak permintaan. Coba lagi nanti.') =>
