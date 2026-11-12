@@ -99,10 +99,14 @@ class PosterCard extends StatelessWidget {
                             const Icon(Icons.confirmation_number_outlined,
                                 color: AppColors.primary, size: 12),
                             const SizedBox(width: 4),
-                            Text(
-                              '${listing.ticketCount} tiket',
-                              style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.primary),
+                            Flexible(
+                              child: Text(
+                                '${listing.ticketCount} tiket',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.primary),
+                              ),
                             ),
                           ],
                         ),

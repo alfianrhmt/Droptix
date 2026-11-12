@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/theme/theme.dart';
 import 'core/widgets/widgets.dart';
+import 'features/gallery/component_gallery_screen.dart';
 
 void main() {
   runApp(const DroptixApp());
@@ -16,13 +17,7 @@ class DroptixApp extends StatelessWidget {
         title: 'Droptix',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
-        home: const AppBackground(
-          child: Scaffold(
-            body: Center(
-              child: Text('Droptix'),
-            ),
-          ),
-        ),
+        home: const ComponentGalleryScreen(),
       ),
     );
   }

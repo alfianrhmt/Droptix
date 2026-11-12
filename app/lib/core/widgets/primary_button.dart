@@ -43,9 +43,16 @@ class PrimaryButton extends StatelessWidget {
                 Icon(icon, size: 18),
                 const SizedBox(width: AppSpacing.sm),
               ],
-              Text(label, style: AppTextStyles.label.copyWith(
-                color: isPrimary ? AppColors.onPrimary : AppColors.primary,
-              )),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.label.copyWith(
+                    color: isPrimary ? AppColors.onPrimary : AppColors.primary,
+                  ),
+                ),
+              ),
             ],
           );
 
