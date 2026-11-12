@@ -1,30 +1,23 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:droptix/main.dart';
+import 'package:droptix/core/theme/app_colors.dart';
+import 'package:droptix/core/widgets/app_background.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('AppBackground memakai gradasi token tema', (tester) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: AppBackground(child: SizedBox.expand()),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final box = tester.widget<DecoratedBox>(find.byType(DecoratedBox));
+    final gradient =
+        (box.decoration as BoxDecoration).gradient as LinearGradient;
+    expect(gradient.colors,
+        [AppColors.bg, AppColors.glowMid, AppColors.glowEnd]);
+    expect(gradient.begin, Alignment.topLeft);
+    expect(gradient.end, Alignment.bottomRight);
   });
 }
