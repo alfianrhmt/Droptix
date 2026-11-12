@@ -332,3 +332,4 @@ if (require.main === module) {
 }
 
 module.exports = { runSeed, DEV_PASSWORD, normalizeEventName };
+

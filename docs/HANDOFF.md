@@ -2,9 +2,9 @@
 
 ## Selesai
 
-- **M0 (T0.1–T0.4)** — Fondasi backend/Docker, tema token, komponen bersama, Component Gallery.
-- **T1.1** — Migrasi `001_init.sql`, pool koneksi, skrip `migrate` idempoten.
-- **T1.2** — Seed idempoten di `backend/db/seed.js` & `seed_data.js` (`npm run seed`), 5 kategori, 28 venue (koordinat diverifikasi; 2 area perkiraan disetel `NULL`), 3 akun dev (password di `README.md`), 10 event, 16 listing, percakapan + pesan + favorit, serta 9 gambar lokal di `backend/uploads/seed/`. 10 unit test lulus (mock DB; belum diuji ke Postgres live).
+- **M0 (T0.1–T0.4)** — Backend health, tema token, komponen bersama, Component Gallery.
+- **T1.1 & T1.2** — Migrasi `001_init.sql`, pool koneksi, `migrate`, dan `seed` idempoten + aset PNG lokal.
+- **T1.3** — Backend auth & `/me`: format error seragam (`utils/errors.js`), validasi `zod`, JWT (`middleware/auth.js`), rate limit (`middleware/rateLimit.js`), `POST /auth/register`, `POST /auth/login`, `GET/PUT /me`, `PUT /me/password`. 4 suite / 18 tes Jest lulus (mock DB).
 
 ## Sedang
 
@@ -12,4 +12,4 @@ Menunggu perintah "lanjut".
 
 ## Langkah berikutnya
 
-- **T1.3** — Backend: format error seragam, middleware validasi (`zod`), auth JWT, rate limit, endpoint auth & `/me`.
+- **T1.4** — Flutter: klien API (`dio`, interceptor token), layar login dan register (kotak persetujuan syarat), sesi tersimpan, edit profil, ganti password, logout, alur "login saat aksi" untuk tamu.

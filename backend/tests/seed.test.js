@@ -215,3 +215,4 @@ describe('Seed data & idempotensi T1.2', () => {
     }).toEqual(afterFirst);
   });
 });
+
