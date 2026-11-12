@@ -335,3 +335,4 @@ function createEventsRouter(db, requireAuth) {
 }
 
 module.exports = { createEventsRouter, normalizeEventName };
+

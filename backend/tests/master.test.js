@@ -363,3 +363,4 @@ describe('Master data: categories, venues, events, uploads (T2.1)', () => {
     expect(bigRes.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
+

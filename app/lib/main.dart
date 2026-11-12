@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/auth/auth_controller.dart';
 import 'core/auth/auth_repository.dart';
 import 'core/auth/token_storage.dart';
+import 'core/location/location_controller.dart';
 import 'core/network/api_client.dart';
 import 'core/theme/theme.dart';
 import 'core/widgets/widgets.dart';
@@ -13,9 +14,14 @@ void main() {
 }
 
 class DroptixApp extends StatefulWidget {
-  const DroptixApp({super.key, this.authController});
+  const DroptixApp({
+    super.key,
+    this.authController,
+    this.locationController,
+  });
 
   final AuthController? authController;
+  final LocationController? locationController;
 
   @override
   State<DroptixApp> createState() => _DroptixAppState();
@@ -24,6 +30,8 @@ class DroptixApp extends StatefulWidget {
 class _DroptixAppState extends State<DroptixApp> {
   late final AuthController _auth;
   late final bool _ownsAuth;
+  late final LocationController _location;
+  late final bool _ownsLocation;
 
   @override
   void initState() {
@@ -46,12 +54,23 @@ class _DroptixAppState extends State<DroptixApp> {
       _auth = controller;
       _auth.restoreSession();
     }
+
+    if (widget.locationController != null) {
+      _location = widget.locationController!;
+      _ownsLocation = false;
+    } else {
+      _ownsLocation = true;
+      _location = LocationController()..restore();
+    }
   }
 
   @override
   void dispose() {
     if (_ownsAuth) {
       _auth.dispose();
+    }
+    if (_ownsLocation) {
+      _location.dispose();
     }
     super.dispose();
   }
@@ -60,12 +79,15 @@ class _DroptixAppState extends State<DroptixApp> {
   Widget build(BuildContext context) {
     return AuthScope(
       controller: _auth,
-      child: CountdownTimerProvider(
-        child: MaterialApp(
-          title: 'Droptix',
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          home: const AppShell(),
+      child: LocationScope(
+        controller: _location,
+        child: CountdownTimerProvider(
+          child: MaterialApp(
+            title: 'Droptix',
+            debugShowCheckedModeBanner: false,
+            theme: buildAppTheme(),
+            home: const AppShell(),
+          ),
         ),
       ),
     );

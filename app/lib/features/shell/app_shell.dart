@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/location/location_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../gallery/component_gallery_screen.dart';
+import '../location/location_picker_sheet.dart';
 import '../profile/profile_screen.dart';
 
 /// Kerangka navigasi utama 4 tab: Home, Activity, Sell, Profile.
@@ -16,6 +18,17 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _tabIndex = 0;
+  bool _promptedLocation = false;
+
+  void _maybePromptLocation(LocationController? location) {
+    if (_promptedLocation || location == null) return;
+    if (location.isRestoring || location.hasChosen) return;
+    _promptedLocation = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showLocationPickerSheet(context, isInitialPrompt: true);
+    });
+  }
 
   void _onTabTap(int index) {
     if (index == 1 || index == 2) {
@@ -30,8 +43,9 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final auth = AuthScope.of(context);
+    final location = LocationScope.maybeOf(context);
 
-    if (auth.isRestoring) {
+    if (auth.isRestoring || (location != null && location.isRestoring)) {
       return const AppBackground(
         child: Scaffold(
           body: Center(
@@ -40,6 +54,8 @@ class _AppShellState extends State<AppShell> {
         ),
       );
     }
+
+    _maybePromptLocation(location);
 
     Widget body;
     switch (_tabIndex) {

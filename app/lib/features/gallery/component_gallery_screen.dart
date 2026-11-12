@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../core/location/location_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../location/location_picker_sheet.dart';
 import 'sample_data.dart';
 
 /// Layar Component Gallery untuk memverifikasi semua komponen bersama
@@ -67,11 +69,14 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
                 AppHeader(
-                  city: _selectedCity,
-                  onLocationTap: () => setState(() {
-                    _selectedCity =
-                        _selectedCity == 'Surabaya' ? 'Jakarta' : 'Surabaya';
-                  }),
+                  city: LocationScope.maybeOf(context)?.city ?? _selectedCity,
+                  onLocationTap: LocationScope.maybeOf(context) != null
+                      ? () => showLocationPickerSheet(context)
+                      : () => setState(() {
+                            _selectedCity = _selectedCity == 'Surabaya'
+                                ? 'Jakarta'
+                                : 'Surabaya';
+                          }),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 const AppSearchBar(readOnly: true),

@@ -23,3 +23,4 @@ function createCategoriesRouter(db) {
 }
 
 module.exports = { createCategoriesRouter };
+

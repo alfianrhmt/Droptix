@@ -108,3 +108,4 @@ function createUploadsRouter(requireAuth, uploadsDir) {
 }
 
 module.exports = { createUploadsRouter, detectImageExtension, MAX_UPLOAD_BYTES };
+
