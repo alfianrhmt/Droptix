@@ -44,7 +44,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 - [x] **T2.1** Backend: `GET /categories`, `GET /venues`, `GET /events`, `POST /events` (cek nama mirip, `force`, batas 5 per hari), `PUT /events/:id` (kunci), `POST /uploads` (validasi isi berkas).
 - [x] **T2.2** Flutter: alur izin lokasi dengan fallback pilih kota manual, pil lokasi di header yang bisa diganti.
 - [x] **T2.3** Flutter: pemilih event (pencarian, "Tambah baru", dialog "Maksudmu ini?", unggah dan crop poster 2:3, poster cadangan).
-- [ ] **T2.4** Tes: pembuatan event (nama mirip, batas harian, kunci).
+- [x] **T2.4** Tes: pembuatan event (nama mirip, batas harian, kunci).
 
 **Selesai jika:** skenario uji 3 berjalan.
 

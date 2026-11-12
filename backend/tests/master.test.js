@@ -208,7 +208,7 @@ function createMasterMockDb() {
   };
 }
 
-describe('Master data: categories, venues, events, uploads (T2.1)', () => {
+describe('Master data: categories, venues, events, uploads (T2.1 & T2.4)', () => {
   let uploadsDir;
 
   beforeEach(() => {
@@ -320,6 +320,96 @@ describe('Master data: categories, venues, events, uploads (T2.1)', () => {
       .send({ nama: 'Tidak Bisa Diubah' });
     expect(lockedRes.status).toBe(403);
     expect(lockedRes.body.error.code).toBe('EVENT_LOCKED');
+  });
+
+  it('GET /events memfilter q & category serta menyembunyikan event hidden', async () => {
+    const db = createMasterMockDb();
+    db.events.push({
+      id: 99,
+      category_id: 2,
+      nama: 'Film Rahasia',
+      nama_normal: 'film rahasia',
+      poster_url: null,
+      venue_id: null,
+      tanggal: null,
+      created_by: 1,
+      created_at: new Date().toISOString(),
+      hidden: true,
+    });
+    const app = createApp({ db, useRateLimit: false, uploadsDir });
+
+    const res = await request(app).get('/api/v1/events?q=nada&category=konser-festival');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].nama).toBe('Nada Senja Live in Surabaya');
+
+    const hiddenRes = await request(app).get('/api/v1/events?q=rahasia');
+    expect(hiddenRes.status).toBe(200);
+    expect(hiddenRes.body.data).toHaveLength(0);
+  });
+
+  it('POST /events menolak tanpa login, tanggal lampau, dan kategori olahraga tanpa venue/tanggal, serta izinkan nama sama di kategori lain', async () => {
+    const db = createMasterMockDb();
+    const app = createApp({ db, useRateLimit: false, uploadsDir });
+    const token = makeToken(db.users[1]);
+
+    const unauth = await request(app)
+      .post('/api/v1/events')
+      .send({ category_id: 2, nama: 'Film Tanpa Login' });
+    expect(unauth.status).toBe(401);
+
+    const pastDate = new Date(Date.now() - 3600_000).toISOString();
+    const pastRes = await request(app)
+      .post('/api/v1/events')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category_id: 3,
+        nama: 'Persib vs Persija',
+        venue_id: 1,
+        tanggal: pastDate,
+      });
+    expect(pastRes.status).toBe(422);
+
+    const sportMissing = await request(app)
+      .post('/api/v1/events')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ category_id: 3, nama: 'Persib vs Persija' });
+    expect(sportMissing.status).toBe(422);
+
+    // Nama mirip tapi di kategori berbeda (bioskop) tetap lolos tanpa force
+    const diffCat = await request(app)
+      .post('/api/v1/events')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ category_id: 2, nama: 'Nada Senja Live in Surabaya' });
+    expect(diffCat.status).toBe(201);
+  });
+
+  it('PUT /events/:id tidak terkunci oleh listing pembuat sendiri atau listing terhapus, hanya oleh listing aktif penjual lain', async () => {
+    const db = createMasterMockDb();
+    const app = createApp({ db, useRateLimit: false, uploadsDir });
+    const ownerToken = makeToken(db.users[0]);
+
+    db.listings.push({ id: 1, event_id: 1, seller_id: 1, deleted_at: null });
+    db.listings.push({
+      id: 2,
+      event_id: 1,
+      seller_id: 2,
+      deleted_at: new Date().toISOString(),
+    });
+
+    const stillEditable = await request(app)
+      .put('/api/v1/events/1')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ nama: 'Nada Senja Revisi Pembuat' });
+    expect(stillEditable.status).toBe(200);
+
+    db.listings.push({ id: 3, event_id: 1, seller_id: 2, deleted_at: null });
+    const locked = await request(app)
+      .put('/api/v1/events/1')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ nama: 'Harusnya Gagal' });
+    expect(locked.status).toBe(403);
+    expect(locked.body.error.code).toBe('EVENT_LOCKED');
   });
 
   it('POST /uploads memvalidasi magic bytes isi berkas, menyimpan file acak, dan menyajikan /uploads', async () => {

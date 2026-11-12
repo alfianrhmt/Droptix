@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T2.3**: Pemilih event Flutter ([event_picker_sheet.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/events/event_picker_sheet.dart), [event_repository.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/events/event_repository.dart), [poster_crop_dialog.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/events/poster_crop_dialog.dart), [event_poster.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/core/widgets/event_poster.dart)) lengkap dengan pencarian, "Tambah baru", dialog "Maksudmu ini?", crop poster 2:3, unggah ke `/uploads`, dan poster cadangan (`14/14` tes lulus).
+- **T2.4**: Melengkapi tes pembuatan event di [master.test.js](file:///c:/Users/bstar/Desktop/Droptix/backend/tests/master.test.js) (nama mirip, kategori berbeda, validasi tanggal/olahraga, batas 5/hari, dan kunci `EVENT_LOCKED`; `5 suites, 25 tests passed`). Milestone **M2** selesai.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T2.4.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M3 (**T3.1**).
 
 ## Langkah berikutnya
-- **T2.4**: Tes pembuatan event (nama mirip, batas harian, kunci).
+- **T3.1**: Backend `POST /listings` dengan semua validasi `API.md` (termasuk `izinkan_wa`), `PUT`, `DELETE` (soft), `PATCH /stock`, `POST /confirm`, `GET /listings/:id`, pengisian `ref_lat`/`ref_lng`, status turunan (termasuk `hidden`).
