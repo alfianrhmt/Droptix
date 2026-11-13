@@ -336,12 +336,18 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   void _resetForm() {
+    // Reset semua field termasuk city controllers (tidak di-clear saat init
+    // ulang karena didChangeDependencies hanya jalan sekali).
+    final auth = AuthScope.of(context);
+    final location = LocationScope.maybeOf(context);
+    final defaultCity = auth.user?.kota ?? location?.city ?? '';
     setState(() {
       _step = 0;
       _selectedEvent = null;
       _selectedVenue = null;
       _useCustomVenue = false;
       _customVenueController.clear();
+      _cityController.text = defaultCity;
       _waktuAcara = null;
       _jenis = 'limited';
       _tipe = 'digital';
@@ -355,10 +361,11 @@ class _SellScreenState extends State<SellScreen> {
       _serahTerimaFisik
         ..clear()
         ..add('cod');
+      _lokasiPenjualController.text = defaultCity;
       _catatanController.clear();
       _photos.clear();
       _izinkanWa = false;
-      _submitting = false;
+      _submitting = false; // juga direset di sini agar tombol tidak freeze
       _stepError = null;
     });
   }

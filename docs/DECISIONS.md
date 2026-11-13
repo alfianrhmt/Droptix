@@ -14,4 +14,5 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 8 | Pemetaan koordinat GPS ke nama kota memakai jarak Haversine terhadap daftar kota Indonesia di `cities.dart` | Berjalan seragam di Android, Web, dan Windows tanpa plugin reverse-geocoding eksternal |
 | 9 | Crop poster rasio 2:3 di Flutter memakai `InteractiveViewer` + `RepaintBoundary.toImage()` | Berjalan lintas platform (Android, Web, Windows) tanpa konfigurasi native UCrop/cropperjs |
 | 10 | Alur Sell mengunggah foto langsung saat dipilih via `POST /uploads` sebelum posting final | Menghindari payload multipart raksasa di `POST /listings` dan memungkinkan pratinjau instan |
+| 11 | `computeListingStatus()` mengembalikan `'dihapus'` untuk `deleted_at`/`hidden=true` sebagai internal guard | Status ini tidak masuk `API.md` publik; `GET /listings/:id` mengembalikan 404 untuk status ini. `GET /listings` publik (T4.1) WAJIB memfilter `deleted_at IS NULL AND hidden = false` di SQL, bukan mengandalkan status computed |
 
