@@ -130,6 +130,44 @@ class TypeBadge extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// ListingStatusBadge (Tersedia, Terjual, Kedaluwarsa)
+// ---------------------------------------------------------------------------
+
+class ListingStatusBadge extends StatelessWidget {
+  const ListingStatusBadge({super.key, required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (status.toLowerCase()) {
+      case 'terjual':
+        return const _PillBadge(
+          label: 'Terjual',
+          textColor: AppColors.textSecondary,
+          borderColor: AppColors.divider,
+          bgColor: Colors.transparent,
+        );
+      case 'kedaluwarsa':
+        return _PillBadge(
+          label: 'Kedaluwarsa',
+          textColor: AppColors.urgent,
+          borderColor: AppColors.urgent,
+          bgColor: AppColors.urgent.withAlpha(38),
+        );
+      case 'tersedia':
+      default:
+        return const _PillBadge(
+          label: 'Tersedia',
+          textColor: AppColors.primary,
+          borderColor: AppColors.primary,
+          bgColor: Colors.transparent,
+        );
+    }
+  }
+}
+
 class _PillBadge extends StatelessWidget {
   const _PillBadge({
     required this.label,

@@ -10,6 +10,30 @@ class ListingRepository {
 
   final ApiClient _apiClient;
 
+  Future<List<ListingItem>> getMyListings({
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final res = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/me/listings',
+        queryParameters: {
+          'status': ?status,
+          'page': page,
+          'limit': limit,
+        },
+      );
+      final list = res.data?['data'] as List<dynamic>? ?? const [];
+      return list
+          .map((item) =>
+              ListingItem.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<ListingItem> createListing(Map<String, dynamic> payload) async {
     try {
       final res = await _apiClient.dio.post<Map<String, dynamic>>(

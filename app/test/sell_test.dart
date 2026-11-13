@@ -89,6 +89,14 @@ class _FakeListingRepository implements ListingRepository {
   Map<String, dynamic>? createdPayload;
 
   @override
+  Future<List<ListingItem>> getMyListings({
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async =>
+      const [];
+
+  @override
   Future<ListingItem> createListing(Map<String, dynamic> payload) async {
     createdPayload = payload;
     return ListingItem(

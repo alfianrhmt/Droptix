@@ -3,6 +3,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../activity/activity_screen.dart';
 import '../gallery/component_gallery_screen.dart';
 import '../location/location_picker_sheet.dart';
 import '../profile/profile_screen.dart';
@@ -61,11 +62,8 @@ class _AppShellState extends State<AppShell> {
     Widget body;
     switch (_tabIndex) {
       case 1:
-        body = const SafeArea(
-          child: EmptyState(
-            icon: Icons.receipt_long_outlined,
-            message: 'Activity akan hadir di milestone berikutnya.',
-          ),
+        body = ActivityScreen(
+          onNavigateToSell: () => setState(() => _tabIndex = 2),
         );
         break;
       case 2:

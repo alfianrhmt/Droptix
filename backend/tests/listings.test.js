@@ -187,6 +187,40 @@ function createListingsMockDb() {
         return { rows: [] };
       }
 
+      if (q.includes('FROM listings l') && q.includes('WHERE l.seller_id = $1')) {
+        let filtered = listings.filter(
+          (l) => l.seller_id === params[0] && !l.deleted_at && !l.hidden
+        );
+        if (q.includes('l.waktu_acara <= now()')) {
+          filtered = filtered.filter(
+            (l) => new Date(l.waktu_acara).getTime() <= Date.now()
+          );
+        } else if (q.includes('(l.jumlah_total - l.jumlah_terjual) <= 0')) {
+          filtered = filtered.filter(
+            (l) =>
+              new Date(l.waktu_acara).getTime() > Date.now() &&
+              l.jumlah_total - l.jumlah_terjual <= 0
+          );
+        } else if (q.includes('(l.jumlah_total - l.jumlah_terjual) > 0')) {
+          filtered = filtered.filter(
+            (l) =>
+              new Date(l.waktu_acara).getTime() > Date.now() &&
+              l.jumlah_total - l.jumlah_terjual > 0
+          );
+        }
+
+        if (q.startsWith('SELECT count(*)::int AS total')) {
+          return { rows: [{ total: filtered.length }] };
+        }
+
+        const offset = params[2] || 0;
+        const limit = params[1] || 20;
+        const page = filtered
+          .slice(offset, offset + limit)
+          .map((l) => hydrateListing(l, params[0]));
+        return { rows: page };
+      }
+
       if (q.includes('FROM listings l') && q.includes('WHERE l.id = $1')) {
         const l = listings.find((x) => x.id === params[0]);
         return { rows: l ? [hydrateListing(l, params[1])] : [] };
@@ -471,6 +505,48 @@ describe('Listings CRUD, validasi, ref_lat/ref_lng, stok, dan status turunan (T3
 
     const afterDelGet = await request(app).get('/api/v1/listings/1');
     expect(afterDelGet.status).toBe(404);
+  });
+
+  it('GET /me/listings mengembalikan listing milik sendiri berpagination dan filter status', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const ownerToken = makeToken(db.users[0]);
+
+    await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        event_id: 7,
+        venue_id: 3,
+        waktu_acara: futureIso(),
+        jenis: 'limited',
+        tipe: 'digital',
+        harga: 250000,
+        jumlah_total: 2,
+        terikat_nama: 'tidak',
+        serah_terima: ['transfer_eticket'],
+        photos: ['/uploads/p1.jpg'],
+      });
+
+    const resAll = await request(app)
+      .get('/api/v1/me/listings')
+      .set('Authorization', `Bearer ${ownerToken}`);
+    expect(resAll.status).toBe(200);
+    expect(resAll.body.data).toHaveLength(1);
+    expect(resAll.body.meta.total).toBe(1);
+    expect(resAll.body.data[0].status).toBe('tersedia');
+
+    const resTersedia = await request(app)
+      .get('/api/v1/me/listings?status=tersedia')
+      .set('Authorization', `Bearer ${ownerToken}`);
+    expect(resTersedia.status).toBe(200);
+    expect(resTersedia.body.data).toHaveLength(1);
+
+    const resTerjual = await request(app)
+      .get('/api/v1/me/listings?status=terjual')
+      .set('Authorization', `Bearer ${ownerToken}`);
+    expect(resTerjual.status).toBe(200);
+    expect(resTerjual.body.data).toHaveLength(0);
   });
 });
 

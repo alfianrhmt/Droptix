@@ -52,7 +52,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 - [x] **T3.1** Backend: `POST /listings` dengan semua validasi `API.md` (termasuk `izinkan_wa`), `PUT`, `DELETE` (soft), `PATCH /stock`, `POST /confirm`, `GET /listings/:id`, pengisian `ref_lat`/`ref_lng`, status turunan (termasuk `hidden`).
 - [x] **T3.2** Flutter: alur Sell 5 langkah, indikator kemajuan, sakelar WhatsApp, pratinjau, posting.
-- [ ] **T3.3** Flutter: halaman Activity segmen **Selling** (ubah terjual, tandai terjual semua, konfirmasi, edit, hapus).
+- [x] **T3.3** Flutter: halaman Activity segmen **Selling** (ubah terjual, tandai terjual semua, konfirmasi, edit, hapus).
 - [ ] **T3.4** Tes: validasi listing, aturan stok, status turunan, kepemilikan.
 
 **Selesai jika:** skenario uji 4 dan 7 berjalan.

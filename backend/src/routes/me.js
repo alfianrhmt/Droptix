@@ -6,6 +6,13 @@ const { z } = require('zod');
 const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
 const { normalizeWaNumber } = require('../utils/phone');
+const { formatListingCard } = require('./listings');
+
+const getMyListingsQuerySchema = z.object({
+  status: z.enum(['tersedia', 'terjual', 'kedaluwarsa']).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
 
 const updateMeSchema = z.object({
   nama: z
@@ -39,6 +46,71 @@ function createMeRouter(db, requireAuth) {
   router.get('/', requireAuth, (req, res) => {
     res.json({ data: req.user });
   });
+
+  router.get(
+    '/listings',
+    requireAuth,
+    validate(getMyListingsQuerySchema, 'query'),
+    async (req, res, next) => {
+      try {
+        const { status, page, limit } = req.query;
+        const offset = (page - 1) * limit;
+
+        let statusFilter = '';
+        if (status === 'tersedia') {
+          statusFilter =
+            'AND l.waktu_acara > now() AND (l.jumlah_total - l.jumlah_terjual) > 0';
+        } else if (status === 'terjual') {
+          statusFilter =
+            'AND l.waktu_acara > now() AND (l.jumlah_total - l.jumlah_terjual) <= 0';
+        } else if (status === 'kedaluwarsa') {
+          statusFilter = 'AND l.waktu_acara <= now()';
+        }
+
+        const countRes = await db.query(
+          `SELECT count(*)::int AS total
+           FROM listings l
+           WHERE l.seller_id = $1
+             AND l.deleted_at IS NULL
+             AND l.hidden = false
+             ${statusFilter}`,
+          [req.user.id]
+        );
+        const total = countRes.rows[0]?.total || 0;
+
+        const { rows } = await db.query(
+          `SELECT l.*,
+                  e.nama AS event_nama, e.poster_url AS event_poster_url,
+                  c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama,
+                  v.nama AS venue_nama, v.kota AS venue_kota,
+                  (SELECT count(*)::int FROM conversations cv WHERE cv.listing_id = l.id) AS tertarik
+           FROM listings l
+           JOIN events e ON e.id = l.event_id
+           JOIN categories c ON c.id = e.category_id
+           LEFT JOIN venues v ON v.id = l.venue_id
+           WHERE l.seller_id = $1
+             AND l.deleted_at IS NULL
+             AND l.hidden = false
+             ${statusFilter}
+           ORDER BY l.created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [req.user.id, limit, offset]
+        );
+
+        const data = rows.map((r) => formatListingCard(r));
+        return res.json({
+          data,
+          meta: {
+            page,
+            limit,
+            total,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
 
   router.put(
     '/',

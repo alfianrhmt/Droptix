@@ -120,6 +120,42 @@ function computeRefCoordinates({ tipe, lokasiPenjualLat, lokasiPenjualLng, venue
   return { refLat: null, refLng: null };
 }
 
+function formatListingCard(row, userLat = null, userLng = null) {
+  const tersedia = Math.max(0, row.jumlah_total - row.jumlah_terjual);
+  return {
+    id: row.id,
+    event: {
+      id: row.event_id,
+      nama: row.event_nama,
+      poster_url: row.event_poster_url ?? null,
+      category: {
+        id: row.category_id,
+        slug: row.category_slug,
+        nama: row.category_nama,
+      },
+    },
+    venue_nama: row.venue_id ? row.venue_nama : row.venue_teks,
+    kota: row.kota,
+    waktu_acara: row.waktu_acara,
+    jenis: row.jenis,
+    tipe: row.tipe,
+    seksi: row.seksi ?? null,
+    harga: row.harga,
+    harga_asli: row.harga_asli ?? null,
+    diskon_persen: computeDiscountPercent(row.harga, row.harga_asli),
+    jumlah_total: row.jumlah_total,
+    jumlah_tersedia: tersedia,
+    jumlah_terjual: row.jumlah_terjual,
+    tertarik: Number(row.tertarik ?? 0),
+    status: computeListingStatus(row),
+    jarak_km: haversineKm(userLat, userLng, row.ref_lat, row.ref_lng),
+    diperbarui: row.updated_at,
+    is_favorite: Boolean(row.is_favorite),
+    confirmed_at: row.confirmed_at ?? null,
+    created_at: row.created_at,
+  };
+}
+
 function formatListingDetail(row, photos, userLat = null, userLng = null) {
   const tersedia = Math.max(0, row.jumlah_total - row.jumlah_terjual);
   return {
@@ -742,5 +778,6 @@ module.exports = {
   computeListingStatus,
   computeDiscountPercent,
   computeRefCoordinates,
+  formatListingCard,
 };
 

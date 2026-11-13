@@ -101,7 +101,8 @@ class ListingItem {
     this.seller,
     this.confirmedAt,
     this.createdAt,
-  });
+    int? jumlahTotal,
+  }) : _jumlahTotalExplicit = jumlahTotal;
 
   final int id;
   final ListingEventSummary event;
@@ -133,8 +134,55 @@ class ListingItem {
   final ListingSellerInfo? seller;
   final DateTime? confirmedAt;
   final DateTime? createdAt;
+  final int? _jumlahTotalExplicit;
 
-  int get jumlahTotal => jumlahTersedia + jumlahTerjual;
+  int get jumlahTotal => _jumlahTotalExplicit ?? (jumlahTersedia + jumlahTerjual);
+
+  ListingItem copyWith({
+    int? jumlahTersedia,
+    int? jumlahTerjual,
+    String? status,
+    DateTime? confirmedAt,
+    int? harga,
+    int? hargaAsli,
+    int? diskonPersen,
+    String? catatan,
+    bool? izinkanWa,
+  }) {
+    return ListingItem(
+      id: id,
+      event: event,
+      venueNama: venueNama,
+      kota: kota,
+      waktuAcara: waktuAcara,
+      jenis: jenis,
+      tipe: tipe,
+      seksi: seksi,
+      harga: harga ?? this.harga,
+      hargaAsli: hargaAsli ?? this.hargaAsli,
+      diskonPersen: diskonPersen ?? this.diskonPersen,
+      jumlahTersedia: jumlahTersedia ?? this.jumlahTersedia,
+      jumlahTerjual: jumlahTerjual ?? this.jumlahTerjual,
+      tertarik: tertarik,
+      status: status ?? this.status,
+      jarakKm: jarakKm,
+      diperbarui: DateTime.now(),
+      isFavorite: isFavorite,
+      noKursi: noKursi,
+      izinkanWa: izinkanWa ?? this.izinkanWa,
+      satuan: satuan,
+      terikatNama: terikatNama,
+      serahTerima: serahTerima,
+      lokasiPenjualKota: lokasiPenjualKota,
+      catatan: catatan ?? this.catatan,
+      photos: photos,
+      venue: venue,
+      seller: seller,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
+      createdAt: createdAt,
+      jumlahTotal: _jumlahTotalExplicit ?? (this.jumlahTersedia + this.jumlahTerjual),
+    );
+  }
 
   factory ListingItem.fromJson(Map<String, dynamic> json) {
     final rawPhotos = json['photos'] as List<dynamic>? ?? const [];
@@ -153,6 +201,7 @@ class ListingItem {
       harga: (json['harga'] as num).toInt(),
       hargaAsli: (json['harga_asli'] as num?)?.toInt(),
       diskonPersen: (json['diskon_persen'] as num?)?.toInt(),
+      jumlahTotal: (json['jumlah_total'] as num?)?.toInt(),
       jumlahTersedia: (json['jumlah_tersedia'] as num?)?.toInt() ?? 0,
       jumlahTerjual: (json['jumlah_terjual'] as num?)?.toInt() ?? 0,
       tertarik: (json['tertarik'] as num?)?.toInt() ?? 0,
