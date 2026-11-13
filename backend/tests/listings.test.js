@@ -550,3 +550,201 @@ describe('Listings CRUD, validasi, ref_lat/ref_lng, stok, dan status turunan (T3
   });
 });
 
+describe('T3.4 Tes Validasi Listing, Aturan Stok, Status Turunan, dan Kepemilikan (Skenario 4 & 7)', () => {
+  const futureIso = (days = 2) =>
+    new Date(Date.now() + days * 86400_000).toISOString();
+  const pastIso = (days = 2) =>
+    new Date(Date.now() - days * 86400_000).toISOString();
+
+  it('Validasi listing menolak waktu acara lampau, path foto ilegal, dan event tidak valid/hidden', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const token = makeToken(db.users[0]);
+
+    // 1. Waktu acara lampau
+    const pastRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        event_id: 7,
+        venue_id: 3,
+        waktu_acara: pastIso(),
+        jenis: 'last_minute',
+        tipe: 'digital',
+        harga: 100000,
+        jumlah_total: 1,
+        terikat_nama: 'tidak',
+        serah_terima: ['transfer_eticket'],
+        photos: ['/uploads/p1.jpg'],
+      });
+    expect(pastRes.status).toBe(422);
+    expect(pastRes.body.error.details.some((d) => d.field === 'waktu_acara')).toBe(true);
+
+    // 2. Foto di luar /uploads/
+    const badPhotoRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        event_id: 7,
+        venue_id: 3,
+        waktu_acara: futureIso(),
+        jenis: 'last_minute',
+        tipe: 'digital',
+        harga: 100000,
+        jumlah_total: 1,
+        terikat_nama: 'tidak',
+        serah_terima: ['transfer_eticket'],
+        photos: ['https://external.com/photo.jpg'],
+      });
+    expect(badPhotoRes.status).toBe(422);
+
+    // 3. Event tidak ada
+    const badEventRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        event_id: 9999,
+        venue_id: 3,
+        waktu_acara: futureIso(),
+        jenis: 'last_minute',
+        tipe: 'digital',
+        harga: 100000,
+        jumlah_total: 1,
+        terikat_nama: 'tidak',
+        serah_terima: ['transfer_eticket'],
+        photos: ['/uploads/p1.jpg'],
+      });
+    expect(badEventRes.status).toBe(422);
+  });
+
+  it('Menolak aksi listing bagi tamu tanpa token autentikasi (401)', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+
+    const postRes = await request(app).post('/api/v1/listings').send({});
+    expect(postRes.status).toBe(401);
+
+    const putRes = await request(app).put('/api/v1/listings/1').send({});
+    expect(putRes.status).toBe(401);
+
+    const patchRes = await request(app).patch('/api/v1/listings/1/stock').send({});
+    expect(patchRes.status).toBe(401);
+
+    const confirmRes = await request(app).post('/api/v1/listings/1/confirm').send({});
+    expect(confirmRes.status).toBe(401);
+
+    const deleteRes = await request(app).delete('/api/v1/listings/1').send({});
+    expect(deleteRes.status).toBe(401);
+
+    const myListingsRes = await request(app).get('/api/v1/me/listings').send();
+    expect(myListingsRes.status).toBe(401);
+  });
+
+  it('Aturan stok menolak nilai negatif dan bukan pemilik tidak dapat mengubah listing', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const ownerToken = makeToken(db.users[0]);
+    const otherToken = makeToken(db.users[1]);
+
+    const created = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        event_id: 7,
+        venue_id: 3,
+        waktu_acara: futureIso(),
+        jenis: 'limited',
+        tipe: 'digital',
+        harga: 300000,
+        jumlah_total: 3,
+        terikat_nama: 'tidak',
+        serah_terima: ['transfer_eticket'],
+        photos: ['/uploads/p1.jpg'],
+      });
+    const id = created.body.data.id;
+
+    // Stok negatif -> 422
+    const negStock = await request(app)
+      .patch(`/api/v1/listings/${id}/stock`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ jumlah_terjual: -1 });
+    expect(negStock.status).toBe(422);
+
+    // Orang lain mencoba ubah stok -> 403
+    const forbiddenStock = await request(app)
+      .patch(`/api/v1/listings/${id}/stock`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ jumlah_terjual: 1 });
+    expect(forbiddenStock.status).toBe(403);
+
+    // Orang lain mencoba konfirmasi -> 403
+    const forbiddenConfirm = await request(app)
+      .post(`/api/v1/listings/${id}/confirm`)
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect(forbiddenConfirm.status).toBe(403);
+
+    // Orang lain mencoba hapus -> 403
+    const forbiddenDelete = await request(app)
+      .delete(`/api/v1/listings/${id}`)
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect(forbiddenDelete.status).toBe(403);
+  });
+
+  it('Skenario Uji 4 & 7: Penjual posting Last-Minute (digital) lalu tandai terjual semua (jumlah_terjual == total)', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const ownerToken = makeToken(db.users[0]);
+
+    // Skenario 4: Penjual posting Last-Minute (digital)
+    const postRes = await request(app)
+      .post('/api/v1/listings')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        event_id: 7,
+        venue_id: 3,
+        kota: 'Surabaya',
+        waktu_acara: futureIso(3),
+        jenis: 'last_minute',
+        tipe: 'digital',
+        seksi: 'VIP A',
+        harga: 400000,
+        harga_asli: 500000,
+        jumlah_total: 2,
+        satuan: true,
+        terikat_nama: 'tidak',
+        serah_terima: ['transfer_eticket'],
+        photos: ['/uploads/lm1.jpg'],
+      });
+    expect(postRes.status).toBe(201);
+    expect(postRes.body.data.jenis).toBe('last_minute');
+    expect(postRes.body.data.status).toBe('tersedia');
+    expect(postRes.body.data.jumlah_tersedia).toBe(2);
+
+    const listingId = postRes.body.data.id;
+
+    // Skenario 7: Penjual mengubah jumlah terjual menjadi sama dengan total (2 terjual dari 2 total)
+    const patchRes = await request(app)
+      .patch(`/api/v1/listings/${listingId}/stock`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ jumlah_terjual: 2 });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.data.status).toBe('terjual');
+    expect(patchRes.body.data.jumlah_tersedia).toBe(0);
+    expect(patchRes.body.data.jumlah_terjual).toBe(2);
+
+    // Periksa status di GET /me/listings?status=terjual
+    const myTerjual = await request(app)
+      .get('/api/v1/me/listings?status=terjual')
+      .set('Authorization', `Bearer ${ownerToken}`);
+    expect(myTerjual.status).toBe(200);
+    expect(myTerjual.body.data.some((l) => l.id === listingId)).toBe(true);
+
+    // Di filter status=tersedia sudah tidak muncul
+    const myTersedia = await request(app)
+      .get('/api/v1/me/listings?status=tersedia')
+      .set('Authorization', `Bearer ${ownerToken}`);
+    expect(myTersedia.status).toBe(200);
+    expect(myTersedia.body.data.some((l) => l.id === listingId)).toBe(false);
+  });
+});
+

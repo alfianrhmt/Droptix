@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T3.3**: Flutter Activity segmen **Selling** ([activity_screen.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/activity/activity_screen.dart), [listing_repository.dart](file:///c:/Users/bstar/Desktop/Droptix/app/lib/features/listings/listing_repository.dart)): filter chip 3 segmen (Selling, Saved, Chats), sub-filter status, kartu listing + status badge, aksi cepat (ubah stok, tandai terjual semua, konfirmasi ketersediaan, edit listing, hapus listing). Backend `GET /me/listings` terverifikasi (16/16 Flutter tests, 30/30 backend tests lolos).
+- **M3 (T3.1–T3.4)** selesai tuntas: backend listings CRUD, validasi payload, aturan stok, kepemilikan, alur Flutter Sell 5-langkah, Activity segmen Selling dengan 5 aksi cepat, status turunan (`tersedia`, `terjual`, `kedaluwarsa`, `dihapus`), skenario uji 4 & 7 lolos penuh (34/34 Jest backend tests, 16/16 Flutter tests, 0 analyzer issues).
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T3.4.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M4 (T4.1).
 
 ## Langkah berikutnya
-- **T3.4**: Tes komprehensif M3: validasi listing, aturan stok, status turunan, kepemilikan.
+- **T4.1**: Backend `GET /listings` dengan semua filter, urutan, pagination, jarak Haversine, pengecekan kedaluwarsa, `hidden`, dan penjual dibekukan.
