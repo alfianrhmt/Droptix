@@ -14,6 +14,35 @@ const getListingQuerySchema = z.object({
   lng: z.coerce.number().min(-180).max(180).optional(),
 });
 
+const getListingsQuerySchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  category: z.string().trim().max(50).optional(),
+  jenis: z.enum(['limited', 'last_minute']).optional(),
+  tipe: z.enum(['digital', 'fisik']).optional(),
+  kota: z.string().trim().max(60).optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  max_km: z.coerce.number().int().positive().optional(),
+  min_harga: z.coerce.number().int().min(0).optional(),
+  max_harga: z.coerce.number().int().min(0).optional(),
+  tanggal: z.string().trim().optional(),
+  dalam_jam: z.coerce.number().int().positive().optional(),
+  tersedia: z
+    .preprocess((val) => {
+      if (val === undefined) return true;
+      if (typeof val === 'string') return val !== 'false';
+      return Boolean(val);
+    }, z.boolean())
+    .optional()
+    .default(true),
+  sort: z
+    .enum(['relevan', 'terdekat', 'termurah', 'segera', 'terbaru'])
+    .optional()
+    .default('relevan'),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
+
 const photoPathSchema = z
   .string()
   .trim()

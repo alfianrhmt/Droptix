@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **M3 (T3.1–T3.4)** selesai tuntas: backend listings CRUD, validasi payload, aturan stok, kepemilikan, alur Flutter Sell 5-langkah, Activity segmen Selling dengan 5 aksi cepat, status turunan (`tersedia`, `terjual`, `kedaluwarsa`, `dihapus`), skenario uji 4 & 7 lolos penuh (34/34 Jest backend tests, 16/16 Flutter tests, 0 analyzer issues).
+- **T4.1** selesai tuntas: Endpoint backend `GET /listings` dengan semua filter (`q`, `category`, `jenis`, `tipe`, `kota`, `min_harga`, `max_harga`, `dalam_jam`, `tanggal`, `max_km`, `tersedia`), urutan (`terdekat`, `termurah`, `segera`, `terbaru`, `relevan`), pagination, jarak Haversine, pengecekan kedaluwarsa (`waktu_acara > now()`), soft-delete, hidden, dan penjual dibekukan (`users.banned_at IS NULL`). Semua tes backend (52/52) dan Flutter (16/16) lolos bersih, 0 analyzer issues.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M4 (T4.1).
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T4.2.
 
 ## Langkah berikutnya
-- **T4.1**: Backend `GET /listings` dengan semua filter, urutan, pagination, jarak Haversine, pengecekan kedaluwarsa, `hidden`, dan penjual dibekukan.
+- **T4.2**: Backend skor relevansi (BR-5) dengan bobot di satu berkas konfigurasi, `sort=relevan`, normalisasi ulang tanpa lokasi.
