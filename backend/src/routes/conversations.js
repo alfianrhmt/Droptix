@@ -7,6 +7,7 @@ const { Errors } = require('../utils/errors');
 const { chatMessageLimiter } = require('../middleware/rateLimit');
 const { computeListingStatus } = require('../utils/status');
 const { emitMessageNew, emitUnreadUpdate } = require('../realtime');
+const { normalizeWaNumber } = require('../utils/phone');
 
 const conversationIdParamSchema = z.object({
   id: z.coerce.number().int().positive('ID percakapan tidak valid.'),
@@ -483,7 +484,104 @@ function createConversationsRouter(db, requireAuth, useRateLimit = true) {
     }
   );
 
+  // POST /api/v1/conversations/:id/whatsapp (Tautan WhatsApp khusus pembeli)
+  router.post(
+    '/:id/whatsapp',
+    requireAuth,
+    validate(conversationIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const conversationId = req.params.id;
+        const currentUserId = req.user.id;
+
+        const convSql = `
+          SELECT c.id, c.buyer_id, c.seller_id,
+                 l.izinkan_wa AS listing_izinkan_wa, l.waktu_acara AS listing_waktu_acara,
+                 e.nama AS event_nama,
+                 ub.nama AS buyer_nama,
+                 us.nama AS seller_nama, us.no_wa AS seller_no_wa, us.banned_at AS seller_banned_at
+          FROM conversations c
+          JOIN listings l ON l.id = c.listing_id
+          JOIN events e ON e.id = l.event_id
+          JOIN users ub ON ub.id = c.buyer_id
+          JOIN users us ON us.id = c.seller_id
+          WHERE c.id = $1
+          LIMIT 1
+        `;
+        const { rows } = await db.query(convSql, [conversationId]);
+        const conv = rows[0];
+
+        if (!conv) {
+          return next(Errors.notFound('Percakapan tidak ditemukan.'));
+        }
+
+        // Hanya peserta yang bisa mengakses
+        if (
+          Number(conv.buyer_id) !== Number(currentUserId) &&
+          Number(conv.seller_id) !== Number(currentUserId)
+        ) {
+          return next(Errors.notFound('Percakapan tidak ditemukan.'));
+        }
+
+        // Hanya pembeli yang boleh meminta tautan WhatsApp
+        if (Number(conv.buyer_id) !== Number(currentUserId)) {
+          return next(
+            Errors.forbidden('Penjual tidak mengizinkan WhatsApp.')
+          );
+        }
+
+        // Periksa pemblokiran BR-12
+        const isBlocked = await checkBlockBetween(db, conv.buyer_id, conv.seller_id);
+        if (isBlocked) {
+          return next(
+            Errors.blocked('Tidak dapat melanjutkan karena pemblokiran.')
+          );
+        }
+
+        // Cek izin WA dan ketersediaan no_wa penjual
+        const normalizedWa = normalizeWaNumber(conv.seller_no_wa);
+        if (!conv.listing_izinkan_wa || !normalizedWa) {
+          return next(
+            Errors.forbidden('Penjual tidak mengizinkan WhatsApp.')
+          );
+        }
+
+        const dateStr = formatWibDateTime(conv.listing_waktu_acara);
+        const text = `Halo, saya ${conv.buyer_nama} dari Droptix, tertarik dengan tiket ${conv.event_nama} (${dateStr}).`;
+        const waUrl = `https://wa.me/${normalizedWa}?text=${encodeURIComponent(text)}`;
+
+        return res.json({
+          data: {
+            wa_url: waUrl,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
   return router;
+}
+
+function formatWibDateTime(dateInput) {
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+  const wibDate = new Date(utc + 7 * 3600000);
+
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  ];
+
+  const day = wibDate.getDate();
+  const monthName = months[wibDate.getMonth()];
+  const year = wibDate.getFullYear();
+  const hours = String(wibDate.getHours()).padStart(2, '0');
+  const minutes = String(wibDate.getMinutes()).padStart(2, '0');
+
+  return `${day} ${monthName} ${year}, ${hours}.${minutes} WIB`;
 }
 
 module.exports = {
@@ -494,4 +592,5 @@ module.exports = {
   fetchConversationWithDetails,
   checkBlockBetween,
   postMessageBodySchema,
+  formatWibDateTime,
 };

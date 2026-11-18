@@ -13,10 +13,10 @@ function makeToken(user) {
 
 function createConversationsMockDb() {
   const users = [
-    { id: 1, nama: 'Pembeli Satu', email: 'buyer1@example.com', banned_at: null },
-    { id: 2, nama: 'Penjual Dua', email: 'seller2@example.com', banned_at: null },
-    { id: 3, nama: 'Pengguna Tiga', email: 'user3@example.com', banned_at: null },
-    { id: 4, nama: 'Banned Seller', email: 'banned@example.com', banned_at: new Date().toISOString() },
+    { id: 1, nama: 'Pembeli Satu', email: 'buyer1@example.com', no_wa: '08111111111', banned_at: null },
+    { id: 2, nama: 'Penjual Dua', email: 'seller2@example.com', no_wa: '081234567890', banned_at: null },
+    { id: 3, nama: 'Pengguna Tiga', email: 'user3@example.com', no_wa: null, banned_at: null },
+    { id: 4, nama: 'Banned Seller', email: 'banned@example.com', no_wa: '08199999999', banned_at: new Date().toISOString() },
   ];
 
   const events = [
@@ -63,6 +63,18 @@ function createConversationsMockDb() {
       deleted_at: null,
       hidden: false,
       izinkan_wa: false,
+    },
+    {
+      id: 13,
+      event_id: 1,
+      seller_id: 2,
+      harga: 400000,
+      jumlah_total: 1,
+      jumlah_terjual: 0,
+      waktu_acara: new Date(Date.now() + 5 * 86400_000).toISOString(),
+      deleted_at: null,
+      hidden: false,
+      izinkan_wa: true,
     },
   ];
 
@@ -149,6 +161,7 @@ function createConversationsMockDb() {
       buyer_nama: buyer.nama,
       buyer_banned_at: buyer.banned_at,
       seller_nama: seller.nama,
+      seller_no_wa: seller.no_wa,
       seller_banned_at: seller.banned_at,
       belum_dibaca: getUnreadCount(c, currentUserId),
     };
@@ -711,6 +724,98 @@ describe('T6.1: Backend Conversation and Message Endpoints', () => {
         .get('/api/v1/me/unread')
         .set('Authorization', `Bearer ${sellerToken}`);
       expect(unreadSeller2.body.data.chats).toBe(0);
+    });
+  });
+
+  describe('POST /api/v1/conversations/:id/whatsapp', () => {
+    let allowedConvId;
+    let disallowedConvId;
+
+    beforeEach(() => {
+      const convAllowed = db.addConv({
+        listing_id: 13, // izinkan_wa: true
+        buyer_id: 1,
+        seller_id: 2,
+      });
+      allowedConvId = convAllowed.id;
+
+      const convDisallowed = db.addConv({
+        listing_id: 10, // izinkan_wa: false
+        buyer_id: 1,
+        seller_id: 2,
+      });
+      disallowedConvId = convDisallowed.id;
+    });
+
+    it('menolak akses tanpa autentikasi (401)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/conversations/${allowedConvId}/whatsapp`);
+
+      expect(res.status).toBe(401);
+    });
+
+    it('menolak akses pengguna luar yang bukan peserta percakapan (404)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/conversations/${allowedConvId}/whatsapp`)
+        .set('Authorization', `Bearer ${otherToken}`);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('menolak jika percakapan tidak ditemukan (404)', async () => {
+      const res = await request(app)
+        .post('/api/v1/conversations/999999/whatsapp')
+        .set('Authorization', `Bearer ${buyerToken}`);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('menolak jika diakses oleh penjual (khusus pembeli) (403)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/conversations/${allowedConvId}/whatsapp`)
+        .set('Authorization', `Bearer ${sellerToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toContain('tidak mengizinkan');
+    });
+
+    it('menolak jika listing tidak mengizinkan WhatsApp (403 FORBIDDEN)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/conversations/${disallowedConvId}/whatsapp`)
+        .set('Authorization', `Bearer ${buyerToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+      expect(res.body.error.message).toContain('tidak mengizinkan');
+    });
+
+    it('menolak jika ada pemblokiran di antara kedua pihak BR-12 (403 BLOCKED)', async () => {
+      db.blocks.push({ blocker_id: 2, blocked_id: 1 });
+
+      const res = await request(app)
+        .post(`/api/v1/conversations/${allowedConvId}/whatsapp`)
+        .set('Authorization', `Bearer ${buyerToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('BLOCKED');
+    });
+
+    it('mengembalikan wa_url yang valid jika pembeli meminta dan izin WA aktif (200)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/conversations/${allowedConvId}/whatsapp`)
+        .set('Authorization', `Bearer ${buyerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveProperty('wa_url');
+
+      const waUrl = res.body.data.wa_url;
+      expect(waUrl.startsWith('https://wa.me/6281234567890?text=')).toBe(true);
+
+      const parsed = new URL(waUrl);
+      const textParam = parsed.searchParams.get('text');
+      expect(textParam).toContain('Pembeli Satu');
+      expect(textParam).toContain('Konser Sheila on 7');
+      expect(textParam).toContain('WIB');
     });
   });
 

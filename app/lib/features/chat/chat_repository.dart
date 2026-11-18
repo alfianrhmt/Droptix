@@ -154,4 +154,17 @@ class ChatRepository {
       throw ApiException.fromDio(e);
     }
   }
+
+  /// Mengambil URL WhatsApp untuk percakapan (khusus pembeli dan listing yang mengizinkan WA).
+  Future<String> getWhatsAppUrl(int conversationId) async {
+    try {
+      final res = await _client.dio.post<Map<String, dynamic>>(
+        '/conversations/$conversationId/whatsapp',
+      );
+      final data = res.data?['data'] as Map<String, dynamic>?;
+      return data?['wa_url'] as String? ?? '';
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

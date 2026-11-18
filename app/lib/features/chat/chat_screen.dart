@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/api_config.dart';
 import '../../core/network/api_error.dart';
@@ -10,6 +11,8 @@ import '../listings/listing_models.dart';
 import 'chat_models.dart';
 import 'chat_repository.dart';
 import 'chat_socket_service.dart';
+
+typedef UrlLauncherFn = Future<bool> Function(Uri uri);
 
 /// Layar obrolan chat per DESIGN.md bagian 9b.
 /// Memuat ChatListingCard di bawah AppBar, riwayat ChatBubble dengan DateSeparator,
@@ -23,6 +26,7 @@ class ChatScreen extends StatefulWidget {
     this.listingDetail,
     this.chatRepository,
     this.socketService,
+    this.urlLauncher,
   });
 
   final int? conversationId;
@@ -31,6 +35,7 @@ class ChatScreen extends StatefulWidget {
   final ListingItem? listingDetail;
   final ChatRepository? chatRepository;
   final ChatSocketService? socketService;
+  final UrlLauncherFn? urlLauncher;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -374,6 +379,64 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _handleLanjutWhatsApp() async {
+    if (_conversationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mulai percakapan terlebih dahulu untuk melanjutkan via WhatsApp.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final waUrl = await _repo.getWhatsAppUrl(_conversationId!);
+      if (waUrl.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Penjual tidak mengizinkan WhatsApp.'),
+            backgroundColor: AppColors.urgent,
+          ),
+        );
+        return;
+      }
+
+      final uri = Uri.parse(waUrl);
+      final launcher = widget.urlLauncher ??
+          (u) => launchUrl(u, mode: LaunchMode.externalApplication);
+      final launched = await launcher(uri);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terpasang.',
+            ),
+            backgroundColor: AppColors.urgent,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal membuka WhatsApp.'),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+    }
+  }
+
   String _formatDateHeader(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -451,6 +514,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (isPhysical) 'Bisa COD?',
     ];
 
+    final canWa = (_conversation?.izinkanWa ?? _listingDetail?.izinkanWa ?? false) &&
+        (_conversation?.isBuyer ?? true);
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -472,11 +538,7 @@ class _ChatScreenState extends State<ChatScreen> {
             color: AppColors.surfaceHigh,
             onSelected: (val) {
               if (val == 'wa') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fitur WhatsApp akan tersedia di M6.4.'),
-                  ),
-                );
+                _handleLanjutWhatsApp();
               } else if (val == 'report') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -492,8 +554,7 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             },
             itemBuilder: (ctx) => [
-              if (_conversation?.izinkanWa == true &&
-                  _conversation?.isBuyer == true)
+              if (canWa)
                 const PopupMenuItem(
                   value: 'wa',
                   child: Text('Lanjut via WhatsApp'),

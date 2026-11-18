@@ -4,6 +4,7 @@ import 'package:droptix/core/auth/auth_repository.dart';
 import 'package:droptix/core/auth/token_storage.dart';
 import 'package:droptix/core/auth/user_model.dart';
 import 'package:droptix/core/network/api_client.dart';
+import 'package:droptix/core/network/api_error.dart';
 import 'package:droptix/core/theme/theme.dart';
 import 'package:droptix/core/widgets/badges.dart';
 import 'package:droptix/core/widgets/chat_widgets.dart';
@@ -140,6 +141,23 @@ class _TestChatRepository implements ChatRepository {
   @override
   Future<int> getUnreadChatsCount() async {
     return conversations.where((c) => c.belumDibaca > 0).length;
+  }
+
+  int? requestedWaConvId;
+  String? mockWaUrl = 'https://wa.me/6281234567890?text=Halo%20Droptix';
+  bool throwOnWa = false;
+
+  @override
+  Future<String> getWhatsAppUrl(int conversationId) async {
+    requestedWaConvId = conversationId;
+    if (throwOnWa) {
+      throw const ApiException(
+        code: 'FORBIDDEN',
+        message: 'Penjual tidak mengizinkan WhatsApp.',
+        statusCode: 403,
+      );
+    }
+    return mockWaUrl ?? '';
   }
 }
 
@@ -479,6 +497,212 @@ void main() {
 
       expect(find.byType(UnreadBadge), findsOneWidget);
       expect(find.text('9+'), findsOneWidget);
+    });
+  });
+
+  group('T6.4: WhatsApp Option Tests', () {
+    testWidgets('menampilkan opsi "Lanjut via WhatsApp" jika izinkanWa = true dan pembeli',
+        (tester) async {
+      final conv = ConversationModel(
+        id: 77,
+        listing: const ConversationListingModel(
+          id: 42,
+          judul: 'Konser Sheila on 7 Surabaya',
+          harga: 350000,
+          status: 'tersedia',
+        ),
+        lawan: const ConversationUserModel(id: 2, nama: 'Rina Penjual'),
+        peran: 'pembeli',
+        pesanTerakhir: 'Halo kak',
+        waktuPesanTerakhir: DateTime.now(),
+        belumDibaca: 0,
+        izinkanWa: true,
+      );
+
+      final repo = _TestChatRepository(initialConversations: [conv]);
+
+      await tester.pumpWidget(
+        await buildTestApp(
+          child: ChatScreen(
+            conversationId: 77,
+            initialConversation: conv,
+            chatRepository: repo,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Buka popup menu 3 titik
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lanjut via WhatsApp'), findsOneWidget);
+      expect(find.text('Laporkan'), findsOneWidget);
+      expect(find.text('Blokir pengguna'), findsOneWidget);
+    });
+
+    testWidgets('tidak menampilkan opsi "Lanjut via WhatsApp" jika izinkanWa = false',
+        (tester) async {
+      final conv = ConversationModel(
+        id: 78,
+        listing: const ConversationListingModel(
+          id: 42,
+          judul: 'Konser Sheila on 7 Surabaya',
+          harga: 350000,
+          status: 'tersedia',
+        ),
+        lawan: const ConversationUserModel(id: 2, nama: 'Rina Penjual'),
+        peran: 'pembeli',
+        pesanTerakhir: 'Halo kak',
+        waktuPesanTerakhir: DateTime.now(),
+        belumDibaca: 0,
+        izinkanWa: false,
+      );
+
+      final repo = _TestChatRepository(initialConversations: [conv]);
+
+      await tester.pumpWidget(
+        await buildTestApp(
+          child: ChatScreen(
+            conversationId: 78,
+            initialConversation: conv,
+            chatRepository: repo,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lanjut via WhatsApp'), findsNothing);
+      expect(find.text('Laporkan'), findsOneWidget);
+      expect(find.text('Blokir pengguna'), findsOneWidget);
+    });
+
+    testWidgets('tidak menampilkan opsi "Lanjut via WhatsApp" jika pengguna adalah penjual',
+        (tester) async {
+      final conv = ConversationModel(
+        id: 79,
+        listing: const ConversationListingModel(
+          id: 42,
+          judul: 'Konser Sheila on 7 Surabaya',
+          harga: 350000,
+          status: 'tersedia',
+        ),
+        lawan: const ConversationUserModel(id: 1, nama: 'Pembeli Satu'),
+        peran: 'penjual',
+        pesanTerakhir: 'Halo kak',
+        waktuPesanTerakhir: DateTime.now(),
+        belumDibaca: 0,
+        izinkanWa: true,
+      );
+
+      final repo = _TestChatRepository(initialConversations: [conv]);
+
+      await tester.pumpWidget(
+        await buildTestApp(
+          child: ChatScreen(
+            conversationId: 79,
+            initialConversation: conv,
+            chatRepository: repo,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lanjut via WhatsApp'), findsNothing);
+    });
+
+    testWidgets('mengetuk "Lanjut via WhatsApp" memanggil getWhatsAppUrl dan meluncurkan URL',
+        (tester) async {
+      final conv = ConversationModel(
+        id: 80,
+        listing: const ConversationListingModel(
+          id: 42,
+          judul: 'Konser Sheila on 7 Surabaya',
+          harga: 350000,
+          status: 'tersedia',
+        ),
+        lawan: const ConversationUserModel(id: 2, nama: 'Rina Penjual'),
+        peran: 'pembeli',
+        pesanTerakhir: 'Halo kak',
+        waktuPesanTerakhir: DateTime.now(),
+        belumDibaca: 0,
+        izinkanWa: true,
+      );
+
+      final repo = _TestChatRepository(initialConversations: [conv]);
+      Uri? launchedUri;
+
+      await tester.pumpWidget(
+        await buildTestApp(
+          child: ChatScreen(
+            conversationId: 80,
+            initialConversation: conv,
+            chatRepository: repo,
+            urlLauncher: (uri) async {
+              launchedUri = uri;
+              return true;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Lanjut via WhatsApp'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requestedWaConvId, 80);
+      expect(launchedUri, isNotNull);
+      expect(launchedUri.toString(), 'https://wa.me/6281234567890?text=Halo%20Droptix');
+    });
+
+    testWidgets('menampilkan SnackBar error jika getWhatsAppUrl gagal',
+        (tester) async {
+      final conv = ConversationModel(
+        id: 81,
+        listing: const ConversationListingModel(
+          id: 42,
+          judul: 'Konser Sheila on 7 Surabaya',
+          harga: 350000,
+          status: 'tersedia',
+        ),
+        lawan: const ConversationUserModel(id: 2, nama: 'Rina Penjual'),
+        peran: 'pembeli',
+        pesanTerakhir: 'Halo kak',
+        waktuPesanTerakhir: DateTime.now(),
+        belumDibaca: 0,
+        izinkanWa: true,
+      );
+
+      final repo = _TestChatRepository(initialConversations: [conv]);
+      repo.throwOnWa = true;
+
+      await tester.pumpWidget(
+        await buildTestApp(
+          child: ChatScreen(
+            conversationId: 81,
+            initialConversation: conv,
+            chatRepository: repo,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Lanjut via WhatsApp'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Penjual tidak mengizinkan WhatsApp.'), findsOneWidget);
     });
   });
 }

@@ -28,6 +28,7 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 22 | Pembuatan chat pertama di `POST /listings/:id/conversations` secara atomik membuat conversation dan pesan pertama, sedangkan `computeListingStatus` diekstraksi ke `backend/src/utils/status.js` | Mencegah dependensi sirkular antara route listings dan conversations, menjamin integritas percakapan hanya untuk tiket berstatus 'tersedia' (409 bila tidak), dan mengizinkan pesan lanjutan jika chat sudah ada |
 | 23 | Socket.IO diinisialisasi terintegrasi dengan Express HTTP server dan diakses lewat `req.app.get('io')` | Memungkinkan endpoints REST menyiarkan event `message:new` dan `unread:update` ke room `user:{id}` lawan bicara tanpa kopling erat, sekaligus menjaga kemudahan pengujian HTTP supertest |
 | 24 | Manajemen koneksi Socket.IO di Flutter dipusatkan dalam `ChatSocketService` seumur hidup sesi di `AppShell`, dengan fallback polling 5 detik di `ChatScreen` | Mengoptimalkan penggunaan baterai dan kuota data dengan 1 koneksi persisten untuk seluruh aplikasi, sembari menjamin keandalan pengantaran pesan saat koneksi realtime terganggu |
+| 25 | Tombol "Lanjut via WhatsApp" hanya muncul bagi pembeli pada listing ber-`izinkan_wa: true`, dan membuka tautan URL `https://wa.me/{sellerPhone}?text={encodedText}` dari backend dengan callback `UrlLauncherFn` yang dapat di-mock | Memenuhi aturan privasi tanpa membocorkan nomor ponsel penjual di endpoint chat lain, serta memudahkan pengujian widget tanpa membuka browser/aplikasi luar |
 
 
 

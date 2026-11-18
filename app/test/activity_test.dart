@@ -245,6 +245,11 @@ class _FakeChatRepository implements ChatRepository {
   Future<int> getUnreadChatsCount() async {
     return 0;
   }
+
+  @override
+  Future<String> getWhatsAppUrl(int conversationId) async {
+    return 'https://wa.me/6281234567890';
+  }
 }
 
 ListingItem _sampleListing({
