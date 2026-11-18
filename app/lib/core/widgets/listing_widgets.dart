@@ -19,6 +19,7 @@ class ListingData {
     this.type,
     this.isSaved = false,
     this.discountPercent,
+    this.status,
   });
 
   final String id;
@@ -33,6 +34,7 @@ class ListingData {
   final TicketType? type;
   final bool isSaved;
   final int? discountPercent;
+  final String? status;
 
   String get formattedPrice {
     final formatted = pricePerTicket.toString().replaceAllMapped(
@@ -153,11 +155,13 @@ class ListingRow extends StatelessWidget {
     required this.listing,
     this.onTap,
     this.onFavoriteTap,
+    this.showStatusBadge = false,
   });
 
   final ListingData listing;
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteTap;
+  final bool showStatusBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -246,10 +250,14 @@ class ListingRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            // Harga + favorit
+            // Harga + status + favorit
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                if (showStatusBadge && listing.status != null) ...[
+                  ListingStatusBadge(status: listing.status!),
+                  const SizedBox(height: 4),
+                ],
                 Text(listing.formattedPrice, style: AppTextStyles.label),
                 const SizedBox(height: 4),
                 GestureDetector(

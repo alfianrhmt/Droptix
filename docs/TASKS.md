@@ -72,7 +72,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 - [x] **T5.1** Backend: `POST/DELETE /listings/:id/favorite`, `GET /me/favorites`.
 - [x] **T5.2** Flutter: halaman detail (`DESIGN.md` bagian 7), label status, favorit, bagikan, tombol "Chat dengan penjual" (sementara membuka layar placeholder sampai M6 selesai).
-- [ ] **T5.3** Flutter: Activity segmen **Saved**.
+- [x] **T5.3** Flutter: Activity segmen **Saved**.
 
 **Selesai jika:** detail menampilkan semua informasi di `PRD.md` FR-5 tanpa email atau nomor WhatsApp.
 

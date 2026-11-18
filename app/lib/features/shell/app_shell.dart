@@ -64,6 +64,7 @@ class _AppShellState extends State<AppShell> {
       case 1:
         body = ActivityScreen(
           onNavigateToSell: () => setState(() => _tabIndex = 2),
+          onNavigateToHome: () => setState(() => _tabIndex = 0),
         );
         break;
       case 2:

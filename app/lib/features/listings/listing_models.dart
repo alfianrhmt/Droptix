@@ -183,6 +183,7 @@ class ListingItem {
       type: jenis == 'last_minute' ? TicketType.lastMinute : TicketType.limited,
       isSaved: isFavorite,
       discountPercent: diskonPersen,
+      status: status,
     );
   }
 

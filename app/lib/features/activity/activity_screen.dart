@@ -3,6 +3,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/network/api_error.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../listings/listing_detail_screen.dart';
 import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
 
@@ -12,17 +13,20 @@ enum ActivitySegment { selling, saved, chats }
 /// Tiga segmen: Selling, Saved, Chats.
 /// Segmen Selling memuat daftar listing pengguna dengan aksi cepat:
 /// ubah terjual, tandai terjual semua, konfirmasi masih tersedia, edit, dan hapus.
+/// Segmen Saved memuat daftar listing favorit pengguna dengan status terkini.
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({
     super.key,
     this.listingRepository,
     this.initialSegment = ActivitySegment.selling,
     this.onNavigateToSell,
+    this.onNavigateToHome,
   });
 
   final ListingRepository? listingRepository;
   final ActivitySegment initialSegment;
   final VoidCallback? onNavigateToSell;
+  final VoidCallback? onNavigateToHome;
 
   @override
   State<ActivityScreen> createState() => _ActivityScreenState();
@@ -40,10 +44,38 @@ class _ActivityScreenState extends State<ActivityScreen> {
   bool _loading = false;
   String? _errorMessage;
 
+  // State untuk Segmen Saved
+  List<ListingItem> _savedListings = [];
+  bool _savedLoading = false;
+  String? _savedErrorMessage;
+  int _savedPage = 1;
+  bool _savedHasMore = true;
+  bool _savedLoadingMore = false;
+  final ScrollController _savedScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _segment = widget.initialSegment;
+    _savedScrollController.addListener(_onSavedScroll);
+  }
+
+  @override
+  void dispose() {
+    _savedScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onSavedScroll() {
+    if (_savedScrollController.position.pixels >=
+            _savedScrollController.position.maxScrollExtent - 200 &&
+        !_savedLoadingMore &&
+        _savedHasMore &&
+        !_savedLoading) {
+      _savedPage++;
+      _savedLoadingMore = true;
+      _fetchSavedListings();
+    }
   }
 
   @override
@@ -55,6 +87,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
       _repoInitialized = true;
       if (_segment == ActivitySegment.selling) {
         _fetchMyListings();
+      } else if (_segment == ActivitySegment.saved) {
+        _fetchSavedListings();
       }
     }
   }
@@ -507,7 +541,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
               label: 'Saved',
               isActive: _segment == ActivitySegment.saved,
               onTap: () {
-                setState(() => _segment = ActivitySegment.saved);
+                if (_segment != ActivitySegment.saved) {
+                  setState(() => _segment = ActivitySegment.saved);
+                  if (_savedListings.isEmpty) {
+                    _fetchSavedListings();
+                  }
+                }
               },
             ),
           ),
@@ -671,11 +710,186 @@ class _ActivityScreenState extends State<ActivityScreen> {
     );
   }
 
+  Future<void> _fetchSavedListings({bool isRefresh = false}) async {
+    if (isRefresh) {
+      _savedPage = 1;
+      _savedHasMore = true;
+    }
+    setState(() {
+      _savedLoading = _savedPage == 1 && !isRefresh;
+      _savedErrorMessage = null;
+    });
+
+    try {
+      final res = await _listingRepo.getMyFavorites(
+        page: _savedPage,
+        limit: 20,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (_savedPage == 1) {
+          _savedListings = List.of(res.items);
+        } else {
+          _savedListings.addAll(res.items);
+        }
+        _savedHasMore = _savedListings.length < res.total;
+        _savedLoading = false;
+        _savedLoadingMore = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _savedErrorMessage = e.message;
+        _savedLoading = false;
+        _savedLoadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _savedErrorMessage = 'Gagal memuat tiket tersimpan. Coba lagi nanti.';
+        _savedLoading = false;
+        _savedLoadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _onRemoveSavedFavorite(ListingItem item) async {
+    final idx = _savedListings.indexWhere((l) => l.id == item.id);
+    if (idx == -1) return;
+
+    setState(() {
+      _savedListings.removeAt(idx);
+    });
+
+    try {
+      await _listingRepo.toggleFavorite(item.id, true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Dihapus dari favorit'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Urungkan',
+            textColor: AppColors.primary,
+            onPressed: () async {
+              setState(() {
+                _savedListings.insert(idx, item);
+              });
+              await _listingRepo.toggleFavorite(item.id, false);
+            },
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _savedListings.insert(idx, item);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal menghapus favorit. Silakan coba lagi.'),
+        ),
+      );
+    }
+  }
+
+  void _openSavedListingDetail(ListingItem item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ListingDetailScreen(
+          listingId: item.id,
+          initialItem: item,
+          listingRepository: _listingRepo,
+        ),
+      ),
+    );
+    _fetchSavedListings(isRefresh: true);
+  }
+
   Widget _buildSavedContent() {
-    return const Center(
-      child: EmptyState(
-        icon: Icons.star_border_rounded,
-        message: 'Tiket yang kamu simpan akan muncul di sini.\n(Hadir di Milestone 5)',
+    if (_savedLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_savedErrorMessage != null && _savedListings.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: AppColors.urgent, size: 48),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _savedErrorMessage!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              PrimaryButton(
+                label: 'Coba Lagi',
+                onPressed: () => _fetchSavedListings(isRefresh: true),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_savedListings.isEmpty) {
+      return Center(
+        child: EmptyState(
+          icon: Icons.star_border_rounded,
+          message:
+              'Tiket yang kamu simpan akan muncul di sini.\nKetuk ikon bintang pada tiket yang kamu minati di Home atau Pencarian.',
+          actionLabel: widget.onNavigateToHome != null ? 'Cari Tiket' : null,
+          onAction: widget.onNavigateToHome,
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.surface,
+      onRefresh: () => _fetchSavedListings(isRefresh: true),
+      child: ListView.separated(
+        controller: _savedScrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        itemCount: _savedListings.length + (_savedLoadingMore ? 1 : 0),
+        separatorBuilder: (_, _) =>
+            const Divider(height: 1, color: AppColors.divider),
+        itemBuilder: (context, index) {
+          if (index >= _savedListings.length) {
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final item = _savedListings[index];
+          return ListingRow(
+            key: Key('saved_listing_${item.id}'),
+            listing: item.toListingData(),
+            showStatusBadge: true,
+            onTap: () => _openSavedListingDetail(item),
+            onFavoriteTap: () => _onRemoveSavedFavorite(item),
+          );
+        },
       ),
     );
   }

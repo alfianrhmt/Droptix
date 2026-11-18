@@ -5,6 +5,7 @@ import 'package:droptix/core/auth/user_model.dart';
 import 'package:droptix/core/network/api_client.dart';
 import 'package:droptix/core/theme/theme.dart';
 import 'package:droptix/features/activity/activity_screen.dart';
+import 'package:droptix/features/listings/listing_detail_screen.dart';
 import 'package:droptix/features/listings/listing_models.dart';
 import 'package:droptix/features/listings/listing_repository.dart';
 import 'package:flutter/material.dart';
@@ -28,14 +29,19 @@ class _FakeAuthRepository extends AuthRepository {
 }
 
 class _FakeListingRepository implements ListingRepository {
-  _FakeListingRepository(List<ListingItem> initialListings)
-      : listings = List.of(initialListings);
+  _FakeListingRepository(
+    List<ListingItem> initialListings, {
+    List<ListingItem> initialSavedListings = const [],
+  })  : listings = List.of(initialListings),
+        savedListings = List.of(initialSavedListings);
 
   final List<ListingItem> listings;
+  final List<ListingItem> savedListings;
   int? lastConfirmedId;
   int? lastDeletedId;
   int? lastUpdatedStockId;
   int? lastUpdatedStockValue;
+  int? lastToggledFavoriteId;
 
   @override
   Future<PaginatedListings> getListings({
@@ -130,8 +136,11 @@ class _FakeListingRepository implements ListingRepository {
   }
 
   @override
-  Future<ListingItem> getListingDetail(int id, {double? lat, double? lng}) {
-    throw UnimplementedError();
+  Future<ListingItem> getListingDetail(int id, {double? lat, double? lng}) async {
+    return savedListings.firstWhere(
+      (l) => l.id == id,
+      orElse: () => listings.firstWhere((l) => l.id == id),
+    );
   }
 
   @override
@@ -140,11 +149,36 @@ class _FakeListingRepository implements ListingRepository {
   }
 
   @override
-  Future<bool> toggleFavorite(int id, bool currentStatus) async => !currentStatus;
+  Future<bool> toggleFavorite(int id, bool currentStatus) async {
+    lastToggledFavoriteId = id;
+    if (currentStatus) {
+      savedListings.removeWhere((l) => l.id == id);
+      return false;
+    } else {
+      final item = listings.firstWhere(
+        (l) => l.id == id,
+        orElse: () => _sampleListing(
+          id: id,
+          eventNama: 'Sample Event',
+          status: 'tersedia',
+          harga: 100000,
+          jumlahTotal: 1,
+          jumlahTerjual: 0,
+        ),
+      );
+      savedListings.add(item);
+      return true;
+    }
+  }
 
   @override
   Future<PaginatedListings> getMyFavorites({double? lat, double? lng, int page = 1, int limit = 20}) async =>
-      const PaginatedListings(items: [], total: 0, page: 1, limit: 20);
+      PaginatedListings(
+        items: List.of(savedListings),
+        total: savedListings.length,
+        page: page,
+        limit: limit,
+      );
 }
 
 ListingItem _sampleListing({
@@ -155,6 +189,7 @@ ListingItem _sampleListing({
   required int jumlahTotal,
   required int jumlahTerjual,
   DateTime? confirmedAt,
+  bool isFavorite = false,
 }) {
   return ListingItem(
     id: id,
@@ -176,6 +211,7 @@ ListingItem _sampleListing({
     tertarik: 2,
     status: status,
     confirmedAt: confirmedAt,
+    isFavorite: isFavorite,
   );
 }
 
@@ -326,8 +362,173 @@ void main() {
 
     // Bebas dari error atau overflow
     expect(tester.takeException(), isNull);
+  });
 
-    // Bebas dari error atau overflow
+  testWidgets('ActivityScreen segmen Saved menampilkan listing favorit, status badge, un-favorite dengan undo, dan buka detail', (tester) async {
+    final storage = TokenStorage();
+    await storage.saveSession(
+      'token-saved-test',
+      const UserModel(
+        id: 1,
+        nama: 'Rina',
+        email: 'rina@example.com',
+        noWa: '6281234567890',
+        kota: 'Surabaya',
+      ),
+    );
+
+    final auth = AuthController(
+      repository: _FakeAuthRepository(),
+      tokenStorage: storage,
+    );
+    await auth.restoreSession();
+
+    final savedItems = [
+      _sampleListing(
+        id: 101,
+        eventNama: 'Konser Sheila on 7 Surabaya',
+        status: 'tersedia',
+        harga: 350000,
+        jumlahTotal: 3,
+        jumlahTerjual: 1,
+        isFavorite: true,
+      ),
+      _sampleListing(
+        id: 102,
+        eventNama: 'Synchronize Festival 2026',
+        status: 'terjual',
+        harga: 450000,
+        jumlahTotal: 2,
+        jumlahTerjual: 2,
+        isFavorite: true,
+      ),
+      _sampleListing(
+        id: 103,
+        eventNama: 'Pameran Seni Kontemporer',
+        status: 'kedaluwarsa',
+        harga: 120000,
+        jumlahTotal: 1,
+        jumlahTerjual: 0,
+        isFavorite: true,
+      ),
+    ];
+
+    final fakeRepo = _FakeListingRepository([], initialSavedListings: savedItems);
+
+    await tester.pumpWidget(
+      AuthScope(
+        controller: auth,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(360, 740)),
+            child: Scaffold(
+              body: ActivityScreen(
+                initialSegment: ActivitySegment.saved,
+                listingRepository: fakeRepo,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verifikasi ketiga item tampil
+    expect(find.text('Konser Sheila on 7 Surabaya'), findsOneWidget);
+    expect(find.text('Synchronize Festival 2026'), findsOneWidget);
+    expect(find.text('Pameran Seni Kontemporer'), findsOneWidget);
+
+    // 2. Verifikasi status badge muncul pada masing-masing item
+    expect(find.text('Tersedia'), findsOneWidget);
+    expect(find.text('Terjual'), findsOneWidget);
+    expect(find.text('Kedaluwarsa'), findsOneWidget);
+
+    // 3. Menghapus favorit dengan mengetuk ikon bintang
+    final starIcons = find.byIcon(Icons.star_rounded);
+    expect(starIcons, findsNWidgets(3));
+
+    await tester.tap(starIcons.first);
+    await tester.pumpAndSettle();
+
+    expect(fakeRepo.lastToggledFavoriteId, 101);
+    expect(find.text('Konser Sheila on 7 Surabaya'), findsNothing);
+    expect(find.text('Dihapus dari favorit'), findsOneWidget);
+    expect(find.text('Urungkan'), findsOneWidget);
+
+    // 4. Mengurungkan penghapusan favorit
+    await tester.tap(find.text('Urungkan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Konser Sheila on 7 Surabaya'), findsOneWidget);
+
+    // 5. Mengetuk listing berstatus terjual tetap bisa membuka ListingDetailScreen
+    await tester.tap(find.text('Synchronize Festival 2026'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListingDetailScreen), findsOneWidget);
+    expect(find.text('SYNCHRONIZE FESTIVAL 2026'), findsOneWidget);
+    expect(find.text('Tiket Tidak Tersedia'), findsOneWidget);
+
+    // Kembali ke Activity
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    expect(find.byType(ActivityScreen), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Segmen Saved menampilkan EmptyState jika kosong dan tombol Cari Tiket berpindah ke Home', (tester) async {
+    final storage = TokenStorage();
+    await storage.saveSession(
+      'token-empty-test',
+      const UserModel(
+        id: 1,
+        nama: 'Rina',
+        email: 'rina@example.com',
+        noWa: '6281234567890',
+        kota: 'Surabaya',
+      ),
+    );
+
+    final auth = AuthController(
+      repository: _FakeAuthRepository(),
+      tokenStorage: storage,
+    );
+    await auth.restoreSession();
+
+    final fakeRepo = _FakeListingRepository([], initialSavedListings: []);
+    bool homeNavigated = false;
+
+    await tester.pumpWidget(
+      AuthScope(
+        controller: auth,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(360, 740)),
+            child: Scaffold(
+              body: ActivityScreen(
+                initialSegment: ActivitySegment.saved,
+                listingRepository: fakeRepo,
+                onNavigateToHome: () => homeNavigated = true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verifikasi EmptyState
+    expect(find.textContaining('Tiket yang kamu simpan akan muncul di sini'), findsOneWidget);
+    expect(find.text('Cari Tiket'), findsOneWidget);
+
+    // Ketuk tombol Cari Tiket
+    await tester.tap(find.text('Cari Tiket'));
+    await tester.pumpAndSettle();
+
+    expect(homeNavigated, isTrue);
     expect(tester.takeException(), isNull);
   });
 }
