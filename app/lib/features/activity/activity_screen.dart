@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/api_error.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../chat/chat_models.dart';
+import '../chat/chat_repository.dart';
+import '../chat/chat_screen.dart';
+import '../chat/chat_socket_service.dart';
 import '../listings/listing_detail_screen.dart';
 import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
@@ -18,12 +23,16 @@ class ActivityScreen extends StatefulWidget {
   const ActivityScreen({
     super.key,
     this.listingRepository,
+    this.chatRepository,
+    this.socketService,
     this.initialSegment = ActivitySegment.selling,
     this.onNavigateToSell,
     this.onNavigateToHome,
   });
 
   final ListingRepository? listingRepository;
+  final ChatRepository? chatRepository;
+  final ChatSocketService? socketService;
   final ActivitySegment initialSegment;
   final VoidCallback? onNavigateToSell;
   final VoidCallback? onNavigateToHome;
@@ -35,6 +44,8 @@ class ActivityScreen extends StatefulWidget {
 class _ActivityScreenState extends State<ActivityScreen> {
   late ActivitySegment _segment;
   late ListingRepository _listingRepo;
+  late ChatRepository _chatRepo;
+  ChatSocketService? _socketService;
   bool _repoInitialized = false;
 
   // Status sub-filter untuk Selling: null = Semua, 'tersedia', 'terjual', 'kedaluwarsa'
@@ -53,17 +64,42 @@ class _ActivityScreenState extends State<ActivityScreen> {
   bool _savedLoadingMore = false;
   final ScrollController _savedScrollController = ScrollController();
 
+  // State untuk Segmen Chats
+  List<ConversationModel> _conversations = [];
+  bool _chatsLoading = false;
+  String? _chatsErrorMessage;
+  int _chatsPage = 1;
+  bool _chatsHasMore = true;
+  bool _chatsLoadingMore = false;
+  final ScrollController _chatsScrollController = ScrollController();
+  StreamSubscription? _chatsSocketSub;
+
   @override
   void initState() {
     super.initState();
     _segment = widget.initialSegment;
     _savedScrollController.addListener(_onSavedScroll);
+    _chatsScrollController.addListener(_onChatsScroll);
   }
 
   @override
   void dispose() {
     _savedScrollController.dispose();
+    _chatsScrollController.dispose();
+    _chatsSocketSub?.cancel();
     super.dispose();
+  }
+
+  void _onChatsScroll() {
+    if (_chatsScrollController.position.pixels >=
+            _chatsScrollController.position.maxScrollExtent - 200 &&
+        !_chatsLoadingMore &&
+        _chatsHasMore &&
+        !_chatsLoading) {
+      _chatsPage++;
+      _chatsLoadingMore = true;
+      _fetchConversations();
+    }
   }
 
   void _onSavedScroll() {
@@ -84,13 +120,29 @@ class _ActivityScreenState extends State<ActivityScreen> {
     if (!_repoInitialized) {
       final client = AuthScope.of(context).repository.client;
       _listingRepo = widget.listingRepository ?? ListingRepository(client);
+      _chatRepo = widget.chatRepository ?? ChatRepository(client);
+      _socketService = widget.socketService;
       _repoInitialized = true;
+
+      _listenToSocket();
+
       if (_segment == ActivitySegment.selling) {
         _fetchMyListings();
       } else if (_segment == ActivitySegment.saved) {
         _fetchSavedListings();
+      } else if (_segment == ActivitySegment.chats) {
+        _fetchConversations();
       }
     }
+  }
+
+  void _listenToSocket() {
+    if (_socketService == null) return;
+    _chatsSocketSub = _socketService!.onNewMessage.listen((_) {
+      if (_segment == ActivitySegment.chats && mounted) {
+        _fetchConversations(isRefresh: true);
+      }
+    });
   }
 
   Future<void> _fetchMyListings() async {
@@ -556,7 +608,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
               label: 'Chats',
               isActive: _segment == ActivitySegment.chats,
               onTap: () {
-                setState(() => _segment = ActivitySegment.chats);
+                if (_segment != ActivitySegment.chats) {
+                  setState(() => _segment = ActivitySegment.chats);
+                  if (_conversations.isEmpty) {
+                    _fetchConversations();
+                  }
+                }
               },
             ),
           ),
@@ -894,11 +951,148 @@ class _ActivityScreenState extends State<ActivityScreen> {
     );
   }
 
+  Future<void> _fetchConversations({bool isRefresh = false}) async {
+    if (isRefresh) {
+      _chatsPage = 1;
+      _chatsHasMore = true;
+    }
+    setState(() {
+      _chatsLoading = _chatsPage == 1 && !isRefresh;
+      _chatsErrorMessage = null;
+    });
+
+    try {
+      final res = await _chatRepo.getConversations(
+        page: _chatsPage,
+        limit: 20,
+      );
+
+      if (mounted) {
+        setState(() {
+          if (isRefresh || _chatsPage == 1) {
+            _conversations = res;
+          } else {
+            _conversations.addAll(res);
+          }
+          _chatsHasMore = res.length >= 20;
+          _chatsLoading = false;
+          _chatsLoadingMore = false;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _chatsErrorMessage = e.message;
+          _chatsLoading = false;
+          _chatsLoadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _chatsErrorMessage = 'Gagal memuat percakapan. Coba lagi.';
+          _chatsLoading = false;
+          _chatsLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openChat(ConversationModel conv) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          conversationId: conv.id,
+          initialConversation: conv,
+          chatRepository: _chatRepo,
+          socketService: _socketService,
+        ),
+      ),
+    );
+    _fetchConversations(isRefresh: true);
+  }
+
   Widget _buildChatsContent() {
-    return const Center(
-      child: EmptyState(
-        icon: Icons.chat_bubble_outline_rounded,
-        message: 'Belum ada percakapan.\n(Hadir di Milestone 6)',
+    if (_chatsLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_chatsErrorMessage != null && _conversations.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: AppColors.urgent, size: 48),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _chatsErrorMessage!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              PrimaryButton(
+                label: 'Coba Lagi',
+                onPressed: () => _fetchConversations(isRefresh: true),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_conversations.isEmpty) {
+      return Center(
+        child: EmptyState(
+          icon: Icons.chat_bubble_outline_rounded,
+          message: 'Belum ada percakapan.',
+          actionLabel: widget.onNavigateToHome != null ? 'Cari Tiket' : null,
+          onAction: widget.onNavigateToHome,
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.surface,
+      onRefresh: () => _fetchConversations(isRefresh: true),
+      child: ListView.separated(
+        controller: _chatsScrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        itemCount: _conversations.length + (_chatsLoadingMore ? 1 : 0),
+        separatorBuilder: (_, _) =>
+            const Divider(height: 1, color: AppColors.divider),
+        itemBuilder: (context, index) {
+          if (index >= _conversations.length) {
+            return const Padding(
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final conv = _conversations[index];
+          return ConversationRow(
+            key: Key('chat_conversation_${conv.id}'),
+            conversation: conv.toConversationData(),
+            onTap: () => _openChat(conv),
+          );
+        },
       ),
     );
   }

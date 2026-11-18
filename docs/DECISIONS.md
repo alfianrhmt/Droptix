@@ -27,6 +27,7 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 21 | Segmen Activity Saved menampilkan ListingRow dengan status badge (Tersedia, Terjual, Kedaluwarsa), un-favorite optimistik dengan opsi Urungkan (Undo), dan EmptyState beraksi kembali ke Home | Memberikan pengalaman mengelola tiket tersimpan yang cepat dan toleran terhadap kesalahan pengguna tanpa kehilangan konteks navigasi |
 | 22 | Pembuatan chat pertama di `POST /listings/:id/conversations` secara atomik membuat conversation dan pesan pertama, sedangkan `computeListingStatus` diekstraksi ke `backend/src/utils/status.js` | Mencegah dependensi sirkular antara route listings dan conversations, menjamin integritas percakapan hanya untuk tiket berstatus 'tersedia' (409 bila tidak), dan mengizinkan pesan lanjutan jika chat sudah ada |
 | 23 | Socket.IO diinisialisasi terintegrasi dengan Express HTTP server dan diakses lewat `req.app.get('io')` | Memungkinkan endpoints REST menyiarkan event `message:new` dan `unread:update` ke room `user:{id}` lawan bicara tanpa kopling erat, sekaligus menjaga kemudahan pengujian HTTP supertest |
+| 24 | Manajemen koneksi Socket.IO di Flutter dipusatkan dalam `ChatSocketService` seumur hidup sesi di `AppShell`, dengan fallback polling 5 detik di `ChatScreen` | Mengoptimalkan penggunaan baterai dan kuota data dengan 1 koneksi persisten untuk seluruh aplikasi, sembari menjamin keandalan pengantaran pesan saat koneksi realtime terganggu |
 
 
 

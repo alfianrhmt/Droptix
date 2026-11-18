@@ -80,7 +80,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 - [x] **T6.1** Backend: `GET /listings/:id/conversation`, `POST /listings/:id/conversations` (atomik dengan pesan pertama), `GET /conversations`, `GET /conversations/:id`, `GET /conversations/:id/messages` (paginasi `before`), `POST /conversations/:id/messages`, `POST /conversations/:id/read`, `GET /me/unread`, aturan BR-12 dan batas laju.
 - [x] **T6.2** Backend: Socket.IO (`realtime/`) dengan autentikasi JWT, room per pengguna, event `message:new` dan `unread:update`.
-- [ ] **T6.3** Flutter: koneksi socket tunggal (login/logout, sambung ulang otomatis), layar chat (kartu listing, bubble, input, saran pesan cepat, polling cadangan), Activity segmen **Chats** (`ConversationRow`), badge belum dibaca di ikon Activity.
+- [x] **T6.3** Flutter: koneksi socket tunggal (login/logout, sambung ulang otomatis), layar chat (kartu listing, bubble, input, saran pesan cepat, polling cadangan), Activity segmen **Chats** (`ConversationRow`), badge belum dibaca di ikon Activity.
 - [ ] **T6.4** Backend dan Flutter: opsi WhatsApp (`POST /conversations/:id/whatsapp`, item menu "Lanjut via WhatsApp" di chat, hanya jika `izinkan_wa`).
 - [ ] **T6.5** Tes: satu percakapan per (listing, pembeli), penjual tidak bisa chat dengan listingnya sendiri, "tertarik" unik, nomor WhatsApp tidak bocor di endpoint mana pun selain `/whatsapp`, batas 30 pesan per menit, peserta saja yang bisa membaca percakapan.
 

@@ -5,6 +5,8 @@ import 'package:droptix/core/auth/user_model.dart';
 import 'package:droptix/core/network/api_client.dart';
 import 'package:droptix/core/theme/theme.dart';
 import 'package:droptix/features/activity/activity_screen.dart';
+import 'package:droptix/features/chat/chat_models.dart';
+import 'package:droptix/features/chat/chat_repository.dart';
 import 'package:droptix/features/listings/listing_detail_screen.dart';
 import 'package:droptix/features/listings/listing_models.dart';
 import 'package:droptix/features/listings/listing_repository.dart';
@@ -181,6 +183,70 @@ class _FakeListingRepository implements ListingRepository {
       );
 }
 
+class _FakeChatRepository implements ChatRepository {
+  _FakeChatRepository({List<ConversationModel>? initialConversations})
+      : conversations = List.of(initialConversations ?? []);
+
+  final List<ConversationModel> conversations;
+
+  @override
+  ApiClient get client => ApiClient(tokenStorage: TokenStorage());
+
+  @override
+  Future<List<ConversationModel>> getConversations({int page = 1, int limit = 20}) async {
+    return conversations;
+  }
+
+  @override
+  Future<ConversationModel?> getConversationForListing(int listingId) async {
+    return conversations.cast<ConversationModel?>().firstWhere(
+          (c) => c?.listing.id == listingId,
+          orElse: () => null,
+        );
+  }
+
+  @override
+  Future<ConversationModel> getConversation(int conversationId) async {
+    return conversations.firstWhere((c) => c.id == conversationId);
+  }
+
+  @override
+  Future<({List<ChatMessageModel> messages, bool adaLebihLama})> getMessages(
+    int conversationId, {
+    int? before,
+    int limit = 30,
+  }) async {
+    return (messages: <ChatMessageModel>[], adaLebihLama: false);
+  }
+
+  @override
+  Future<ChatMessageModel> sendMessage(int conversationId, String isi) async {
+    return ChatMessageModel(
+      id: 1,
+      conversationId: conversationId,
+      senderId: 1,
+      isi: isi,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<({ConversationModel conversation, ChatMessageModel message})>
+      startListingConversation(int listingId, String isi) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<({int belumDibaca, int chatsBelumDibaca})> markAsRead(int conversationId) async {
+    return (belumDibaca: 0, chatsBelumDibaca: 0);
+  }
+
+  @override
+  Future<int> getUnreadChatsCount() async {
+    return 0;
+  }
+}
+
 ListingItem _sampleListing({
   required int id,
   required String eventNama,
@@ -277,6 +343,7 @@ void main() {
           home: Scaffold(
             body: ActivityScreen(
               listingRepository: fakeRepo,
+              chatRepository: _FakeChatRepository(),
             ),
           ),
         ),
@@ -426,6 +493,7 @@ void main() {
               body: ActivityScreen(
                 initialSegment: ActivitySegment.saved,
                 listingRepository: fakeRepo,
+                chatRepository: _FakeChatRepository(),
               ),
             ),
           ),

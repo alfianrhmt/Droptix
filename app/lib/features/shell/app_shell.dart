@@ -4,6 +4,8 @@ import '../../core/location/location_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../activity/activity_screen.dart';
+import '../chat/chat_repository.dart';
+import '../chat/chat_socket_service.dart';
 import '../home/home_screen.dart';
 import '../location/location_picker_sheet.dart';
 import '../profile/profile_screen.dart';
@@ -12,7 +14,14 @@ import '../sell/sell_screen.dart';
 /// Kerangka navigasi utama 4 tab: Home, Activity, Sell, Profile.
 /// Tab Activity dan Sell menerapkan alur "login saat aksi" untuk tamu.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({
+    super.key,
+    this.socketService,
+    this.chatRepository,
+  });
+
+  final ChatSocketService? socketService;
+  final ChatRepository? chatRepository;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -21,6 +30,50 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _tabIndex = 0;
   bool _promptedLocation = false;
+  late final ChatSocketService _socketService;
+  late final bool _ownsSocketService;
+  ChatRepository? _chatRepo;
+  bool _lastLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.socketService != null) {
+      _socketService = widget.socketService!;
+      _ownsSocketService = false;
+    } else {
+      _socketService = ChatSocketService();
+      _ownsSocketService = true;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = AuthScope.of(context);
+    final client = auth.repository.client;
+    _chatRepo ??= widget.chatRepository ?? ChatRepository(client);
+
+    if (auth.isLoggedIn != _lastLoggedIn) {
+      _lastLoggedIn = auth.isLoggedIn;
+      if (auth.isLoggedIn) {
+        _socketService.connect();
+        _chatRepo!.getUnreadChatsCount().then((count) {
+          if (mounted) _socketService.setUnreadCount(count);
+        }).catchError((_) {});
+      } else {
+        _socketService.disconnect();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsSocketService) {
+      _socketService.dispose();
+    }
+    super.dispose();
+  }
 
   void _maybePromptLocation(LocationController? location) {
     if (_promptedLocation || location == null) return;
@@ -63,6 +116,8 @@ class _AppShellState extends State<AppShell> {
     switch (_tabIndex) {
       case 1:
         body = ActivityScreen(
+          chatRepository: _chatRepo,
+          socketService: _socketService,
           onNavigateToSell: () => setState(() => _tabIndex = 2),
           onNavigateToHome: () => setState(() => _tabIndex = 0),
         );
@@ -85,9 +140,15 @@ class _AppShellState extends State<AppShell> {
     return AppBackground(
       child: Scaffold(
         body: body,
-        bottomNavigationBar: DroptixBottomNav(
-          currentIndex: _tabIndex,
-          onTap: _onTabTap,
+        bottomNavigationBar: ValueListenableBuilder<int>(
+          valueListenable: _socketService.unreadCountNotifier,
+          builder: (context, unreadCount, _) {
+            return DroptixBottomNav(
+              currentIndex: _tabIndex,
+              onTap: _onTabTap,
+              unreadCount: unreadCount,
+            );
+          },
         ),
       ),
     );

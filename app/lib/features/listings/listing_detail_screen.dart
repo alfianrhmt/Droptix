@@ -10,6 +10,9 @@ import '../../core/widgets/badges.dart';
 import '../../core/widgets/event_poster.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/stats_card.dart';
+import '../chat/chat_repository.dart';
+import '../chat/chat_screen.dart';
+import '../chat/chat_socket_service.dart';
 import 'listing_models.dart';
 import 'listing_repository.dart';
 
@@ -22,11 +25,17 @@ class ListingDetailScreen extends StatefulWidget {
     required this.listingId,
     this.initialItem,
     this.listingRepository,
+    this.chatRepository,
+    this.socketService,
+    this.usePlaceholderChat = false,
   });
 
   final int listingId;
   final ListingItem? initialItem;
   final ListingRepository? listingRepository;
+  final ChatRepository? chatRepository;
+  final ChatSocketService? socketService;
+  final bool usePlaceholderChat;
 
   @override
   State<ListingDetailScreen> createState() => _ListingDetailScreenState();
@@ -235,17 +244,30 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     );
   }
 
-  void _openChatPlaceholder() {
+  void _openChat() {
     final item = _item;
     if (item == null) return;
 
     final auth = AuthScope.of(context);
     auth.requireAuthAction(context, () {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatPlaceholderScreen(listing: item),
-        ),
-      );
+      if (widget.chatRepository != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              listingId: item.id,
+              listingDetail: item,
+              chatRepository: widget.chatRepository,
+              socketService: widget.socketService,
+            ),
+          ),
+        );
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChatPlaceholderScreen(listing: item),
+          ),
+        );
+      }
     });
   }
 
@@ -1059,7 +1081,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     } else {
       buttonLabel = 'Chat dengan penjual';
       helperText = null;
-      onChatPressed = _openChatPlaceholder;
+      onChatPressed = _openChat;
     }
 
     return Container(
