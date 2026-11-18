@@ -14,9 +14,16 @@
   - Area sentuh minimal 48×48 dp (`AppTouchTarget.min`) dipenuhi di seluruh komponen tombol dan menu.
   - Pengujian: 73/73 tests Flutter lulus (100%), `flutter analyze` 0 issues (bersih), 129/129 tests Backend lulus.
 
+- **T8.2 selesai tuntas**:
+  - Penanganan jaringan offline/timeout: pemetaan otomatis `connectionError` ke `NETWORK_ERROR` dan `timeout` ke `TIMEOUT` dengan pesan ramah bahasa Indonesia.
+  - Penanganan token kedaluwarsa & akun dibekukan: interceptor `ApiClient` otomatis menghapus token dari `TokenStorage` dan memicu logout saat menerima respons 401 `UNAUTHORIZED` atau 403 `ACCOUNT_BANNED`.
+  - Fallback gambar: `EventPoster` dan `BannerCarousel` memiliki poster cadangan bergradasi dengan ikon kategori saat URL gambar null/error.
+  - Ketahanan socket chat: `ChatSocketService` memiliki auto-reconnect delay 2 detik hingga 10 percobaan, fallback polling setiap 5 detik di `ChatScreen`, dan pemutusan bersih saat logout.
+  - Pengujian: 79/79 tests Flutter lulus (100%), `flutter analyze` 0 issues (bersih), 129/129 tests Backend lulus.
+
 ## Sedang
-- Menyiapkan **T8.2**: Penanganan jaringan: tidak ada koneksi (offline mode), token kedaluwarsa (401 logout otomatis), gambar gagal dimuat (fallback placeholder), koneksi socket terputus (reconnect otomatis).
+- Menyiapkan **T8.3**: Deploy backend dan database ke server publik dengan HTTPS, folder unggahan persisten, `pg_dump` terjadwal, health check, dan variabel lingkungan produksi.
 
 ## Langkah berikutnya
-- **T8.2**: Penguatan dan pengujian penanganan kegagalan jaringan & token kedaluwarsa.
-- **T8.3**: Deploy backend dan database ke server publik dengan HTTPS.
+- **T8.3**: Verifikasi konfigurasi produksi backend & database (Docker Compose produksi, backup dump terjadwal, upload volume).
+- **T8.4**: Konfigurasi build APK rilis bertanda tangan (`flutter build apk --release`).
