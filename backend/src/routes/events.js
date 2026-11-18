@@ -4,9 +4,15 @@ const express = require('express');
 const { z } = require('zod');
 const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
+const { formatListingCard } = require('./listings');
 
 const STRICT_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
 const MAX_EVENTS_PER_DAY = 5;
+
+const getTrendingQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+});
 
 const listEventsQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
@@ -101,6 +107,123 @@ async function fetchEventById(db, id) {
  */
 function createEventsRouter(db, requireAuth) {
   const router = express.Router();
+
+  router.get('/trending', validate(getTrendingQuerySchema, 'query'), async (req, res, next) => {
+    try {
+      const { lat, lng } = req.query;
+      const hasLat = lat !== undefined;
+      const hasLng = lng !== undefined;
+
+      if ((hasLat && !hasLng) || (!hasLat && hasLng)) {
+        return next(
+          Errors.validation('Koordinat lat dan lng harus diberikan berpasangan.', [
+            { field: 'lat', message: 'lat dan lng harus berpasangan.' },
+          ])
+        );
+      }
+
+      const banners = [];
+
+      // 1. Kategori acara (Konser & Festival, Olahraga, Hiburan Lain) -> Banner "event"
+      // skor_event = active_listings_count + 0.5 * new_convs_7d
+      const eventScoresSql = `
+        WITH event_scores AS (
+          SELECT e.id, e.category_id, e.nama, e.poster_url,
+                 c.slug AS category_slug, c.urutan AS category_urutan,
+                 COUNT(DISTINCT l.id)::int AS active_listings_count,
+                 COUNT(DISTINCT cv.id)::int AS convs_7d_count,
+                 (COUNT(DISTINCT l.id)::numeric + 0.5 * COUNT(DISTINCT cv.id)::numeric) AS skor_event
+          FROM events e
+          JOIN categories c ON c.id = e.category_id
+          JOIN listings l ON l.event_id = e.id
+          JOIN users u ON u.id = l.seller_id
+          LEFT JOIN conversations cv ON cv.listing_id = l.id AND cv.created_at >= now() - interval '7 days'
+          WHERE e.hidden = false
+            AND c.slug IN ('konser-festival', 'olahraga', 'hiburan-lain')
+            AND l.deleted_at IS NULL
+            AND l.hidden = false
+            AND l.waktu_acara > now()
+            AND (l.jumlah_total - l.jumlah_terjual) > 0
+            AND u.banned_at IS NULL
+          GROUP BY e.id, e.category_id, e.nama, e.poster_url, c.slug, c.urutan
+          HAVING COUNT(DISTINCT l.id) > 0
+        ),
+        ranked_events AS (
+          SELECT *,
+                 ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY skor_event DESC, id ASC) AS rn
+          FROM event_scores
+        )
+        SELECT * FROM ranked_events WHERE rn = 1
+      `;
+      const eventScoresRes = await db.query(eventScoresSql);
+      for (const row of eventScoresRes.rows) {
+        banners.push({
+          type: 'event',
+          category_slug: row.category_slug,
+          category_urutan: row.category_urutan,
+          event: {
+            id: row.id,
+            nama: row.nama,
+            poster_url: row.poster_url ?? null,
+          },
+        });
+      }
+
+      // 2. Kategori lokasi (Bioskop, Wisata) -> Banner "nearest"
+      // Hanya jika koordinat pengguna diberikan
+      if (hasLat && hasLng) {
+        const nearestSql = `
+          WITH ranked_listings AS (
+            SELECT l.*,
+                   e.nama AS event_nama, e.poster_url AS event_poster_url,
+                   c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama, c.urutan AS category_urutan,
+                   v.nama AS venue_nama, v.kota AS venue_kota,
+                   (SELECT count(*)::int FROM conversations cv WHERE cv.listing_id = l.id) AS tertarik,
+                   false AS is_favorite,
+                   (6371 * 2 * asin(sqrt(power(sin(radians(l.ref_lat - $1) / 2), 2) + cos(radians($1)) * cos(radians(l.ref_lat)) * power(sin(radians(l.ref_lng - $2) / 2), 2)))) AS jarak_calc,
+                   ROW_NUMBER() OVER (
+                     PARTITION BY c.id
+                     ORDER BY (6371 * 2 * asin(sqrt(power(sin(radians(l.ref_lat - $1) / 2), 2) + cos(radians($1)) * cos(radians(l.ref_lat)) * power(sin(radians(l.ref_lng - $2) / 2), 2)))) ASC,
+                              l.waktu_acara ASC,
+                              l.id DESC
+                   ) AS rn
+            FROM listings l
+            JOIN events e ON e.id = l.event_id
+            JOIN categories c ON c.id = e.category_id
+            LEFT JOIN venues v ON v.id = l.venue_id
+            JOIN users u ON u.id = l.seller_id
+            WHERE c.slug IN ('bioskop', 'wisata')
+              AND e.hidden = false
+              AND l.deleted_at IS NULL
+              AND l.hidden = false
+              AND l.waktu_acara > now()
+              AND (l.jumlah_total - l.jumlah_terjual) > 0
+              AND u.banned_at IS NULL
+              AND l.ref_lat IS NOT NULL
+              AND l.ref_lng IS NOT NULL
+          )
+          SELECT * FROM ranked_listings WHERE rn = 1
+        `;
+        const nearestRes = await db.query(nearestSql, [lat, lng]);
+        for (const row of nearestRes.rows) {
+          banners.push({
+            type: 'nearest',
+            category_slug: row.category_slug,
+            category_urutan: row.category_urutan,
+            listing: formatListingCard(row, lat, lng),
+          });
+        }
+      }
+
+      // 3. Urutkan sesuai categories.urutan, maksimal 5 banner
+      banners.sort((a, b) => a.category_urutan - b.category_urutan);
+      const data = banners.slice(0, 5).map(({ category_urutan, ...banner }) => banner);
+
+      return res.json({ data });
+    } catch (err) {
+      return next(err);
+    }
+  });
 
   router.get('/', validate(listEventsQuerySchema, 'query'), async (req, res, next) => {
     try {

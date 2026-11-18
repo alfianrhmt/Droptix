@@ -61,7 +61,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 - [x] **T4.1** Backend: `GET /listings` dengan semua filter, urutan, pagination, dan jarak Haversine; kedaluwarsa, `hidden`, dan penjual dibekukan dicek saat query.
 - [x] **T4.2** Backend: skor relevansi (BR-5) dengan bobot di satu berkas konfigurasi, `sort=relevan`, normalisasi ulang tanpa lokasi.
-- [ ] **T4.3** Backend: `GET /events/trending` (BR-6, memakai jumlah percakapan baru 7 hari).
+- [x] **T4.3** Backend: `GET /events/trending` (BR-6, memakai jumlah percakapan baru 7 hari).
 - [ ] **T4.4** Flutter: halaman pencarian dan kategori (chip filter, urutan, daftar `ListingRow`, 5 pencarian terakhir, keadaan kosong).
 - [ ] **T4.5** Flutter: Home dengan semua section (`DESIGN.md` bagian 5), scroll tanpa batas pada "Baru Ditambahkan".
 - [ ] **T4.6** Tes: filter, urutan, kedaluwarsa, skor relevansi (dua listing dengan jarak berbeda, bobot berbeda per jenis).
