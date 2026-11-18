@@ -5,6 +5,15 @@ const jwt = require('jsonwebtoken');
 const { createApp } = require('../src/index');
 const { getJwtSecret } = require('../src/middleware/auth');
 const { haversineKm, getWibDateRange } = require('../src/routes/listings');
+const {
+  RELEVANCE_WEIGHTS,
+  getNormalizedWeights,
+  calculateSJarak,
+  calculateSWaktu,
+  calculateSHarga,
+  computeRelevanceScore,
+  buildRelevanceSqlOrder,
+} = require('../src/config/relevance');
 
 function makeToken(user) {
   return jwt.sign({ sub: user.id, email: user.email }, getJwtSecret(), {
@@ -394,13 +403,70 @@ function createListingsMockDb() {
               new Date(a.waktu_acara).getTime() - new Date(b.waktu_acara).getTime() ||
               b.id - a.id
           );
-        } else {
-          // Default terbaru / relevan
+        } else if (q.includes('ORDER BY l.created_at DESC')) {
           filtered.sort(
             (a, b) =>
               new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ||
               b.id - a.id
           );
+        } else {
+          // Relevan (BR-5)
+          const matchRelLat = /radians\(l\.ref_lat - \$(\d+)\)/.exec(q);
+          const matchRelLng = /radians\(l\.ref_lng - \$(\d+)\)/.exec(q);
+          const hasUserLocation = Boolean(matchRelLat && matchRelLng);
+          const sLat = matchRelLat ? params[parseInt(matchRelLat[1], 10) - 1] : null;
+          const sLng = matchRelLng ? params[parseInt(matchRelLng[1], 10) - 1] : null;
+
+          function getMinEventPrice(eventId) {
+            const activeListings = listings.filter((l) => {
+              if (l.event_id !== eventId) return false;
+              if (l.deleted_at || l.hidden) return false;
+              if (new Date(l.waktu_acara).getTime() <= Date.now()) return false;
+              if (l.jumlah_total - l.jumlah_terjual <= 0) return false;
+              const seller = users.find((u) => u.id === l.seller_id);
+              if (!seller || seller.banned_at) return false;
+              return true;
+            });
+            if (activeListings.length === 0) return null;
+            return Math.min(...activeListings.map((l) => l.harga));
+          }
+
+          filtered.sort((a, b) => {
+            const distA = hasUserLocation && a.ref_lat != null && a.ref_lng != null
+              ? haversineKm(sLat, sLng, a.ref_lat, a.ref_lng)
+              : null;
+            const distB = hasUserLocation && b.ref_lat != null && b.ref_lng != null
+              ? haversineKm(sLat, sLng, b.ref_lat, b.ref_lng)
+              : null;
+
+            const scoreA = computeRelevanceScore({
+              jenis: a.jenis,
+              harga: a.harga,
+              hargaMinEvent: getMinEventPrice(a.event_id),
+              waktuAcara: a.waktu_acara,
+              jarakKm: distA,
+              hasUserLocation,
+            }).skor;
+
+            const scoreB = computeRelevanceScore({
+              jenis: b.jenis,
+              harga: b.harga,
+              hargaMinEvent: getMinEventPrice(b.event_id),
+              waktuAcara: b.waktu_acara,
+              jarakKm: distB,
+              hasUserLocation,
+            }).skor;
+
+            if (scoreB !== scoreA) {
+              return scoreB - scoreA;
+            }
+            const timeA = new Date(a.waktu_acara).getTime();
+            const timeB = new Date(b.waktu_acara).getTime();
+            if (timeA !== timeB) {
+              return timeA - timeB;
+            }
+            return b.id - a.id;
+          });
         }
 
         if (q.startsWith('SELECT count(*)::int AS total')) {
@@ -1354,6 +1420,202 @@ describe('Pencarian, filter, urutan, pagination, dan jarak GET /listings (T4.1)'
         .set('Authorization', `Bearer ${token}`);
       expect(authRes.body.data.find((l) => l.id === 950).is_favorite).toBe(true);
     });
+  });
+});
+
+describe('Skor relevansi BR-5 dan sort=relevan (T4.2)', () => {
+  function insertListing(db, overrides = {}) {
+    const id = db.listings.length + 1;
+    const now = Date.now();
+    const listing = {
+      id,
+      event_id: 7,
+      seller_id: 1,
+      venue_id: 3,
+      venue_teks: null,
+      kota: 'Surabaya',
+      waktu_acara: new Date(now + 48 * 3600_000).toISOString(),
+      jenis: 'limited',
+      tipe: 'digital',
+      seksi: 'CAT 1',
+      no_kursi: 'A1',
+      harga: 500000,
+      harga_asli: 600000,
+      jumlah_total: 2,
+      jumlah_terjual: 0,
+      satuan: true,
+      terikat_nama: 'tidak',
+      serah_terima: ['transfer_eticket'],
+      lokasi_penjual_kota: null,
+      lokasi_penjual_lat: null,
+      lokasi_penjual_lng: null,
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+      catatan: null,
+      izinkan_wa: false,
+      hidden: false,
+      deleted_at: null,
+      created_at: new Date(now - 3600_000).toISOString(),
+      updated_at: new Date(now - 3600_000).toISOString(),
+      confirmed_at: new Date(now - 3600_000).toISOString(),
+      ...overrides,
+    };
+    db.listings.push(listing);
+    return listing;
+  }
+
+  it('bobot tersimpan di satu berkas konfigurasi dengan nilai BR-5', () => {
+    expect(RELEVANCE_WEIGHTS).toEqual({
+      last_minute: { jarak: 0.45, waktu: 0.35, harga: 0.20 },
+      limited: { jarak: 0.15, waktu: 0.25, harga: 0.60 },
+    });
+  });
+
+  it('normalisasi ulang bobot tanpa lokasi menghasilkan total 1.0', () => {
+    const normLm = getNormalizedWeights('last_minute', false);
+    expect(normLm.jarak).toBe(0);
+    expect(normLm.waktu).toBeCloseTo(0.35 / 0.55, 5);
+    expect(normLm.harga).toBeCloseTo(0.20 / 0.55, 5);
+    expect(normLm.waktu + normLm.harga).toBeCloseTo(1.0, 5);
+
+    const normLim = getNormalizedWeights('limited', false);
+    expect(normLim.jarak).toBe(0);
+    expect(normLim.waktu).toBeCloseTo(0.25 / 0.85, 5);
+    expect(normLim.harga).toBeCloseTo(0.60 / 0.85, 5);
+    expect(normLim.waktu + normLim.harga).toBeCloseTo(1.0, 5);
+  });
+
+  it('menghitung komponen S_jarak, S_waktu, dan S_harga dengan benar', () => {
+    expect(calculateSJarak(0)).toBe(1.0);
+    expect(calculateSJarak(10)).toBe(0.5);
+    expect(calculateSJarak(20)).toBe(0.0);
+    expect(calculateSJarak(50)).toBe(0.0);
+    expect(calculateSJarak(null)).toBe(0.0);
+
+    const now = new Date('2026-11-12T10:00:00Z');
+    expect(calculateSWaktu('2026-11-12T10:00:00Z', now)).toBe(1.0); // 0 jam
+    expect(calculateSWaktu('2026-11-13T10:00:00Z', now)).toBe(0.5); // 24 jam
+    expect(calculateSWaktu('2026-11-14T10:00:00Z', now)).toBe(0.0); // 48 jam
+    expect(calculateSWaktu('2026-11-15T10:00:00Z', now)).toBe(0.0); // > 48 jam
+
+    expect(calculateSHarga(300000, 300000)).toBe(1.0);
+    expect(calculateSHarga(600000, 300000)).toBe(0.5);
+    expect(calculateSHarga(1000000, 200000)).toBe(0.2);
+    expect(calculateSHarga(500000, null)).toBe(1.0); // fallback
+  });
+
+  it('computeRelevanceScore menghitung skor akurat dengan atau tanpa lokasi', () => {
+    const now = new Date('2026-11-12T10:00:00Z');
+    const acara = '2026-11-13T10:00:00Z'; // sisa 24 jam -> S_waktu = 0.5
+
+    // Last-minute dengan lokasi, jarak 10km (S_jarak=0.5), harga 600k vs min 300k (S_harga=0.5)
+    // skor = 0.45 * 0.5 + 0.35 * 0.5 + 0.20 * 0.5 = 0.5
+    const lmWithLoc = computeRelevanceScore({
+      jenis: 'last_minute',
+      harga: 600000,
+      hargaMinEvent: 300000,
+      waktuAcara: acara,
+      jarakKm: 10,
+      hasUserLocation: true,
+      now,
+    });
+    expect(lmWithLoc.skor).toBeCloseTo(0.5, 4);
+
+    // Tanpa lokasi: bobot dinormalisasi
+    // w_waktu = 0.35/0.55, w_harga = 0.20/0.55
+    // skor = (0.35/0.55)*0.5 + (0.20/0.55)*0.5 = 0.5
+    const lmNoLoc = computeRelevanceScore({
+      jenis: 'last_minute',
+      harga: 600000,
+      hargaMinEvent: 300000,
+      waktuAcara: acara,
+      jarakKm: 10,
+      hasUserLocation: false,
+      now,
+    });
+    expect(lmNoLoc.skor).toBeCloseTo(0.5, 4);
+
+    // Dengan lokasi tetapi listing tanpa koordinat acuan -> S_jarak = 0
+    const lmNoRef = computeRelevanceScore({
+      jenis: 'last_minute',
+      harga: 300000,
+      hargaMinEvent: 300000,
+      waktuAcara: acara,
+      jarakKm: null,
+      hasUserLocation: true,
+      now,
+    });
+    // skor = 0.45 * 0 + 0.35 * 0.5 + 0.20 * 1.0 = 0.175 + 0.20 = 0.375
+    expect(lmNoRef.skor).toBeCloseTo(0.375, 4);
+  });
+
+  it('GET /listings default sort=relevan memprioritaskan jarak untuk last_minute dan harga untuk limited', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const now = Date.now();
+
+    // User di Surabaya (-7.263, 112.745)
+    // Event 7 (Konser Nada Senja)
+    // Listing LM-Dekat: jarak ~0.7 km (S_jarak ~0.965), harga mahal 500k, waktu 12 jam
+    insertListing(db, {
+      id: 1001,
+      jenis: 'last_minute',
+      harga: 500000,
+      waktu_acara: new Date(now + 12 * 3600_000).toISOString(),
+      ref_lat: -7.262,
+      ref_lng: 112.751, // dekat (~0.7 km)
+    });
+
+    // Listing LM-Jauh: jarak ~600 km (S_jarak 0), harga lebih murah 250k, waktu 12 jam
+    insertListing(db, {
+      id: 1002,
+      jenis: 'last_minute',
+      harga: 250000,
+      waktu_acara: new Date(now + 12 * 3600_000).toISOString(),
+      ref_lat: -6.218,
+      ref_lng: 106.802, // jauh (Jakarta)
+    });
+
+    // Untuk Last-Minute: bobot jarak (0.45) jauh lebih besar daripada harga (0.20).
+    // LM-Dekat harus berada di atas LM-Jauh saat ada lokasi user.
+    const resWithLoc = await request(app).get(
+      '/api/v1/listings?lat=-7.263&lng=112.745'
+    );
+    expect(resWithLoc.body.data.map((l) => l.id)).toEqual([1001, 1002]);
+
+    // Saat lokasi dibuang (tanpa lat & lng):
+    // Komponen jarak hilang, harga LM-Jauh (250k vs min 250k = 1.0) menang atas LM-Dekat (500k = 0.5)
+    const resNoLoc = await request(app).get('/api/v1/listings');
+    expect(resNoLoc.body.data.map((l) => l.id)).toEqual([1002, 1001]);
+  });
+
+  it('tie-breaking pada skor relevansi yang sama diurutkan waktu_acara naik lalu id turun', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const now = Date.now();
+
+    // Dua listing dengan jenis, harga, dan jarak sama, tetapi waktu_acara berbeda
+    insertListing(db, {
+      id: 1101,
+      jenis: 'limited',
+      harga: 300000,
+      waktu_acara: new Date(now + 40 * 3600_000).toISOString(), // lebih lama
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+    });
+    insertListing(db, {
+      id: 1102,
+      jenis: 'limited',
+      harga: 300000,
+      waktu_acara: new Date(now + 10 * 3600_000).toISOString(), // lebih cepat (S_waktu lebih tinggi)
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+    });
+
+    const res = await request(app).get(
+      '/api/v1/listings?lat=-7.263&lng=112.745'
+    );
+    expect(res.body.data.map((l) => l.id)).toEqual([1102, 1101]);
   });
 });
 

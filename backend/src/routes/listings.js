@@ -4,6 +4,11 @@ const express = require('express');
 const { z } = require('zod');
 const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
+const {
+  buildRelevanceSqlOrder,
+  computeRelevanceScore,
+  RELEVANCE_WEIGHTS,
+} = require('../config/relevance');
 
 const listingIdParamSchema = z.object({
   id: z.coerce.number().int().positive('ID listing tidak valid.'),
@@ -134,6 +139,78 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   const km = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(km * 10) / 10;
+}
+
+function getWibDateRange(type, now = new Date()) {
+  const wibOffsetMs = 7 * 60 * 60 * 1000;
+  const wibNow = new Date(now.getTime() + wibOffsetMs);
+
+  const curYear = wibNow.getUTCFullYear();
+  const curMonth = wibNow.getUTCMonth();
+  const curDate = wibNow.getUTCDate();
+  const curDay = wibNow.getUTCDay(); // 0 = Minggu, 6 = Sabtu
+
+  function createWibUtcDate(year, month, date, hours = 0, minutes = 0, seconds = 0, ms = 0) {
+    return new Date(Date.UTC(year, month, date, hours, minutes, seconds, ms) - wibOffsetMs);
+  }
+
+  if (type === 'hari_ini') {
+    const start = now;
+    const end = createWibUtcDate(curYear, curMonth, curDate, 23, 59, 59, 999);
+    return { start, end };
+  }
+
+  if (type === 'besok') {
+    const start = createWibUtcDate(curYear, curMonth, curDate + 1, 0, 0, 0, 0);
+    const end = createWibUtcDate(curYear, curMonth, curDate + 1, 23, 59, 59, 999);
+    return { start, end };
+  }
+
+  if (type === 'akhir_pekan') {
+    if (curDay === 6) {
+      // Sabtu: sekarang sampai Minggu 23.59
+      const start = now;
+      const end = createWibUtcDate(curYear, curMonth, curDate + 1, 23, 59, 59, 999);
+      return { start, end };
+    }
+    if (curDay === 0) {
+      // Minggu: sekarang sampai Minggu 23.59
+      const start = now;
+      const end = createWibUtcDate(curYear, curMonth, curDate, 23, 59, 59, 999);
+      return { start, end };
+    }
+    // Senin (1) .. Jumat (5): Sabtu 00.00 sampai Minggu 23.59
+    const daysUntilSaturday = 6 - curDay;
+    const start = createWibUtcDate(curYear, curMonth, curDate + daysUntilSaturday, 0, 0, 0, 0);
+    const end = createWibUtcDate(curYear, curMonth, curDate + daysUntilSaturday + 1, 23, 59, 59, 999);
+    return { start, end };
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(type);
+  if (!match) {
+    throw Errors.validation('Format tanggal tidak valid.', [
+      { field: 'tanggal', message: 'Format tanggal harus hari_ini, besok, akhir_pekan, atau YYYY-MM-DD.' },
+    ]);
+  }
+
+  const y = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10) - 1;
+  const d = parseInt(match[3], 10);
+
+  const testDate = new Date(Date.UTC(y, m, d));
+  if (
+    testDate.getUTCFullYear() !== y ||
+    testDate.getUTCMonth() !== m ||
+    testDate.getUTCDate() !== d
+  ) {
+    throw Errors.validation('Tanggal tidak valid.', [
+      { field: 'tanggal', message: 'Tanggal kalender tidak valid.' },
+    ]);
+  }
+
+  const start = createWibUtcDate(y, m, d, 0, 0, 0, 0);
+  const end = createWibUtcDate(y, m, d, 23, 59, 59, 999);
+  return { start, end };
 }
 
 function computeRefCoordinates({ tipe, lokasiPenjualLat, lokasiPenjualLng, venue }) {
@@ -340,6 +417,245 @@ async function fetchListingDetail(db, listingId, currentUserId = null, userLat =
  */
 function createListingsRouter(db, requireAuth, optionalAuth) {
   const router = express.Router();
+
+  router.get(
+    '/',
+    optionalAuth,
+    validate(getListingsQuerySchema, 'query'),
+    async (req, res, next) => {
+      try {
+        const {
+          q,
+          category,
+          jenis,
+          tipe,
+          kota,
+          lat,
+          lng,
+          max_km,
+          min_harga,
+          max_harga,
+          tanggal,
+          dalam_jam,
+          tersedia,
+          sort,
+          page,
+          limit,
+        } = req.query;
+
+        // Validasi koordinat berpasangan
+        const hasLat = lat !== undefined;
+        const hasLng = lng !== undefined;
+        if ((hasLat && !hasLng) || (!hasLat && hasLng)) {
+          return next(
+            Errors.validation('Koordinat lat dan lng harus diberikan berpasangan.', [
+              { field: 'lat', message: 'lat dan lng harus berpasangan.' },
+            ])
+          );
+        }
+
+        // Urutan terdekat membutuhkan koordinat
+        if (sort === 'terdekat' && (!hasLat || !hasLng)) {
+          return next(
+            Errors.validation('Urutan terdekat membutuhkan koordinat lat dan lng.', [
+              { field: 'sort', message: 'Urutan terdekat membutuhkan koordinat lat dan lng.' },
+            ])
+          );
+        }
+
+        // Filter max_km membutuhkan koordinat
+        if (max_km !== undefined && (!hasLat || !hasLng)) {
+          return next(
+            Errors.validation('Filter jarak maksimum (max_km) membutuhkan koordinat lat dan lng.', [
+              { field: 'max_km', message: 'Filter jarak maksimum membutuhkan koordinat lat dan lng.' },
+            ])
+          );
+        }
+
+        // Rentang harga
+        if (
+          min_harga !== undefined &&
+          max_harga !== undefined &&
+          min_harga > max_harga
+        ) {
+          return next(
+            Errors.validation('min_harga tidak boleh lebih besar dari max_harga.', [
+              { field: 'min_harga', message: 'min_harga tidak boleh lebih besar dari max_harga.' },
+            ])
+          );
+        }
+
+        let dateRange = null;
+        if (tanggal) {
+          dateRange = getWibDateRange(tanggal);
+        }
+
+        const conditions = [
+          'l.deleted_at IS NULL',
+          'l.hidden = false',
+          'l.waktu_acara > now()',
+          'u.banned_at IS NULL',
+          'e.hidden = false',
+        ];
+        const params = [];
+
+        if (tersedia) {
+          conditions.push('(l.jumlah_total - l.jumlah_terjual) > 0');
+        }
+
+        if (q) {
+          params.push(`%${q}%`);
+          const p = params.length;
+          conditions.push(
+            `(e.nama ILIKE $${p} OR v.nama ILIKE $${p} OR l.venue_teks ILIKE $${p} OR l.kota ILIKE $${p})`
+          );
+        }
+
+        if (category) {
+          params.push(category);
+          conditions.push(`c.slug = $${params.length}`);
+        }
+
+        if (jenis) {
+          params.push(jenis);
+          conditions.push(`l.jenis = $${params.length}`);
+        }
+
+        if (tipe) {
+          params.push(tipe);
+          conditions.push(`l.tipe = $${params.length}`);
+        }
+
+        if (kota) {
+          params.push(kota);
+          conditions.push(`l.kota ILIKE $${params.length}`);
+        }
+
+        if (min_harga !== undefined) {
+          params.push(min_harga);
+          conditions.push(`l.harga >= $${params.length}`);
+        }
+
+        if (max_harga !== undefined) {
+          params.push(max_harga);
+          conditions.push(`l.harga <= $${params.length}`);
+        }
+
+        if (dalam_jam !== undefined) {
+          const deadline = new Date(Date.now() + dalam_jam * 3600 * 1000).toISOString();
+          params.push(deadline);
+          conditions.push(`l.waktu_acara <= $${params.length}`);
+        }
+
+        if (dateRange) {
+          params.push(dateRange.start.toISOString());
+          const pStart = params.length;
+          params.push(dateRange.end.toISOString());
+          const pEnd = params.length;
+          conditions.push(`(l.waktu_acara >= $${pStart} AND l.waktu_acara <= $${pEnd})`);
+        }
+
+        if (max_km !== undefined) {
+          params.push(lat);
+          const pLat = params.length;
+          params.push(lng);
+          const pLng = params.length;
+          params.push(max_km);
+          const pMax = params.length;
+          conditions.push(
+            `l.ref_lat IS NOT NULL AND l.ref_lng IS NOT NULL AND (6371 * 2 * asin(sqrt(power(sin(radians(l.ref_lat - $${pLat}) / 2), 2) + cos(radians($${pLat})) * cos(radians(l.ref_lat)) * power(sin(radians(l.ref_lng - $${pLng}) / 2), 2)))) <= $${pMax}`
+          );
+        }
+
+        const whereSql = conditions.join(' AND ');
+
+        const countSql = `SELECT count(*)::int AS total
+          FROM listings l
+          JOIN events e ON e.id = l.event_id
+          JOIN categories c ON c.id = e.category_id
+          LEFT JOIN venues v ON v.id = l.venue_id
+          JOIN users u ON u.id = l.seller_id
+          WHERE ${whereSql}`;
+
+        const countRes = await db.query(countSql, [...params]);
+        const total = countRes.rows[0]?.total ?? 0;
+
+        let orderSql = '';
+        const dataParams = [...params];
+
+        if (sort === 'terdekat') {
+          dataParams.push(lat);
+          const pLat = dataParams.length;
+          dataParams.push(lng);
+          const pLng = dataParams.length;
+          orderSql = `ORDER BY (CASE WHEN l.ref_lat IS NOT NULL AND l.ref_lng IS NOT NULL THEN (6371 * 2 * asin(sqrt(power(sin(radians(l.ref_lat - $${pLat}) / 2), 2) + cos(radians($${pLat})) * cos(radians(l.ref_lat)) * power(sin(radians(l.ref_lng - $${pLng}) / 2), 2)))) ELSE 999999 END) ASC, l.waktu_acara ASC, l.id DESC`;
+        } else if (sort === 'termurah') {
+          orderSql = 'ORDER BY l.harga ASC, l.waktu_acara ASC, l.id DESC';
+        } else if (sort === 'segera') {
+          orderSql = 'ORDER BY l.waktu_acara ASC, l.id DESC';
+        } else if (sort === 'terbaru') {
+          orderSql = 'ORDER BY l.created_at DESC, l.id DESC';
+        } else {
+          // BR-5 skor relevansi (default / sort=relevan)
+          if (hasLat && hasLng) {
+            dataParams.push(lat);
+            const pLat = dataParams.length;
+            dataParams.push(lng);
+            const pLng = dataParams.length;
+            orderSql = buildRelevanceSqlOrder({
+              userLatParamIndex: pLat,
+              userLngParamIndex: pLng,
+            });
+          } else {
+            orderSql = buildRelevanceSqlOrder();
+          }
+        }
+
+        const currentUserId = req.user ? req.user.id : null;
+        dataParams.push(currentUserId);
+        const pUid = dataParams.length;
+
+        const offset = (page - 1) * limit;
+        dataParams.push(limit);
+        const pLimit = dataParams.length;
+        dataParams.push(offset);
+        const pOffset = dataParams.length;
+
+        const dataSql = `SELECT l.*,
+                e.nama AS event_nama, e.poster_url AS event_poster_url,
+                c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama,
+                v.nama AS venue_nama, v.kota AS venue_kota,
+                (SELECT count(*)::int FROM conversations cv WHERE cv.listing_id = l.id) AS tertarik,
+                CASE WHEN $${pUid}::int IS NOT NULL THEN EXISTS (
+                  SELECT 1 FROM favorites f WHERE f.user_id = $${pUid} AND f.listing_id = l.id
+                ) ELSE false END AS is_favorite
+         FROM listings l
+         JOIN events e ON e.id = l.event_id
+         JOIN categories c ON c.id = e.category_id
+         LEFT JOIN venues v ON v.id = l.venue_id
+         JOIN users u ON u.id = l.seller_id
+         WHERE ${whereSql}
+         ${orderSql}
+         LIMIT $${pLimit} OFFSET $${pOffset}`;
+
+        const dataRes = await db.query(dataSql, dataParams);
+        const data = dataRes.rows.map((row) =>
+          formatListingCard(row, hasLat ? lat : null, hasLng ? lng : null)
+        );
+
+        return res.json({
+          data,
+          meta: {
+            page,
+            limit,
+            total,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
 
   router.get(
     '/:id',
@@ -808,5 +1124,7 @@ module.exports = {
   computeDiscountPercent,
   computeRefCoordinates,
   formatListingCard,
+  getWibDateRange,
+  haversineKm,
 };
 

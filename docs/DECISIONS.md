@@ -17,4 +17,6 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 11 | `computeListingStatus()` mengembalikan `'dihapus'` untuk `deleted_at`/`hidden=true` sebagai internal guard | Status ini tidak masuk `API.md` publik; `GET /listings/:id` mengembalikan 404 untuk status ini. `GET /listings` publik (T4.1) WAJIB memfilter `deleted_at IS NULL AND hidden = false` di SQL, bukan mengandalkan status computed |
 | 12 | Activity segmen Selling mengintegrasikan aksi cepat (ubah stok, terjual semua, konfirmasi, edit, hapus) langsung pada kartu listing | Memudahkan penjual mengelola ketersediaan tiket dari satu layar tanpa harus berpindah ke alur terpisah |
 | 13 | Perhitungan rentang filter `tanggal` (`hari_ini`, `besok`, `akhir_pekan`, `YYYY-MM-DD`) di `getWibDateRange` berbasis zona waktu WIB (UTC+7) | Memastikan batas waktu filter tanggal seragam dan konsisten terlepas dari perbedaan zona waktu server backend atau pengguna |
+| 14 | Bobot relevansi BR-5 dan generator klausa SQL `ORDER BY` dipusatkan di `backend/src/config/relevance.js` | Memastikan bobot mudah disetel di satu tempat dan formula relevansi konsisten antara kalkulasi SQL Postgres dan pengujian JavaScript |
+
 
