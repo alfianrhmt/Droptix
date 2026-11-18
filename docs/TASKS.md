@@ -64,7 +64,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 - [x] **T4.3** Backend: `GET /events/trending` (BR-6, memakai jumlah percakapan baru 7 hari).
 - [x] **T4.4** Flutter: halaman pencarian dan kategori (chip filter, urutan, daftar `ListingRow`, 5 pencarian terakhir, keadaan kosong).
 - [x] **T4.5** Flutter: Home dengan semua section (`DESIGN.md` bagian 5), scroll tanpa batas pada "Baru Ditambahkan".
-- [ ] **T4.6** Tes: filter, urutan, kedaluwarsa, skor relevansi (dua listing dengan jarak berbeda, bobot berbeda per jenis).
+- [x] **T4.6** Tes: filter, urutan, kedaluwarsa, skor relevansi (dua listing dengan jarak berbeda, bobot berbeda per jenis).
 
 **Selesai jika:** skenario uji 5 dan 8 berjalan, dan urutan "Relevan" berubah wajar saat lokasi diganti.
 

@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T4.5** selesai tuntas: Layar Home Flutter (`HomeScreen`) dengan seluruh 9 section (`DESIGN.md` §5 & `PRD.md` FR-3): `AppHeader` (pil lokasi), `AppSearchBar` (buka pencarian), `BannerCarousel` (event trending BR-6), `ResellTypeTiles` (Limited & Last-Minute), `QuickDateGrid` (4 pintasan tanggal), `CategoryRow` (5 kategori), carousel "Dekat Kamu" (`PosterCard` horizontal), section "Segera Berakhir" (`ListingRow`), dan "Baru Ditambahkan" (`ListingRow`, pagination scroll tanpa batas). Terhubung ke `AppShell` tab 0. 29/29 tes Flutter dan 63/63 tes backend lolos, 0 issue analyzer.
+- **T4.6** selesai tuntas: Pengujian lengkap filter, urutan, kedaluwarsa, dan skor relevansi BR-5 (dua listing dengan jarak berbeda, bobot berbeda per jenis). Skenario Uji 5 (urutan Relevan berubah wajar saat lokasi pembeli diganti Surabaya vs Jakarta) dan Skenario Uji 8 (listing yang waktu acaranya lewat otomatis hilang dari pencarian) telah terverifikasi penuh baik di backend (67/67 tes) maupun di Flutter widget tests (31/31 tes). Milestone M4 resmi selesai 100%.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T4.6.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M5 (T5.1).
 
 ## Langkah berikutnya
-- **T4.6**: Tes: filter, urutan, kedaluwarsa, skor relevansi (dua listing dengan jarak berbeda, bobot berbeda per jenis).
+- **T5.1**: Backend: `POST/DELETE /listings/:id/favorite`, `GET /me/favorites`.

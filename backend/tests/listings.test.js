@@ -1619,3 +1619,260 @@ describe('Skor relevansi BR-5 dan sort=relevan (T4.2)', () => {
   });
 });
 
+describe('T4.6 Tes Verifikasi: Filter, Urutan, Kedaluwarsa, dan Skor Relevansi (Skenario Uji 5 & 8)', () => {
+  function insertListing(db, overrides = {}) {
+    const id = db.listings.length + 1;
+    const now = Date.now();
+    const listing = {
+      id,
+      event_id: 7,
+      seller_id: 1,
+      venue_id: 3,
+      venue_teks: null,
+      kota: 'Surabaya',
+      waktu_acara: new Date(now + 48 * 3600_000).toISOString(),
+      jenis: 'limited',
+      tipe: 'digital',
+      seksi: 'CAT 1',
+      no_kursi: 'A1',
+      harga: 500000,
+      harga_asli: 600000,
+      jumlah_total: 2,
+      jumlah_terjual: 0,
+      satuan: true,
+      terikat_nama: 'tidak',
+      serah_terima: ['transfer_eticket'],
+      lokasi_penjual_kota: null,
+      lokasi_penjual_lat: null,
+      lokasi_penjual_lng: null,
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+      catatan: null,
+      izinkan_wa: false,
+      hidden: false,
+      deleted_at: null,
+      created_at: new Date(now - 3600_000).toISOString(),
+      updated_at: new Date(now - 3600_000).toISOString(),
+      confirmed_at: new Date(now - 3600_000).toISOString(),
+      ...overrides,
+    };
+    db.listings.push(listing);
+    return listing;
+  }
+
+  describe('Skenario Uji 5: Pembeli mencari dengan filter Hari ini + jenis Last-Minute dan urutan Relevan berubah saat lokasi berbeda', () => {
+    it('mengubah urutan Relevan secara wajar saat lokasi pembeli diganti antara Surabaya dan Jakarta', async () => {
+      const db = createListingsMockDb();
+      const app = createApp({ db, useRateLimit: false });
+      const now = new Date();
+
+      const { end } = getWibDateRange('hari_ini', now);
+      const eventTimeMs = Math.min(now.getTime() + 4 * 3600_000, end.getTime() - 1000);
+      const waktuAcaraHariIni = new Date(eventTimeMs).toISOString();
+
+      // Listing 1: Venue di Surabaya (-7.262, 112.751), harga 400.000, Last-Minute
+      insertListing(db, {
+        id: 2001,
+        event_id: 7,
+        jenis: 'last_minute',
+        kota: 'Surabaya',
+        harga: 400000,
+        waktu_acara: waktuAcaraHariIni,
+        ref_lat: -7.262,
+        ref_lng: 112.751,
+      });
+
+      // Listing 2: Venue di Jakarta (-6.218, 106.802), harga 300.000 (lebih murah), Last-Minute
+      insertListing(db, {
+        id: 2002,
+        event_id: 7,
+        jenis: 'last_minute',
+        kota: 'Jakarta',
+        harga: 300000,
+        waktu_acara: waktuAcaraHariIni,
+        ref_lat: -6.218,
+        ref_lng: 106.802,
+      });
+
+      // 1. Pembeli berada di Surabaya (-7.263, 112.745):
+      // Listing 2001 dekat (~0.7 km, S_jarak ~0.965), Listing 2002 jauh (>600 km, S_jarak 0.0)
+      // Pada last_minute, bobot jarak 0.45, sehingga Listing Surabaya menempati posisi #1
+      const resSby = await request(app).get(
+        '/api/v1/listings?tanggal=hari_ini&jenis=last_minute&lat=-7.263&lng=112.745&sort=relevan'
+      );
+      expect(resSby.status).toBe(200);
+      expect(resSby.body.data.length).toBe(2);
+      expect(resSby.body.data.map((l) => l.id)).toEqual([2001, 2002]);
+
+      // 2. Pembeli berada di Jakarta (-6.210, 106.810):
+      // Listing 2002 dekat (~1 km, S_jarak ~0.95) dan harga lebih murah (300k vs 400k)
+      // Listing 2001 jauh (>600 km, S_jarak 0.0)
+      // Urutan berubah: Listing Jakarta menempati posisi #1
+      const resJkt = await request(app).get(
+        '/api/v1/listings?tanggal=hari_ini&jenis=last_minute&lat=-6.210&lng=106.810&sort=relevan'
+      );
+      expect(resJkt.status).toBe(200);
+      expect(resJkt.body.data.length).toBe(2);
+      expect(resJkt.body.data.map((l) => l.id)).toEqual([2002, 2001]);
+    });
+  });
+
+  describe('Dua listing dengan jarak berbeda: perbedaan prioritas bobot per jenis (Last-Minute vs Limited)', () => {
+    it('memprioritaskan jarak untuk last_minute (bobot jarak 0.45) dan memprioritaskan harga untuk limited (bobot harga 0.60)', async () => {
+      const db = createListingsMockDb();
+      const app = createApp({ db, useRateLimit: false });
+      const now = Date.now();
+
+      // Skenario Last-Minute:
+      // Listing Dekat-Mahal: Jarak ~2 km dari user, harga 500k
+      insertListing(db, {
+        id: 2101,
+        event_id: 7,
+        jenis: 'last_minute',
+        harga: 500000,
+        waktu_acara: new Date(now + 12 * 3600_000).toISOString(),
+        ref_lat: -7.262,
+        ref_lng: 112.751,
+      });
+
+      // Listing Jauh-Murah: Jarak ~18 km dari user, harga 250k (lebih murah)
+      insertListing(db, {
+        id: 2102,
+        event_id: 7,
+        jenis: 'last_minute',
+        harga: 250000,
+        waktu_acara: new Date(now + 12 * 3600_000).toISOString(),
+        ref_lat: -7.380,
+        ref_lng: 112.780, // ~14-18 km
+      });
+
+      // Untuk last_minute, jarak dekat (2101) menang atas harga murah (2102)
+      const resLm = await request(app).get(
+        '/api/v1/listings?jenis=last_minute&lat=-7.263&lng=112.745&sort=relevan'
+      );
+      expect(resLm.body.data.map((l) => l.id)).toEqual([2101, 2102]);
+
+      // Skenario Limited pada event 7:
+      // Listing Dekat-Mahal: Jarak ~2 km, harga 800k (event min 400k -> S_harga 0.5)
+      insertListing(db, {
+        id: 2201,
+        event_id: 7,
+        jenis: 'limited',
+        harga: 800000,
+        waktu_acara: new Date(now + 30 * 3600_000).toISOString(),
+        ref_lat: -7.262,
+        ref_lng: 112.751,
+      });
+
+      // Listing Jauh-Murah: Jarak ~18 km, harga 400k (event min 400k -> S_harga 1.0)
+      insertListing(db, {
+        id: 2202,
+        event_id: 7,
+        jenis: 'limited',
+        harga: 400000,
+        waktu_acara: new Date(now + 30 * 3600_000).toISOString(),
+        ref_lat: -7.380,
+        ref_lng: 112.780,
+      });
+
+      // Untuk limited, bobot harga adalah 0.60 (sangat dominan dibanding jarak 0.15)
+      // Sehingga Listing Murah (2202) menang atas Listing Dekat (2201)
+      const resLim = await request(app).get(
+        '/api/v1/listings?category=konser-festival&jenis=limited&lat=-7.263&lng=112.745&sort=relevan'
+      );
+      const limitedIds = resLim.body.data
+        .map((l) => l.id)
+        .filter((id) => id === 2201 || id === 2202);
+      expect(limitedIds).toEqual([2202, 2201]);
+    });
+  });
+
+  describe('Skenario Uji 8: Listing yang waktu acaranya lewat otomatis hilang dari pencarian', () => {
+    it('mengecualikan listing yang waktu acaranya sudah lewat dari hasil GET /listings', async () => {
+      const db = createListingsMockDb();
+      const app = createApp({ db, useRateLimit: false });
+      const now = Date.now();
+
+      // Listing 1: Aktif, waktu acara 2 jam ke depan
+      insertListing(db, {
+        id: 3001,
+        event_id: 7,
+        waktu_acara: new Date(now + 2 * 3600_000).toISOString(),
+      });
+
+      // Listing 2: Kedaluwarsa, waktu acara 1 detik lalu
+      insertListing(db, {
+        id: 3002,
+        event_id: 7,
+        waktu_acara: new Date(now - 1000).toISOString(),
+      });
+
+      // Listing 3: Kedaluwarsa, waktu acara 1 hari lalu
+      insertListing(db, {
+        id: 3003,
+        event_id: 7,
+        waktu_acara: new Date(now - 86400_000).toISOString(),
+      });
+
+      // 1. Pencarian umum
+      const resAll = await request(app).get('/api/v1/listings');
+      expect(resAll.body.data.some((l) => l.id === 3001)).toBe(true);
+      expect(resAll.body.data.some((l) => l.id === 3002)).toBe(false);
+      expect(resAll.body.data.some((l) => l.id === 3003)).toBe(false);
+
+      // 2. Pencarian dengan filter kata kunci
+      const resQ = await request(app).get('/api/v1/listings?q=Nada');
+      expect(resQ.body.data.some((l) => l.id === 3001)).toBe(true);
+      expect(resQ.body.data.some((l) => l.id === 3002)).toBe(false);
+
+      // 3. Pencarian dengan tersedia=false (tetap tidak menampilkan yang sudah lewat)
+      const resNotAvailable = await request(app).get('/api/v1/listings?tersedia=false');
+      expect(resNotAvailable.body.data.some((l) => l.id === 3002)).toBe(false);
+      expect(resNotAvailable.body.data.some((l) => l.id === 3003)).toBe(false);
+
+      // 4. Detail listing kedaluwarsa tetap bisa dibuka dengan status 'kedaluwarsa'
+      const resDetail = await request(app).get('/api/v1/listings/3002');
+      expect(resDetail.status).toBe(200);
+      expect(resDetail.body.data.status).toBe('kedaluwarsa');
+    });
+  });
+
+  describe('Kombinasi Filter dan Urutan', () => {
+    it('berhasil memfilter kategori, tipe, rentang harga, dan mengurutkan berdasarkan termurah', async () => {
+      const db = createListingsMockDb();
+      const app = createApp({ db, useRateLimit: false });
+      const now = Date.now();
+
+      insertListing(db, {
+        id: 4001,
+        event_id: 7,
+        tipe: 'digital',
+        harga: 500000,
+        waktu_acara: new Date(now + 24 * 3600_000).toISOString(),
+      });
+
+      insertListing(db, {
+        id: 4002,
+        event_id: 7,
+        tipe: 'digital',
+        harga: 300000,
+        waktu_acara: new Date(now + 24 * 3600_000).toISOString(),
+      });
+
+      insertListing(db, {
+        id: 4003,
+        event_id: 7,
+        tipe: 'fisik',
+        harga: 250000,
+        waktu_acara: new Date(now + 24 * 3600_000).toISOString(),
+      });
+
+      const res = await request(app).get(
+        '/api/v1/listings?category=konser-festival&tipe=digital&min_harga=200000&max_harga=600000&sort=termurah'
+      );
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((l) => l.id)).toEqual([4002, 4001]);
+    });
+  });
+});
+

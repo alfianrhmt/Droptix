@@ -21,6 +21,7 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 15 | Banner trending BR-6 membagi kategori menjadi tipe `event` (`konser-festival`, `olahraga`, `hiburan-lain` dengan bobot percakapan 7 hari) dan `nearest` (`bioskop`, `wisata` dengan jarak Haversine terdekat) | Mengimplementasikan diferensiasi kebutuhan pengguna: acara besar diprioritaskan popularitasnya, sedangkan bioskop/wisata diprioritaskan kedekatan lokasinya |
 | 16 | Penyimpanan 5 pencarian terakhir memakai `RecentSearchesStorage` via `SharedPreferences` (kunci `droptix_recent_searches`) dengan deduplikasi case-insensitive | Ringan, bekerja offline tanpa database lokal tambahan, dan otomatis memindahkan istilah pencarian aktif ke urutan pertama |
 | 17 | Carousel horizontal "Dekat Kamu" menggunakan tinggi container 340px untuk menampung PosterCard rasio 2:3 (lebar 150) beserta teks judul 2 baris dan harga | Mencegah RenderFlex overflow pada layar sempit 360x740 dan skala teks dinamis |
+| 18 | Pengujian Skenario 5 & 8 memverifikasi pembalikan urutan Relevan antara dua kota (Surabaya vs Jakarta) dan eliminasi listing yang waktu acaranya telah lewat | Memastikan formula skor relevansi BR-5 dan guard kedaluwarsa berfungsi akurat secara end-to-end baik di backend maupun antarmuka Flutter |
 
 
 

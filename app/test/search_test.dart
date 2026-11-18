@@ -442,5 +442,107 @@ void main() {
       await tester.pump();
       expect(sellClicked, isTrue);
     });
+
+    testWidgets(
+        'Skenario Uji 5: pencarian Hari Ini + Last-Minute mengirim filter yang tepat dan urutan berubah dengan lokasi',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 740);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      final itemSby = _sampleListing(
+        id: 2001,
+        eventNama: 'Konser Surabaya Hari Ini',
+        categorySlug: 'konser-festival',
+        categoryNama: 'Konser & Festival',
+        venueNama: 'Grand City',
+        kota: 'Surabaya',
+        harga: 400000,
+        jumlahTersedia: 2,
+        jenis: 'last_minute',
+      );
+
+      final itemJkt = _sampleListing(
+        id: 2002,
+        eventNama: 'Konser Jakarta Hari Ini',
+        categorySlug: 'konser-festival',
+        categoryNama: 'Konser & Festival',
+        venueNama: 'GBK',
+        kota: 'Jakarta',
+        harga: 300000,
+        jumlahTersedia: 1,
+        jenis: 'last_minute',
+      );
+
+      final repo = _FakeListingRepository(items: [itemSby, itemJkt]);
+
+      await tester.pumpWidget(createTestApp(
+        SearchScreen(
+          listingRepository: repo,
+          initialTanggal: 'hari_ini',
+          initialJenis: 'last_minute',
+          userLat: -7.263,
+          userLng: 112.745,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Memastikan chip filter Tanggal aktif dengan label yang benar
+      expect(find.text('Hari Ini'), findsOneWidget);
+
+      // Scroll chip row untuk melihat chip Jenis (Last-Minute)
+      await tester.scrollUntilVisible(
+        find.text('Last-Minute'),
+        50.0,
+        scrollable: find.descendant(
+          of: find.byType(FilterChipRow),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      expect(find.text('Last-Minute'), findsOneWidget);
+
+      // Parameter query terverifikasi sesuai Skenario 5
+      expect(repo.lastQueryParams['tanggal'], 'hari_ini');
+      expect(repo.lastQueryParams['jenis'], 'last_minute');
+      expect(repo.lastQueryParams['sort'], 'relevan');
+      expect(repo.lastQueryParams['lat'], -7.263);
+      expect(repo.lastQueryParams['lng'], 112.745);
+
+      // Kedua item tampil
+      expect(find.text('Konser Surabaya Hari Ini'), findsOneWidget);
+      expect(find.text('Konser Jakarta Hari Ini'), findsOneWidget);
+    });
+
+    testWidgets('Skenario Uji 8: listing yang kedaluwarsa tidak tampil di pencarian',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 740);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.reset());
+
+      final repo = _FakeListingRepository(items: [
+        _sampleListing(
+          id: 1,
+          eventNama: 'Event Aktif Masa Depan',
+          categorySlug: 'konser-festival',
+          categoryNama: 'Konser & Festival',
+          venueNama: 'Venue A',
+          kota: 'Jakarta',
+          harga: 100000,
+          jumlahTersedia: 2,
+          jenis: 'limited',
+        ),
+      ]);
+
+      await tester.pumpWidget(createTestApp(
+        SearchScreen(
+          listingRepository: repo,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Event Aktif Masa Depan'), findsOneWidget);
+      expect(find.text('Event Kedaluwarsa'), findsNothing);
+      expect(repo.lastQueryParams['tersedia'], true);
+    });
   });
 }
