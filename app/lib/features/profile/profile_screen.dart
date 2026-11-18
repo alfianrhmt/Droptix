@@ -7,6 +7,8 @@ import '../auth/register_screen.dart';
 import 'blocked_users_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
+import 'privacy_screen.dart';
+import 'terms_screen.dart';
 
 /// Halaman Profile (DESIGN.md bagian 9b).
 /// Menampilkan ajakan masuk untuk tamu, atau menu profil untuk pengguna login.
@@ -47,12 +49,6 @@ class ProfileScreen extends StatelessWidget {
     if (confirm == true) {
       await auth.logout();
     }
-  }
-
-  void _showPlaceholder(BuildContext context, String title) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$title akan tersedia pada milestone berikutnya.')),
-    );
   }
 
   @override
@@ -179,12 +175,16 @@ class ProfileScreen extends StatelessWidget {
           _MenuRow(
             icon: Icons.description_outlined,
             label: 'Syarat Penggunaan',
-            onTap: () => _showPlaceholder(context, 'Syarat Penggunaan'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TermsScreen()),
+            ),
           ),
           _MenuRow(
             icon: Icons.privacy_tip_outlined,
             label: 'Kebijakan Privasi',
-            onTap: () => _showPlaceholder(context, 'Kebijakan Privasi'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+            ),
           ),
           const Divider(color: AppColors.divider, height: AppSpacing.xl),
           _MenuRow(
