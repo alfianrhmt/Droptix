@@ -98,7 +98,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 ## M8 — Penyempurnaan, deploy, finalisasi
 
-- [ ] **T8.1** Penyempurnaan UI: semua layar punya keadaan loading/kosong/error, pengecekan 360×740 dan skala teks 1,3, kontras, area sentuh, countdown per menit dengan satu timer bersama.
+- [x] **T8.1** Penyempurnaan UI: semua layar punya keadaan loading/kosong/error, pengecekan 360×740 dan skala teks 1,3, kontras, area sentuh, countdown per menit dengan satu timer bersama.
 - [ ] **T8.2** Penanganan jaringan: tidak ada koneksi, token kedaluwarsa, gambar gagal dimuat, koneksi socket terputus.
 - [ ] **T8.3** **Deploy** backend dan database ke server publik dengan HTTPS, folder unggahan persisten, `pg_dump` terjadwal, health check, dan variabel lingkungan produksi (rahasia tidak masuk repo).
 - [ ] **T8.4** Bangun APK rilis bertanda tangan yang mengarah ke server publik.
