@@ -23,6 +23,7 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 17 | Carousel horizontal "Dekat Kamu" menggunakan tinggi container 340px untuk menampung PosterCard rasio 2:3 (lebar 150) beserta teks judul 2 baris dan harga | Mencegah RenderFlex overflow pada layar sempit 360x740 dan skala teks dinamis |
 | 18 | Pengujian Skenario 5 & 8 memverifikasi pembalikan urutan Relevan antara dua kota (Surabaya vs Jakarta) dan eliminasi listing yang waktu acaranya telah lewat | Memastikan formula skor relevansi BR-5 dan guard kedaluwarsa berfungsi akurat secara end-to-end baik di backend maupun antarmuka Flutter |
 | 19 | Endpoint favorit menggunakan `ON CONFLICT DO NOTHING` pada `POST` (idempoten) dan menyertakan `is_favorite: true` secara eksplisit pada `GET /me/favorites` | Menjamin operasi penambahan favorit aman dipanggil berulang kali dan mempermudah rendering kartu tersimpan di sisi klien |
+| 20 | Halaman detail listing tiket menyatukan 13 bagian DESIGN.md bagian 7, tombol chat dinonaktifkan untuk listing milik sendiri atau tiket tidak tersedia, serta membuka ChatPlaceholderScreen sebelum M6 | Memenuhi aturan privasi FR-5 (tanpa kontak langsung di antarmuka), menjaga konsistensi hak aksi pengguna, dan memberi transisi mulus menuju fitur chat M6 |
 
 
 

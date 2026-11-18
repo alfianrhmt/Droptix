@@ -185,5 +185,52 @@ class ListingRepository {
       throw ApiException.fromDio(e);
     }
   }
+
+  /// Menambah atau menghapus listing dari favorit.
+  /// Mengembalikan status boolean `is_favorite` terbaru dari server.
+  Future<bool> toggleFavorite(int id, bool currentStatus) async {
+    try {
+      if (currentStatus) {
+        final res = await _apiClient.dio.delete<Map<String, dynamic>>(
+          '/listings/$id/favorite',
+        );
+        final data = Map<String, dynamic>.from(res.data?['data'] as Map? ?? const {});
+        return (data['is_favorite'] as bool?) ?? false;
+      } else {
+        final res = await _apiClient.dio.post<Map<String, dynamic>>(
+          '/listings/$id/favorite',
+        );
+        final data = Map<String, dynamic>.from(res.data?['data'] as Map? ?? const {});
+        return (data['is_favorite'] as bool?) ?? true;
+      }
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Mengambil daftar listing favorit pengguna saat ini.
+  Future<PaginatedListings> getMyFavorites({
+    double? lat,
+    double? lng,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final res = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/me/favorites',
+        queryParameters: {
+          'lat': ?lat,
+          'lng': ?lng,
+          'page': page,
+          'limit': limit,
+        },
+      );
+      return PaginatedListings.fromJson(
+        Map<String, dynamic>.from(res.data ?? const {}),
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }
 

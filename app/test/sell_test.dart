@@ -171,6 +171,13 @@ class _FakeListingRepository implements ListingRepository {
   Future<ListingItem> updateStock(int id, int jumlahTerjual) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> toggleFavorite(int id, bool currentStatus) async => !currentStatus;
+
+  @override
+  Future<PaginatedListings> getMyFavorites({double? lat, double? lng, int page = 1, int limit = 20}) async =>
+      const PaginatedListings(items: [], total: 0, page: 1, limit: 20);
 }
 
 void main() {

@@ -8,6 +8,7 @@ import '../events/event_models.dart';
 import '../events/event_repository.dart';
 import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
+import '../listings/listing_detail_screen.dart';
 import '../location/location_picker_sheet.dart';
 import '../search/search_screen.dart';
 
@@ -303,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
           userLat: _lat,
           userLng: _lng,
           initialMaxKm: maxKm,
-          onListingTap: widget.onListingTap,
+          onListingTap: widget.onListingTap ?? _handleListingTap,
           onSellPressed: () {
             Navigator.of(context).pop();
             widget.onNavigateToTab?.call(2);
@@ -311,6 +312,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _handleListingTap(ListingItem item) {
+    if (widget.onListingTap != null) {
+      widget.onListingTap!(item);
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ListingDetailScreen(
+            listingId: item.id,
+            initialItem: item,
+            listingRepository: _listingRepo,
+          ),
+        ),
+      );
+    }
   }
 
   // --- Sub-widgets Builder ---
@@ -523,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final item = _nearbyListings[index];
                 return PosterCard(
                   listing: item.toListingData(),
-                  onTap: () => widget.onListingTap?.call(item),
+                  onTap: () => _handleListingTap(item),
                 );
               },
             ),
@@ -584,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final item = _endingSoonListings[index];
               return ListingRow(
                 listing: item.toListingData(),
-                onTap: () => widget.onListingTap?.call(item),
+                onTap: () => _handleListingTap(item),
               );
             },
           ),
@@ -644,7 +661,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final item = _recentListings[index];
               return ListingRow(
                 listing: item.toListingData(),
-                onTap: () => widget.onListingTap?.call(item),
+                onTap: () => _handleListingTap(item),
               );
             },
           ),

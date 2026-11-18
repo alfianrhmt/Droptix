@@ -7,6 +7,7 @@ import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
+import '../listings/listing_detail_screen.dart';
 import 'recent_searches_storage.dart';
 
 /// Halaman pencarian dan kategori tiket Droptix.
@@ -934,11 +935,27 @@ class _SearchScreenState extends State<SearchScreen> {
           final item = _items[index];
           return ListingRow(
             listing: item.toListingData(),
-            onTap: () => widget.onListingTap?.call(item),
+            onTap: () => _handleListingTap(item),
           );
         },
       ),
     );
+  }
+
+  void _handleListingTap(ListingItem item) {
+    if (widget.onListingTap != null) {
+      widget.onListingTap!(item);
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ListingDetailScreen(
+            listingId: item.id,
+            initialItem: item,
+            listingRepository: _repository,
+          ),
+        ),
+      );
+    }
   }
 
   @override
