@@ -38,6 +38,33 @@ class _FakeListingRepository implements ListingRepository {
   int? lastUpdatedStockValue;
 
   @override
+  Future<PaginatedListings> getListings({
+    String? q,
+    String? category,
+    String? jenis,
+    String? tipe,
+    String? kota,
+    double? lat,
+    double? lng,
+    int? maxKm,
+    int? minHarga,
+    int? maxHarga,
+    String? tanggal,
+    int? dalamJam,
+    bool? tersedia,
+    String? sort,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    return PaginatedListings(
+      items: List.of(listings),
+      total: listings.length,
+      page: page,
+      limit: limit,
+    );
+  }
+
+  @override
   Future<List<ListingItem>> getMyListings({
     String? status,
     int page = 1,

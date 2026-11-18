@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T4.3** selesai tuntas: Endpoint backend `GET /events/trending` sesuai aturan bisnis BR-6. Kategori `konser-festival`, `olahraga`, `hiburan-lain` menghasilkan banner tipe `event` dengan `skor_event = active_listings + 0.5 * convs_7d`. Kategori `bioskop` dan `wisata` menghasilkan banner tipe `nearest` berisi `ListingCard` terdekat (dilewati jika tanpa koordinat). Hasil diurutkan berdasarkan `categories.urutan` (maks 5). Semua tes backend (63/63) dan Flutter (16/16) lolos bersih, 0 analyzer issues.
+- **T4.4** selesai tuntas: Layar pencarian dan kategori Flutter (`SearchScreen`), `RecentSearchesStorage` (maksimal 5 pencarian terakhir, deduplikasi case-insensitive di SharedPreferences), chip filter (`Tanggal`, `Urutkan`, `Lokasi`, `Jenis`, `Harga`, `Tersedia`), bottom sheet pemilihan filter, pagination scroll tanpa batas dengan `ListingRow`, dan keadaan kosong `EmptyState` ("Belum ada tiket untuk '...'" + tombol "Jual tiketmu"). 23/23 tes Flutter dan 63/63 tes backend lolos, 0 issue analyzer.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T4.4.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T4.5.
 
 ## Langkah berikutnya
-- **T4.4**: Flutter halaman pencarian dan kategori (chip filter, urutan, daftar `ListingRow`, 5 pencarian terakhir, keadaan kosong).
+- **T4.5**: Flutter Home dengan semua section (`DESIGN.md` bagian 5), scroll tanpa batas pada "Baru Ditambahkan".

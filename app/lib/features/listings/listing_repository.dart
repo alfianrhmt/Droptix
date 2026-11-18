@@ -10,6 +10,58 @@ class ListingRepository {
 
   final ApiClient _apiClient;
 
+  Future<PaginatedListings> getListings({
+    String? q,
+    String? category,
+    String? jenis,
+    String? tipe,
+    String? kota,
+    double? lat,
+    double? lng,
+    int? maxKm,
+    int? minHarga,
+    int? maxHarga,
+    String? tanggal,
+    int? dalamJam,
+    bool? tersedia,
+    String? sort,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+        if (category != null && category.trim().isNotEmpty)
+          'category': category.trim(),
+        if (jenis != null && jenis.trim().isNotEmpty) 'jenis': jenis.trim(),
+        if (tipe != null && tipe.trim().isNotEmpty) 'tipe': tipe.trim(),
+        if (kota != null && kota.trim().isNotEmpty) 'kota': kota.trim(),
+        'lat': ?lat,
+        'lng': ?lng,
+        'max_km': ?maxKm,
+        'min_harga': ?minHarga,
+        'max_harga': ?maxHarga,
+        if (tanggal != null && tanggal.trim().isNotEmpty)
+          'tanggal': tanggal.trim(),
+        'dalam_jam': ?dalamJam,
+        'tersedia': ?tersedia,
+        if (sort != null && sort.trim().isNotEmpty) 'sort': sort.trim(),
+        'page': page,
+        'limit': limit,
+      };
+
+      final res = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/listings',
+        queryParameters: queryParams,
+      );
+      return PaginatedListings.fromJson(
+        Map<String, dynamic>.from(res.data ?? const {}),
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<List<ListingItem>> getMyListings({
     String? status,
     int page = 1,

@@ -1,4 +1,35 @@
+import '../../core/widgets/badges.dart';
+import '../../core/widgets/listing_widgets.dart';
 import '../events/event_models.dart';
+
+/// Hasil pagination listing tiket.
+class PaginatedListings {
+  const PaginatedListings({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.limit,
+  });
+
+  final List<ListingItem> items;
+  final int total;
+  final int page;
+  final int limit;
+
+  factory PaginatedListings.fromJson(Map<String, dynamic> json) {
+    final list = json['data'] as List<dynamic>? ?? const [];
+    final meta = json['meta'] as Map<String, dynamic>? ?? const {};
+    return PaginatedListings(
+      items: list
+          .map((item) =>
+              ListingItem.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList(),
+      total: (meta['total'] as num?)?.toInt() ?? list.length,
+      page: (meta['page'] as num?)?.toInt() ?? 1,
+      limit: (meta['limit'] as num?)?.toInt() ?? list.length,
+    );
+  }
+}
 
 /// Foto bukti tiket pada ListingDetail.
 class ListingPhotoItem {
@@ -137,6 +168,23 @@ class ListingItem {
   final int? _jumlahTotalExplicit;
 
   int get jumlahTotal => _jumlahTotalExplicit ?? (jumlahTersedia + jumlahTerjual);
+
+  ListingData toListingData() {
+    return ListingData(
+      id: id.toString(),
+      eventName: event.nama,
+      venueName: venueNama,
+      city: kota,
+      eventDate: waktuAcara,
+      pricePerTicket: harga,
+      ticketCount: jumlahTersedia,
+      posterUrl: event.posterUrl,
+      distanceKm: jarakKm,
+      type: jenis == 'last_minute' ? TicketType.lastMinute : TicketType.limited,
+      isSaved: isFavorite,
+      discountPercent: diskonPersen,
+    );
+  }
 
   ListingItem copyWith({
     int? jumlahTersedia,

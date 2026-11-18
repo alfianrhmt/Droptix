@@ -10,6 +10,12 @@ class AppSearchBar extends StatelessWidget {
     this.onTap,
     this.controller,
     this.onSubmitted,
+    this.onChanged,
+    this.focusNode,
+    this.suffixIcon,
+    this.leading,
+    this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+    this.hintText = 'Cari artis, event, tempat…',
     this.autofocus = false,
     this.readOnly = false,
   });
@@ -17,28 +23,38 @@ class AppSearchBar extends StatelessWidget {
   final VoidCallback? onTap;
   final TextEditingController? controller;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
+  final Widget? suffixIcon;
+  final Widget? leading;
+  final EdgeInsetsGeometry padding;
+  final String hintText;
   final bool autofocus;
   final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      padding: padding,
       child: SizedBox(
         height: 48,
         child: TextField(
           controller: controller,
+          focusNode: focusNode,
           onTap: onTap,
           onSubmitted: onSubmitted,
+          onChanged: onChanged,
           autofocus: autofocus,
           readOnly: readOnly,
           style: AppTextStyles.body,
           decoration: InputDecoration(
-            hintText: 'Cari artis, event, tempat…',
+            hintText: hintText,
             hintStyle:
                 AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-            prefixIcon: const Icon(Icons.search_rounded,
-                color: AppColors.textSecondary, size: 22),
+            prefixIcon: leading ??
+                const Icon(Icons.search_rounded,
+                    color: AppColors.textSecondary, size: 22),
+            suffixIcon: suffixIcon,
             filled: true,
             fillColor: AppColors.surfaceHigh,
             contentPadding: const EdgeInsets.symmetric(vertical: 0),

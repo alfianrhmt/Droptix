@@ -89,6 +89,27 @@ class _FakeListingRepository implements ListingRepository {
   Map<String, dynamic>? createdPayload;
 
   @override
+  Future<PaginatedListings> getListings({
+    String? q,
+    String? category,
+    String? jenis,
+    String? tipe,
+    String? kota,
+    double? lat,
+    double? lng,
+    int? maxKm,
+    int? minHarga,
+    int? maxHarga,
+    String? tanggal,
+    int? dalamJam,
+    bool? tersedia,
+    String? sort,
+    int page = 1,
+    int limit = 20,
+  }) async =>
+      const PaginatedListings(items: [], total: 0, page: 1, limit: 20);
+
+  @override
   Future<List<ListingItem>> getMyListings({
     String? status,
     int page = 1,
