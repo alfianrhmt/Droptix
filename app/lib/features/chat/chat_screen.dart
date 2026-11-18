@@ -8,6 +8,8 @@ import '../../core/theme/theme.dart';
 import '../../core/widgets/chat_widgets.dart';
 import '../listings/listing_detail_screen.dart';
 import '../listings/listing_models.dart';
+import '../moderation/moderation_repository.dart';
+import '../moderation/report_bottom_sheet.dart';
 import 'chat_models.dart';
 import 'chat_repository.dart';
 import 'chat_socket_service.dart';
@@ -27,6 +29,7 @@ class ChatScreen extends StatefulWidget {
     this.chatRepository,
     this.socketService,
     this.urlLauncher,
+    this.moderationRepository,
   });
 
   final int? conversationId;
@@ -36,6 +39,7 @@ class ChatScreen extends StatefulWidget {
   final ChatRepository? chatRepository;
   final ChatSocketService? socketService;
   final UrlLauncherFn? urlLauncher;
+  final ModerationRepository? moderationRepository;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -437,6 +441,109 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _handleReportUser() {
+    final otherId = _conversation?.lawan.id ?? _listingDetail?.seller?.id;
+    if (otherId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak dapat menentukan pengguna yang dilaporkan.'),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+      return;
+    }
+    final otherName =
+        _conversation?.lawan.nama ?? _listingDetail?.seller?.nama ?? 'Pengguna';
+
+    showReportBottomSheet(
+      context,
+      targetType: 'user',
+      targetId: otherId,
+      targetTitle: otherName,
+      repository: widget.moderationRepository,
+    );
+  }
+
+  Future<void> _handleBlockUser() async {
+    final otherId = _conversation?.lawan.id ?? _listingDetail?.seller?.id;
+    if (otherId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak dapat menentukan pengguna yang akan diblokir.'),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+      return;
+    }
+    final otherName =
+        _conversation?.lawan.nama ?? _listingDetail?.seller?.nama ?? 'Pengguna';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Blokir $otherName?', style: AppTextStyles.titleMedium),
+        content: Text(
+          'Kamu tidak akan dapat mengirim atau menerima pesan dari pengguna ini.',
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Batal',
+              style:
+                  AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Blokir',
+              style: AppTextStyles.label.copyWith(color: AppColors.urgent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final client = AuthScope.of(context).repository.client;
+    final modRepo =
+        widget.moderationRepository ?? ModerationRepository(client);
+
+    try {
+      await modRepo.blockUser(otherId);
+      if (!mounted) return;
+      setState(() {
+        _isBlocked = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$otherName telah diblokir.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memblokir pengguna.'),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+    }
+  }
+
   String _formatDateHeader(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -540,17 +647,9 @@ class _ChatScreenState extends State<ChatScreen> {
               if (val == 'wa') {
                 _handleLanjutWhatsApp();
               } else if (val == 'report') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fitur Laporkan akan tersedia di M7.'),
-                  ),
-                );
+                _handleReportUser();
               } else if (val == 'block') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fitur Blokir akan tersedia di M7.'),
-                  ),
-                );
+                _handleBlockUser();
               }
             },
             itemBuilder: (ctx) => [
