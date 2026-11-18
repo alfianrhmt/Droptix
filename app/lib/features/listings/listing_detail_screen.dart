@@ -13,6 +13,8 @@ import '../../core/widgets/stats_card.dart';
 import '../chat/chat_repository.dart';
 import '../chat/chat_screen.dart';
 import '../chat/chat_socket_service.dart';
+import '../moderation/moderation_repository.dart';
+import '../moderation/report_bottom_sheet.dart';
 import 'listing_models.dart';
 import 'listing_repository.dart';
 
@@ -27,6 +29,7 @@ class ListingDetailScreen extends StatefulWidget {
     this.listingRepository,
     this.chatRepository,
     this.socketService,
+    this.moderationRepository,
     this.usePlaceholderChat = false,
   });
 
@@ -35,6 +38,7 @@ class ListingDetailScreen extends StatefulWidget {
   final ListingRepository? listingRepository;
   final ChatRepository? chatRepository;
   final ChatSocketService? socketService;
+  final ModerationRepository? moderationRepository;
   final bool usePlaceholderChat;
 
   @override
@@ -185,62 +189,13 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   void _handleReportListing() {
-    final reasons = [
-      'Tiket palsu atau indikasi penipuan',
-      'Harga tidak wajar atau melanggar aturan',
-      'Informasi tiket tidak sesuai deskripsi',
-      'Penjual tidak dapat dihubungi',
-      'Lainnya',
-    ];
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: Text('Laporkan Listing', style: AppTextStyles.titleMedium),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pilih alasan pelaporan listing tiket ini:',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                ...reasons.map((r) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      leading: const Icon(
-                        Icons.radio_button_unchecked_rounded,
-                        color: AppColors.textSecondary,
-                        size: 18,
-                      ),
-                      title: Text(r, style: AppTextStyles.bodySmall),
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Laporan Anda telah diterima dan akan ditinjau tim Droptix.',
-                            ),
-                          ),
-                        );
-                      },
-                    )),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-          ],
-        );
-      },
+    final item = _item;
+    showReportBottomSheet(
+      context,
+      targetType: 'listing',
+      targetId: widget.listingId,
+      targetTitle: item?.event.nama ?? 'Listing #${widget.listingId}',
+      repository: widget.moderationRepository,
     );
   }
 

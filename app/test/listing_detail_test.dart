@@ -16,6 +16,21 @@ import 'package:droptix/features/events/event_models.dart';
 import 'package:droptix/features/listings/listing_detail_screen.dart';
 import 'package:droptix/features/listings/listing_models.dart';
 import 'package:droptix/features/listings/listing_repository.dart';
+import 'package:droptix/features/moderation/moderation_repository.dart';
+
+class _FakeModerationRepository extends ModerationRepository {
+  _FakeModerationRepository() : super(ApiClient(tokenStorage: TokenStorage()));
+
+  @override
+  Future<int> report({
+    required String targetType,
+    required int targetId,
+    required String alasan,
+    String? keterangan,
+  }) async {
+    return 101;
+  }
+}
 
 class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository(super.client, {this.currentUser});
@@ -207,6 +222,7 @@ void main() {
     required ListingItem listing,
     required _FakeListingDetailRepository repository,
     UserModel? loggedInUser,
+    ModerationRepository? moderationRepository,
   }) async {
     final tokenStorage = TokenStorage();
     final apiClient = ApiClient(tokenStorage: tokenStorage);
@@ -235,6 +251,7 @@ void main() {
               listingId: listing.id,
               initialItem: listing,
               listingRepository: repository,
+              moderationRepository: moderationRepository ?? _FakeModerationRepository(),
             ),
           ),
         ),
@@ -419,10 +436,14 @@ void main() {
 
       // Dialog pelaporan muncul dengan opsi alasan
       expect(find.text('Laporkan Listing'), findsOneWidget);
-      expect(find.text('Tiket palsu atau indikasi penipuan'), findsOneWidget);
+      expect(find.text('Tiket palsu atau tidak valid'), findsOneWidget);
 
       // Pilih salah satu opsi
-      await tester.tap(find.text('Tiket palsu atau indikasi penipuan'));
+      await tester.tap(find.text('Tiket palsu atau tidak valid'));
+      await tester.pumpAndSettle();
+
+      // Tekan tombol Kirim Laporan
+      await tester.tap(find.byKey(const Key('report_submit_button')));
       await tester.pumpAndSettle();
 
       // SnackBar konfirmasi laporan diterima
