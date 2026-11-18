@@ -14,6 +14,13 @@ const getMyListingsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 });
 
+const getMyFavoritesQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
+
 const updateMeSchema = z.object({
   nama: z
     .string()
@@ -98,6 +105,72 @@ function createMeRouter(db, requireAuth) {
         );
 
         const data = rows.map((r) => formatListingCard(r));
+        return res.json({
+          data,
+          meta: {
+            page,
+            limit,
+            total,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.get(
+    '/favorites',
+    requireAuth,
+    validate(getMyFavoritesQuerySchema, 'query'),
+    async (req, res, next) => {
+      try {
+        const { lat, lng, page, limit } = req.query;
+        const offset = (page - 1) * limit;
+
+        const countRes = await db.query(
+          `SELECT count(*)::int AS total
+           FROM favorites f
+           JOIN listings l ON l.id = f.listing_id
+           JOIN users u ON u.id = l.seller_id
+           WHERE f.user_id = $1
+             AND l.deleted_at IS NULL
+             AND l.hidden = false
+             AND u.banned_at IS NULL`,
+          [req.user.id]
+        );
+        const total = countRes.rows[0]?.total || 0;
+
+        const { rows } = await db.query(
+          `SELECT l.*,
+                  e.nama AS event_nama, e.poster_url AS event_poster_url,
+                  c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama,
+                  v.nama AS venue_nama, v.kota AS venue_kota,
+                  (SELECT count(*)::int FROM conversations cv WHERE cv.listing_id = l.id) AS tertarik,
+                  true AS is_favorite
+           FROM favorites f
+           JOIN listings l ON l.id = f.listing_id
+           JOIN events e ON e.id = l.event_id
+           JOIN categories c ON c.id = e.category_id
+           JOIN users u ON u.id = l.seller_id
+           LEFT JOIN venues v ON v.id = l.venue_id
+           WHERE f.user_id = $1
+             AND l.deleted_at IS NULL
+             AND l.hidden = false
+             AND u.banned_at IS NULL
+           ORDER BY f.created_at DESC, l.id DESC
+           LIMIT $2 OFFSET $3`,
+          [req.user.id, limit, offset]
+        );
+
+        const data = rows.map((r) =>
+          formatListingCard(
+            r,
+            lat !== undefined ? lat : null,
+            lng !== undefined ? lng : null
+          )
+        );
+
         return res.json({
           data,
           meta: {

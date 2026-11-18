@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T4.6** selesai tuntas: Pengujian lengkap filter, urutan, kedaluwarsa, dan skor relevansi BR-5 (dua listing dengan jarak berbeda, bobot berbeda per jenis). Skenario Uji 5 (urutan Relevan berubah wajar saat lokasi pembeli diganti Surabaya vs Jakarta) dan Skenario Uji 8 (listing yang waktu acaranya lewat otomatis hilang dari pencarian) telah terverifikasi penuh baik di backend (67/67 tes) maupun di Flutter widget tests (31/31 tes). Milestone M4 resmi selesai 100%.
+- **T5.1** selesai tuntas: Endpoint favorit `POST /api/v1/listings/:id/favorite` (idempoten via `ON CONFLICT DO NOTHING`, guard 404 listing/seller tidak valid), `DELETE /api/v1/listings/:id/favorite`, dan `GET /api/v1/me/favorites` (terbaru dulu `f.created_at DESC`, pagination, kalkulasi jarak `lat`/`lng`, `is_favorite: true`). Seluruh 74 backend tests dan 31 Flutter tests lulus sempurna.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai M5 (T5.1).
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T5.2.
 
 ## Langkah berikutnya
-- **T5.1**: Backend: `POST/DELETE /listings/:id/favorite`, `GET /me/favorites`.
+- **T5.2**: Flutter: halaman detail (`DESIGN.md` bagian 7), label status, favorit, bagikan, tombol "Chat dengan penjual" (sementara membuka layar placeholder sampai M6 selesai).

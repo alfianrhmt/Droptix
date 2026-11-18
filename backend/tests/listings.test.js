@@ -229,6 +229,81 @@ function createListingsMockDb() {
         return { rows: [] };
       }
 
+      if (q.startsWith('INSERT INTO favorites')) {
+        const [userId, listingId] = params;
+        const exists = favorites.some(
+          (f) => f.user_id === userId && f.listing_id === listingId
+        );
+        if (!exists) {
+          favorites.push({
+            user_id: userId,
+            listing_id: listingId,
+            created_at: new Date().toISOString(),
+          });
+        }
+        return { rows: [] };
+      }
+
+      if (q.startsWith('DELETE FROM favorites')) {
+        const [userId, listingId] = params;
+        const idx = favorites.findIndex(
+          (f) => f.user_id === userId && f.listing_id === listingId
+        );
+        if (idx !== -1) {
+          favorites.splice(idx, 1);
+        }
+        return { rows: [] };
+      }
+
+      if (
+        q.includes('FROM favorites f') &&
+        q.includes('JOIN listings l ON l.id = f.listing_id')
+      ) {
+        const userId = params[0];
+        const userFavs = favorites
+          .filter((f) => f.user_id === userId)
+          .sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+
+        const favListings = [];
+        for (const fav of userFavs) {
+          const l = listings.find((x) => x.id === fav.listing_id);
+          if (!l || l.deleted_at || l.hidden) continue;
+          const seller = users.find((u) => u.id === l.seller_id);
+          if (!seller || seller.banned_at) continue;
+          favListings.push(l);
+        }
+
+        if (q.startsWith('SELECT count(*)::int AS total')) {
+          return { rows: [{ total: favListings.length }] };
+        }
+
+        const limit = params[1] || 20;
+        const offset = params[2] || 0;
+        const page = favListings
+          .slice(offset, offset + limit)
+          .map((l) => hydrateListing(l, userId));
+        return { rows: page };
+      }
+
+      if (q.startsWith('SELECT l.id, l.deleted_at, l.hidden, u.banned_at')) {
+        const l = listings.find((x) => x.id === params[0]);
+        if (!l) return { rows: [] };
+        const u = users.find((x) => x.id === l.seller_id);
+        return {
+          rows: [
+            {
+              id: l.id,
+              deleted_at: l.deleted_at,
+              hidden: l.hidden,
+              banned_at: u ? u.banned_at : null,
+            },
+          ],
+        };
+      }
+
       if (q.includes('FROM listings l') && q.includes('WHERE l.seller_id = $1')) {
         let filtered = listings.filter(
           (l) => l.seller_id === params[0] && !l.deleted_at && !l.hidden
@@ -1873,6 +1948,246 @@ describe('T4.6 Tes Verifikasi: Filter, Urutan, Kedaluwarsa, dan Skor Relevansi (
       expect(res.status).toBe(200);
       expect(res.body.data.map((l) => l.id)).toEqual([4002, 4001]);
     });
+  });
+});
+
+describe('T5.1 Backend: POST/DELETE /listings/:id/favorite & GET /me/favorites', () => {
+  function insertListing(db, overrides = {}) {
+    const id = db.listings.length + 1;
+    const now = Date.now();
+    const listing = {
+      id,
+      event_id: 7,
+      seller_id: 1,
+      venue_id: 3,
+      venue_teks: null,
+      kota: 'Surabaya',
+      waktu_acara: new Date(now + 48 * 3600_000).toISOString(),
+      jenis: 'limited',
+      tipe: 'digital',
+      seksi: 'CAT 1',
+      no_kursi: 'A1',
+      harga: 500000,
+      harga_asli: 600000,
+      jumlah_total: 2,
+      jumlah_terjual: 0,
+      satuan: true,
+      terikat_nama: 'tidak',
+      serah_terima: ['transfer_eticket'],
+      lokasi_penjual_kota: null,
+      lokasi_penjual_lat: null,
+      lokasi_penjual_lng: null,
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+      catatan: null,
+      izinkan_wa: false,
+      hidden: false,
+      deleted_at: null,
+      created_at: new Date(now - 3600_000).toISOString(),
+      updated_at: new Date(now - 3600_000).toISOString(),
+      confirmed_at: new Date(now - 3600_000).toISOString(),
+      ...overrides,
+    };
+    db.listings.push(listing);
+    return listing;
+  }
+
+  it('memerlukan autentikasi untuk memfavoritkan atau menghapus favorit', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+
+    const postRes = await request(app).post('/api/v1/listings/1/favorite');
+    expect(postRes.status).toBe(401);
+
+    const delRes = await request(app).delete('/api/v1/listings/1/favorite');
+    expect(delRes.status).toBe(401);
+
+    const getRes = await request(app).get('/api/v1/me/favorites');
+    expect(getRes.status).toBe(401);
+  });
+
+  it('memvalidasi format ID listing pada URL parameter', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const token = makeToken(db.users[0]);
+
+    const postRes = await request(app)
+      .post('/api/v1/listings/abc/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(postRes.status).toBe(422);
+
+    const delRes = await request(app)
+      .delete('/api/v1/listings/-1/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(delRes.status).toBe(422);
+  });
+
+  it('mengembalikan 404 jika listing yang difavoritkan tidak ditemukan atau dihapus', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const token = makeToken(db.users[0]);
+
+    const notFoundRes = await request(app)
+      .post('/api/v1/listings/9999/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(notFoundRes.status).toBe(404);
+
+    insertListing(db, { id: 5001, deleted_at: new Date().toISOString() });
+    const deletedRes = await request(app)
+      .post('/api/v1/listings/5001/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(deletedRes.status).toBe(404);
+  });
+
+  it('berhasil memfavoritkan listing (idempoten) dan mencerminkan is_favorite=true pada detail', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const token = makeToken(db.users[0]);
+
+    insertListing(db, { id: 5002 });
+
+    // 1. Tambah favorit
+    const favRes = await request(app)
+      .post('/api/v1/listings/5002/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(favRes.status).toBe(200);
+    expect(favRes.body.data).toEqual({ is_favorite: true });
+
+    // 2. Idempoten: panggil ulang
+    const favResRepeat = await request(app)
+      .post('/api/v1/listings/5002/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(favResRepeat.status).toBe(200);
+    expect(favResRepeat.body.data).toEqual({ is_favorite: true });
+
+    // 3. Detail listing sekarang berstatus is_favorite=true
+    const detailRes = await request(app)
+      .get('/api/v1/listings/5002')
+      .set('Authorization', `Bearer ${token}`);
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body.data.is_favorite).toBe(true);
+
+    // Tanpa token login, detail listing menampilkan is_favorite=false
+    const guestDetailRes = await request(app).get('/api/v1/listings/5002');
+    expect(guestDetailRes.body.data.is_favorite).toBe(false);
+  });
+
+  it('berhasil menghapus favorit dan mencerminkan is_favorite=false', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const token = makeToken(db.users[0]);
+
+    insertListing(db, { id: 5003 });
+    db.favorites.push({ user_id: db.users[0].id, listing_id: 5003, created_at: new Date().toISOString() });
+
+    const delRes = await request(app)
+      .delete('/api/v1/listings/5003/favorite')
+      .set('Authorization', `Bearer ${token}`);
+    expect(delRes.status).toBe(200);
+    expect(delRes.body.data).toEqual({ is_favorite: false });
+
+    // Detail mencerminkan is_favorite=false
+    const detailRes = await request(app)
+      .get('/api/v1/listings/5003')
+      .set('Authorization', `Bearer ${token}`);
+    expect(detailRes.body.data.is_favorite).toBe(false);
+  });
+
+  it('GET /me/favorites menampilkan daftar favorit terurut terbaru dulu beserta jarak_km dan status', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const user = db.users[0];
+    const token = makeToken(user);
+    const now = Date.now();
+
+    // Listing 1: Masih tersedia
+    insertListing(db, {
+      id: 5010,
+      harga: 350000,
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+    });
+
+    // Listing 2: Sudah terjual
+    insertListing(db, {
+      id: 5020,
+      harga: 500000,
+      jumlah_total: 2,
+      jumlah_terjual: 2,
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+    });
+
+    // Listing 3: Kedaluwarsa
+    insertListing(db, {
+      id: 5030,
+      harga: 200000,
+      waktu_acara: new Date(now - 3600_000).toISOString(),
+      ref_lat: -7.262,
+      ref_lng: 112.751,
+    });
+
+    // Masukkan ke favorit dengan waktu berbeda: 5010 dulu, lalu 5020, lalu 5030 (paling baru)
+    db.favorites.push({ user_id: user.id, listing_id: 5010, created_at: new Date(now - 3000).toISOString() });
+    db.favorites.push({ user_id: user.id, listing_id: 5020, created_at: new Date(now - 2000).toISOString() });
+    db.favorites.push({ user_id: user.id, listing_id: 5030, created_at: new Date(now - 1000).toISOString() });
+
+    const res = await request(app)
+      .get('/api/v1/me/favorites?lat=-7.263&lng=112.745&limit=10')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBe(3);
+    // Urutan favorit terbaru dulu: 5030, 5020, 5010
+    expect(res.body.data.map((l) => l.id)).toEqual([5030, 5020, 5010]);
+    expect(res.body.meta.total).toBe(3);
+
+    // Verifikasi setiap item memiliki is_favorite=true dan jarak terhitung
+    for (const card of res.body.data) {
+      expect(card.is_favorite).toBe(true);
+      expect(card.jarak_km).toBeCloseTo(0.7, 1);
+    }
+
+    // Status masing-masing sesuai kondisi
+    expect(res.body.data.find((l) => l.id === 5010).status).toBe('tersedia');
+    expect(res.body.data.find((l) => l.id === 5020).status).toBe('terjual');
+    expect(res.body.data.find((l) => l.id === 5030).status).toBe('kedaluwarsa');
+  });
+
+  it('GET /me/favorites mendukung pagination page dan limit', async () => {
+    const db = createListingsMockDb();
+    const app = createApp({ db, useRateLimit: false });
+    const user = db.users[0];
+    const token = makeToken(user);
+    const now = Date.now();
+
+    for (let i = 1; i <= 5; i++) {
+      insertListing(db, { id: 6000 + i });
+      db.favorites.push({
+        user_id: user.id,
+        listing_id: 6000 + i,
+        created_at: new Date(now + i * 1000).toISOString(),
+      });
+    }
+
+    // Page 1, limit 2 -> item 6005, 6004
+    const page1Res = await request(app)
+      .get('/api/v1/me/favorites?page=1&limit=2')
+      .set('Authorization', `Bearer ${token}`);
+    expect(page1Res.status).toBe(200);
+    expect(page1Res.body.data.map((l) => l.id)).toEqual([6005, 6004]);
+    expect(page1Res.body.meta).toEqual({
+      page: 1,
+      limit: 2,
+      total: 5,
+    });
+
+    // Page 2, limit 2 -> item 6003, 6002
+    const page2Res = await request(app)
+      .get('/api/v1/me/favorites?page=2&limit=2')
+      .set('Authorization', `Bearer ${token}`);
+    expect(page2Res.status).toBe(200);
+    expect(page2Res.body.data.map((l) => l.id)).toEqual([6003, 6002]);
   });
 });
 

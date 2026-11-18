@@ -1115,6 +1115,72 @@ function createListingsRouter(db, requireAuth, optionalAuth) {
     }
   );
 
+  router.post(
+    '/:id/favorite',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const listingRes = await db.query(
+          `SELECT l.id, l.deleted_at, l.hidden, u.banned_at
+           FROM listings l
+           JOIN users u ON u.id = l.seller_id
+           WHERE l.id = $1`,
+          [listingId]
+        );
+        if (
+          listingRes.rows.length === 0 ||
+          listingRes.rows[0].deleted_at ||
+          listingRes.rows[0].hidden ||
+          listingRes.rows[0].banned_at
+        ) {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+
+        await db.query(
+          `INSERT INTO favorites (user_id, listing_id, created_at)
+           VALUES ($1, $2, now())
+           ON CONFLICT (user_id, listing_id) DO NOTHING`,
+          [req.user.id, listingId]
+        );
+
+        return res.json({
+          data: {
+            is_favorite: true,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.delete(
+    '/:id/favorite',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+
+        await db.query(
+          `DELETE FROM favorites
+           WHERE user_id = $1 AND listing_id = $2`,
+          [req.user.id, listingId]
+        );
+
+        return res.json({
+          data: {
+            is_favorite: false,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
   return router;
 }
 

@@ -70,7 +70,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 ## M5 — Detail listing dan favorit
 
-- [ ] **T5.1** Backend: `POST/DELETE /listings/:id/favorite`, `GET /me/favorites`.
+- [x] **T5.1** Backend: `POST/DELETE /listings/:id/favorite`, `GET /me/favorites`.
 - [ ] **T5.2** Flutter: halaman detail (`DESIGN.md` bagian 7), label status, favorit, bagikan, tombol "Chat dengan penjual" (sementara membuka layar placeholder sampai M6 selesai).
 - [ ] **T5.3** Flutter: Activity segmen **Saved**.
 
