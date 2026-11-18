@@ -7,6 +7,7 @@ const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
 const { normalizeWaNumber } = require('../utils/phone');
 const { formatListingCard } = require('./listings');
+const { countUnreadChats } = require('./conversations');
 
 const getMyListingsQuerySchema = z.object({
   status: z.enum(['tersedia', 'terjual', 'kedaluwarsa']).optional(),
@@ -52,6 +53,19 @@ function createMeRouter(db, requireAuth) {
 
   router.get('/', requireAuth, (req, res) => {
     res.json({ data: req.user });
+  });
+
+  router.get('/unread', requireAuth, async (req, res, next) => {
+    try {
+      const chats = await countUnreadChats(db, req.user.id);
+      return res.json({
+        data: {
+          chats,
+        },
+      });
+    } catch (err) {
+      return next(err);
+    }
   });
 
   router.get(

@@ -15,6 +15,8 @@ const Errors = {
     new AppError(401, 'UNAUTHORIZED', message),
   forbidden: (message = 'Kamu tidak punya akses.') =>
     new AppError(403, 'FORBIDDEN', message),
+  blocked: (message = 'Tidak dapat melanjutkan karena pemblokiran.') =>
+    new AppError(403, 'BLOCKED', message),
   accountBanned: (message = 'Akunmu dibekukan oleh pengelola.') =>
     new AppError(403, 'ACCOUNT_BANNED', message),
   notFound: (message = 'Data tidak ditemukan.') =>

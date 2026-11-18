@@ -15,6 +15,7 @@ const { createVenuesRouter } = require('./routes/venues');
 const { createEventsRouter } = require('./routes/events');
 const { createUploadsRouter } = require('./routes/uploads');
 const { createListingsRouter } = require('./routes/listings');
+const { createConversationsRouter } = require('./routes/conversations');
 
 const DEFAULT_UPLOADS_DIR = path.resolve(__dirname, '../uploads');
 
@@ -54,7 +55,14 @@ function createApp({
   app.use('/api/v1/venues', createVenuesRouter(db));
   app.use('/api/v1/events', createEventsRouter(db, requireAuth));
   app.use('/api/v1/uploads', createUploadsRouter(requireAuth, uploadsDir));
-  app.use('/api/v1/listings', createListingsRouter(db, requireAuth, optionalAuth));
+  app.use(
+    '/api/v1/listings',
+    createListingsRouter(db, requireAuth, optionalAuth, useRateLimit)
+  );
+  app.use(
+    '/api/v1/conversations',
+    createConversationsRouter(db, requireAuth, useRateLimit)
+  );
 
   // 404 fallback seragam
   app.use((_req, _res, next) => {

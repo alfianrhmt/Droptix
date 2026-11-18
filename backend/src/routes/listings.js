@@ -9,6 +9,15 @@ const {
   computeRelevanceScore,
   RELEVANCE_WEIGHTS,
 } = require('../config/relevance');
+const { chatMessageLimiter } = require('../middleware/rateLimit');
+const { computeListingStatus } = require('../utils/status');
+const {
+  formatConversation,
+  formatMessage,
+  fetchConversationWithDetails,
+  checkBlockBetween,
+  postMessageBodySchema,
+} = require('./conversations');
 
 const listingIdParamSchema = z.object({
   id: z.coerce.number().int().positive('ID listing tidak valid.'),
@@ -109,13 +118,6 @@ const updateListingSchema = z.object({
 const patchStockSchema = z.object({
   jumlah_terjual: z.coerce.number().int().min(0, 'Jumlah terjual tidak boleh negatif.'),
 });
-
-function computeListingStatus(row) {
-  if (row.deleted_at || row.hidden) return 'dihapus';
-  if (new Date(row.waktu_acara).getTime() <= Date.now()) return 'kedaluwarsa';
-  if (row.jumlah_total - row.jumlah_terjual <= 0) return 'terjual';
-  return 'tersedia';
-}
 
 function computeDiscountPercent(harga, hargaAsli) {
   if (!hargaAsli || harga >= hargaAsli) return null;
@@ -415,8 +417,16 @@ async function fetchListingDetail(db, listingId, currentUserId = null, userLat =
 /**
  * Router pembuatan, pembacaan, dan pengelolaan listing tiket.
  */
-function createListingsRouter(db, requireAuth, optionalAuth) {
+function createListingsRouter(
+  db,
+  requireAuth,
+  optionalAuth,
+  useRateLimit = true
+) {
   const router = express.Router();
+  const msgLimiter = useRateLimit
+    ? chatMessageLimiter
+    : (_req, _res, next) => next();
 
   router.get(
     '/',
@@ -1175,6 +1185,208 @@ function createListingsRouter(db, requireAuth, optionalAuth) {
             is_favorite: false,
           },
         });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  // GET /api/v1/listings/:id/conversation (Percakapan milik pembeli untuk listing ini)
+  router.get(
+    '/:id/conversation',
+    requireAuth,
+    validate(listingIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const currentUserId = req.user.id;
+
+        const convRes = await db.query(
+          `SELECT c.id FROM conversations c WHERE c.listing_id = $1 AND c.buyer_id = $2 LIMIT 1`,
+          [listingId, currentUserId]
+        );
+        const convRow = convRes.rows[0];
+        if (!convRow) {
+          return next(Errors.notFound('Percakapan belum ada.'));
+        }
+
+        const conv = await fetchConversationWithDetails(
+          db,
+          convRow.id,
+          currentUserId
+        );
+        if (!conv) {
+          return next(Errors.notFound('Percakapan belum ada.'));
+        }
+
+        return res.json({
+          data: formatConversation(conv, currentUserId),
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  // POST /api/v1/listings/:id/conversations (Mulai chat baru atau lanjutkan yang ada secara atomik)
+  router.post(
+    '/:id/conversations',
+    requireAuth,
+    msgLimiter,
+    validate(listingIdParamSchema, 'params'),
+    validate(postMessageBodySchema, 'body'),
+    async (req, res, next) => {
+      try {
+        const listingId = req.params.id;
+        const currentUserId = req.user.id;
+        const { isi } = req.body;
+
+        const listingRes = await db.query(
+          `SELECT l.id, l.seller_id, l.deleted_at, l.hidden,
+                  l.waktu_acara, l.jumlah_total, l.jumlah_terjual,
+                  u.banned_at AS seller_banned_at
+           FROM listings l
+           JOIN users u ON u.id = l.seller_id
+           WHERE l.id = $1
+           LIMIT 1`,
+          [listingId]
+        );
+        const listing = listingRes.rows[0];
+        if (
+          !listing ||
+          listing.deleted_at ||
+          listing.hidden ||
+          listing.seller_banned_at
+        ) {
+          return next(Errors.notFound('Listing tidak ditemukan.'));
+        }
+
+        // Penjual tidak boleh memulai chat dengan listingnya sendiri (403 FORBIDDEN)
+        if (Number(listing.seller_id) === Number(currentUserId)) {
+          return next(
+            Errors.forbidden(
+              'Penjual tidak dapat mengirim pesan pada listing sendiri.'
+            )
+          );
+        }
+
+        // Penjual memblokir pembeli atau sebaliknya -> 403 BLOCKED (BR-12)
+        const isBlocked = await checkBlockBetween(
+          db,
+          currentUserId,
+          listing.seller_id
+        );
+        if (isBlocked) {
+          return next(
+            Errors.blocked('Tidak dapat mengirim pesan karena pemblokiran.')
+          );
+        }
+
+        const preview = isi.slice(0, 80);
+
+        // Periksa apakah percakapan antara pembeli dan listing ini sudah ada
+        const existingConvRes = await db.query(
+          'SELECT id FROM conversations WHERE listing_id = $1 AND buyer_id = $2 LIMIT 1',
+          [listingId, currentUserId]
+        );
+        const existingConv = existingConvRes.rows[0];
+
+        let conversationId;
+        if (existingConv) {
+          conversationId = existingConv.id;
+
+          const insertMsgSql = `
+            INSERT INTO messages (conversation_id, sender_id, isi, created_at)
+            VALUES ($1, $2, $3, now())
+            RETURNING id, conversation_id, sender_id, isi, created_at
+          `;
+          const msgRes = await db.query(insertMsgSql, [
+            conversationId,
+            currentUserId,
+            isi,
+          ]);
+          const createdMessage = msgRes.rows[0];
+
+          await db.query(
+            `UPDATE conversations
+             SET last_message_at = now(),
+                 last_message_preview = $2,
+                 buyer_last_read_at = now()
+             WHERE id = $1`,
+            [conversationId, preview]
+          );
+
+          const fullConv = await fetchConversationWithDetails(
+            db,
+            conversationId,
+            currentUserId
+          );
+
+          return res.status(201).json({
+            data: {
+              conversation: formatConversation(fullConv, currentUserId),
+              message: formatMessage(createdMessage),
+            },
+          });
+        } else {
+          // Percakapan baru: periksa status listing harus 'tersedia'
+          const listingStatus = computeListingStatus({
+            deleted_at: listing.deleted_at,
+            hidden: listing.hidden,
+            waktu_acara: listing.waktu_acara,
+            jumlah_total: listing.jumlah_total,
+            jumlah_terjual: listing.jumlah_terjual,
+          });
+
+          if (listingStatus !== 'tersedia') {
+            return next(
+              Errors.conflict(
+                'Percakapan baru hanya dapat dimulai untuk tiket yang masih tersedia.'
+              )
+            );
+          }
+
+          const insertConvSql = `
+            INSERT INTO conversations (
+              listing_id, buyer_id, seller_id,
+              last_message_at, last_message_preview, buyer_last_read_at
+            )
+            VALUES ($1, $2, $3, now(), $4, now())
+            RETURNING id
+          `;
+          const convInsertRes = await db.query(insertConvSql, [
+            listingId,
+            currentUserId,
+            listing.seller_id,
+            preview,
+          ]);
+          conversationId = convInsertRes.rows[0].id;
+
+          const insertMsgSql = `
+            INSERT INTO messages (conversation_id, sender_id, isi, created_at)
+            VALUES ($1, $2, $3, now())
+            RETURNING id, conversation_id, sender_id, isi, created_at
+          `;
+          const msgRes = await db.query(insertMsgSql, [
+            conversationId,
+            currentUserId,
+            isi,
+          ]);
+          const createdMessage = msgRes.rows[0];
+
+          const fullConv = await fetchConversationWithDetails(
+            db,
+            conversationId,
+            currentUserId
+          );
+
+          return res.status(201).json({
+            data: {
+              conversation: formatConversation(fullConv, currentUserId),
+              message: formatMessage(createdMessage),
+            },
+          });
+        }
       } catch (err) {
         return next(err);
       }
