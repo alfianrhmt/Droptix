@@ -88,7 +88,7 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 ## M7 — Laporan, blokir, hukum
 
-- [ ] **T7.1** Backend: `POST /reports`, `POST/DELETE /users/:id/block`, `GET /me/blocks`, penyaringan blokir pada kotak masuk dan pengiriman pesan.
+- [x] **T7.1** Backend: `POST /reports`, `POST/DELETE /users/:id/block`, `GET /me/blocks`, penyaringan blokir pada kotak masuk dan pengiriman pesan.
 - [ ] **T7.2** Flutter: bottom sheet laporan (listing, event, pengguna), "Blokir pengguna" di chat, Profile → Pengguna diblokir.
 - [ ] **T7.3** Flutter: halaman Profile, Syarat Penggunaan, Kebijakan Privasi (`PRD.md` FR-15).
 - [ ] **T7.4** Dokumentasikan skrip moderasi manual di README (rujuk `DATABASE.md` bagian 5).

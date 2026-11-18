@@ -1,12 +1,11 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **M6 (Chat dalam aplikasi)** selesai 100%: T6.1 s/d T6.5 tuntas.
-- **T6.5** selesai tuntas: Pengujian komprehensif chat (1 percakapan per pasangan listing & pembeli, penjual dilarang chat listing sendiri [403], metrik "tertarik" unik [BR-3], leak audit nomor WA di seluruh endpoint & model, rate limit 30 msg/menit, dan isolasi akses 404 untuk non-peserta).
-- Pengujian: 115 backend tests dan 56 Flutter widget/unit tests lulus 100% tanpa error analyzer.
+- **T7.1** selesai tuntas: Backend endpoints pelaporan dan pemblokiran (`POST /reports` dengan batas 10/hari dan validasi target, `POST/DELETE /users/:id/block` idempoten & anti-self-block, `GET /me/blocks`, serta filter blokir BR-12 pada inbox dan pesan).
+- Pengujian: 129 backend tests (+14 pengujian baru di `reports_blocks.test.js`) lolos 100% dan `flutter analyze` 0 issues.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai Milestone 7 (M7).
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T7.2.
 
 ## Langkah berikutnya
-- **M7 — Laporan, blokir, hukum**: T7.1 Backend: `POST /reports`, `POST/DELETE /users/:id/block`, `GET /me/blocks`, penyaringan blokir pada kotak masuk dan pengiriman pesan.
+- **T7.2**: Flutter: bottom sheet laporan (listing, event, pengguna), "Blokir pengguna" di chat, Profile → Pengguna diblokir.
