@@ -53,9 +53,49 @@ Droptix/
 └── README.md
 ```
 
-## Skrip moderasi (singkat)
+## Skrip moderasi manual (tanpa panel admin)
 
-Lihat `docs/DATABASE.md` bagian 5 untuk daftar query manual moderasi (blokir akun, hapus listing, dsb.).
+Pada versi 1 (v1), moderasi dan peninjauan laporan dilakukan langsung oleh pengelola melalui basis data PostgreSQL (lihat juga `docs/DATABASE.md` bagian 5).
+
+Untuk menjalankan query melalui Docker Compose:
+```bash
+docker compose exec postgres psql -U postgres -d droptix
+```
+
+### 1. Meninjau laporan yang belum diproses
+```sql
+-- Daftar seluruh laporan berstatus 'baru'
+SELECT r.id, r.created_at, r.reporter_id, u.nama AS reporter_nama,
+       r.target_type, r.target_id, r.alasan, r.keterangan
+FROM reports r
+JOIN users u ON u.id = r.reporter_id
+WHERE r.status = 'baru'
+ORDER BY r.created_at ASC;
+```
+
+### 2. Menyembunyikan listing atau event yang melanggar
+```sql
+-- Sembunyikan listing (tidak akan tampil di pencarian dan halaman publik)
+UPDATE listings SET hidden = true, updated_at = now() WHERE id = :listing_id;
+
+-- Sembunyikan event yang tidak valid atau terindikasi fiktif
+UPDATE events SET hidden = true WHERE id = :event_id;
+```
+
+### 3. Membekukan akun pelanggar (banned) & menyembunyikan listingnya
+```sql
+-- Bekukan akun pengguna (otomatis memutus sesi login dan menolak token berikutnya)
+UPDATE users SET banned_at = now() WHERE id = :user_id;
+
+-- Sembunyikan seluruh listing aktif milik pengguna tersebut
+UPDATE listings SET hidden = true, updated_at = now() WHERE seller_id = :user_id;
+```
+
+### 4. Menyelesaikan laporan
+```sql
+-- Tandai laporan telah ditinjau dan selesai ditindak
+UPDATE reports SET status = 'selesai' WHERE id = :report_id;
+```
 
 ## Akun contoh (hanya untuk pengembangan)
 
