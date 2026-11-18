@@ -1,0 +1,23 @@
+# Konfigurasi Caddy Reverse Proxy dengan HTTPS otomatis (Let's Encrypt / ZeroSSL)
+# Ganti dengan domain publik Anda di server produksi, mis. api.droptix.app
+{$DOMAIN:api.droptix.app} {
+    encode gzip zstd
+
+    # Logging akses
+    log {
+        output stdout
+        format console
+    }
+
+    # Proxy seluruh request API dan Socket.IO ke backend container
+    reverse_proxy api:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Dukungan WebSocket untuk Socket.IO
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+}

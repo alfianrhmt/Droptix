@@ -107,3 +107,60 @@ Password untuk semua akun contoh: `Droptix123!`
 | Dina Larasati | `dina@droptix.dev` | Surabaya | `6281234567802` |
 | Bagas Wijaya | `bagas@droptix.dev` | Jakarta | `6281234567803` |
 
+## Deployment Produksi (HTTPS & Backup Terjadwal)
+
+Droptix siap dideploy ke server publik (VPS/Cloud) menggunakan `docker-compose.prod.yml`:
+1. **Caddy Reverse Proxy**: Mengatur sertifikat SSL/TLS otomatis (Let's Encrypt / HTTPS) dan menangani routing HTTP serta WebSocket.
+2. **PostgreSQL**: Data persisten pada volume `pgdata`, healthcheck otomatis.
+3. **Penyimpanan Unggahan Persisten**: Berkas foto tiket dan poster tersimpan di volume `uploads_data`.
+4. **Backup Terjadwal**: Kontainer backup harian otomatis menjalankan `pg_dump` setiap pukul 02:00 dan menyimpan arsip terkompresi `.sql.gz` dengan retensi 7 hari.
+
+```bash
+# 1. Siapkan .env produksi
+cp .env.example .env
+# Edit .env: ubah DOMAIN ke domain publik Anda (mis. api.droptix.app), DB_PASSWORD, dan JWT_SECRET
+
+# 2. Jalankan stack produksi
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 3. Jalankan migrasi database
+docker compose -f docker-compose.prod.yml exec api npm run migrate
+docker compose -f docker-compose.prod.yml exec api npm run seed
+
+# 4. Verifikasi status dan health check
+docker compose -f docker-compose.prod.yml ps
+curl https://api.droptix.app/api/v1/health
+```
+
+## Membangun APK Rilis Android
+
+Aplikasi Flutter dapat dibangun menjadi APK rilis bertanda tangan (*signed release APK*) yang langsung mengarah ke server publik:
+
+```bash
+cd app
+
+# 1. (Opsional) Konfigurasi keystore rilis
+cp android/key.properties.example android/key.properties
+# Edit android/key.properties dengan lokasi dan password keystore Anda.
+# Jika tidak diisi, build secara otomatis menggunakan signing key debug yang valid.
+
+# 2. Bangun APK rilis dengan target server publik
+flutter build apk --release --dart-define=API_BASE_URL=https://api.droptix.app/api/v1
+```
+
+Berkas keluaran APK rilis akan tersedia di:
+`app/build/app/outputs/flutter-apk/app-release.apk`
+
+## Menjalankan Pengujian (Testing)
+
+```bash
+# Pengujian Backend (129 pengujian unit & integrasi)
+cd backend
+npm test
+
+# Pengujian Flutter (79 pengujian unit & widget)
+cd app
+flutter test --no-pub
+flutter analyze --no-pub
+```
+

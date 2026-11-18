@@ -100,10 +100,10 @@ Centang `[x]` setelah tugas lolos kriteria "selesai" di `AGENTS.md` bagian 8.
 
 - [x] **T8.1** Penyempurnaan UI: semua layar punya keadaan loading/kosong/error, pengecekan 360×740 dan skala teks 1,3, kontras, area sentuh, countdown per menit dengan satu timer bersama.
 - [x] **T8.2** Penanganan jaringan: tidak ada koneksi, token kedaluwarsa, gambar gagal dimuat, koneksi socket terputus.
-- [ ] **T8.3** **Deploy** backend dan database ke server publik dengan HTTPS, folder unggahan persisten, `pg_dump` terjadwal, health check, dan variabel lingkungan produksi (rahasia tidak masuk repo).
-- [ ] **T8.4** Bangun APK rilis bertanda tangan yang mengarah ke server publik.
-- [ ] **T8.5** Jalankan seluruh skenario uji di `PRD.md` bagian 8 pada build rilis dan catat hasilnya.
-- [ ] **T8.6** README lengkap (cara menjalankan, akun contoh, struktur, skrip moderasi), `.env.example`, `docs/DECISIONS.md` rapi.
+- [x] **T8.3** **Deploy** backend dan database ke server publik dengan HTTPS, folder unggahan persisten, `pg_dump` terjadwal, health check, dan variabel lingkungan produksi (rahasia tidak masuk repo).
+- [x] **T8.4** Bangun APK rilis bertanda tangan yang mengarah ke server publik.
+- [x] **T8.5** Jalankan seluruh skenario uji di `PRD.md` bagian 8 pada build rilis dan catat hasilnya.
+- [x] **T8.6** README lengkap (cara menjalankan, akun contoh, struktur, skrip moderasi), `.env.example`, `docs/DECISIONS.md` rapi.
 
 ## Bonus (hanya jika waktu sisa, urut prioritas)
 

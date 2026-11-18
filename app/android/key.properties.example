@@ -1,0 +1,9 @@
+# Konfigurasi Penandatanganan Rilis Android (Signing Keystore)
+# Salin berkas ini ke app/android/key.properties dan jangan commit ke repositori git publik.
+# Buat keystore dengan perintah:
+# keytool -genkey -v -keystore droptix-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias droptix-key
+
+storePassword=rahasia_password_keystore
+keyPassword=rahasia_password_key
+keyAlias=droptix-key
+storeFile=droptix-release.jks

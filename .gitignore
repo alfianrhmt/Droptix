@@ -1,4 +1,10 @@
 .env
+*.env
+*.sql.gz
+backups/
+key.properties
+*.jks
+*.keystore
 node_modules/
 backend/uploads/*
 !backend/uploads/seed/
