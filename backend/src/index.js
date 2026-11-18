@@ -1,6 +1,7 @@
 'use strict';
 
 require('dotenv').config();
+const http = require('http');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -16,6 +17,7 @@ const { createEventsRouter } = require('./routes/events');
 const { createUploadsRouter } = require('./routes/uploads');
 const { createListingsRouter } = require('./routes/listings');
 const { createConversationsRouter } = require('./routes/conversations');
+const { initSocketIO } = require('./realtime');
 
 const DEFAULT_UPLOADS_DIR = path.resolve(__dirname, '../uploads');
 
@@ -23,8 +25,17 @@ function createApp({
   db = defaultPool,
   useRateLimit = true,
   uploadsDir = DEFAULT_UPLOADS_DIR,
+  io,
 } = {}) {
   const app = express();
+  const server = http.createServer(app);
+  const socketIo = io !== undefined ? io : initSocketIO(server, { db });
+  if (socketIo) {
+    app.set('io', socketIo);
+  }
+  app.server = server;
+  app.io = socketIo;
+
   const requireAuth = createRequireAuth(db);
   const optionalAuth = createOptionalAuth(db);
 
@@ -75,14 +86,26 @@ function createApp({
   return app;
 }
 
+function createServer(options = {}) {
+  const app = createApp(options);
+  return {
+    app,
+    server: app.server,
+    io: app.io,
+  };
+}
+
 const app = createApp();
 const PORT = process.env.PORT || 3000;
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  app.server.listen(PORT, () => {
     console.log(`Droptix API berjalan di port ${PORT}`);
   });
 }
 
 app.createApp = createApp;
+app.createServer = createServer;
 module.exports = app;
+module.exports.createApp = createApp;
+module.exports.createServer = createServer;

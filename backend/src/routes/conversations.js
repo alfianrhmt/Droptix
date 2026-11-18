@@ -6,6 +6,7 @@ const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
 const { chatMessageLimiter } = require('../middleware/rateLimit');
 const { computeListingStatus } = require('../utils/status');
+const { emitMessageNew, emitUnreadUpdate } = require('../realtime');
 
 const conversationIdParamSchema = z.object({
   id: z.coerce.number().int().positive('ID percakapan tidak valid.'),
@@ -384,6 +385,38 @@ function createConversationsRouter(db, requireAuth, useRateLimit = true) {
 
         await db.query(updateConvSql, [conversationId, preview]);
 
+        // Siarkan realtime event message:new dan unread:update ke lawan bicara
+        const io = req.app.get('io');
+        if (io) {
+          try {
+            const lawanBelumDibacaRes = await db.query(
+              `SELECT count(*)::int AS count FROM messages m
+               JOIN conversations c ON c.id = m.conversation_id
+               WHERE m.conversation_id = $1
+                 AND m.sender_id <> $2
+                 AND m.created_at > COALESCE(
+                   CASE WHEN c.buyer_id = $2 THEN c.buyer_last_read_at ELSE c.seller_last_read_at END,
+                   '1970-01-01'::timestamptz
+                 )`,
+              [conversationId, lawanId]
+            );
+            const belumDibacaLawan = lawanBelumDibacaRes.rows[0]
+              ? Number(lawanBelumDibacaRes.rows[0].count)
+              : 1;
+            const unreadChatsLawan = await countUnreadChats(db, lawanId);
+
+            emitMessageNew(io, {
+              lawanId,
+              message: formatMessage(createdMessage),
+              conversationId: Number(conversationId),
+              belumDibacaLawan,
+              unreadChatsLawan,
+            });
+          } catch {
+            // Abaikan kegagalan broadcast agar respon HTTP tetap sukses
+          }
+        }
+
         return res.status(201).json({
           data: formatMessage(createdMessage),
         });
@@ -424,6 +457,19 @@ function createConversationsRouter(db, requireAuth, useRateLimit = true) {
         await db.query(updateReadSql, [conversationId]);
 
         const unreadChats = await countUnreadChats(db, currentUserId);
+
+        // Siarkan unread:update ke pembaca
+        const io = req.app.get('io');
+        if (io) {
+          try {
+            emitUnreadUpdate(io, {
+              userId: currentUserId,
+              chats: unreadChats,
+            });
+          } catch {
+            // Abaikan kegagalan broadcast agar respon HTTP tetap sukses
+          }
+        }
 
         return res.json({
           data: {

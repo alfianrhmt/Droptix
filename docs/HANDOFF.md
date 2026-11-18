@@ -1,10 +1,10 @@
 # HANDOFF — Droptix
 
 ## Selesai
-- **T6.1** selesai tuntas: Endpoint backend chat lengkap (`GET /listings/:id/conversation`, `POST /listings/:id/conversations` atomik dengan pesan pertama, `GET /conversations`, `GET /conversations/:id`, `GET /conversations/:id/messages` berpaginasi `before`, `POST /conversations/:id/messages`, `POST /conversations/:id/read`, `GET /me/unread`). Menerapkan aturan BR-12 (sembunyikan percakapan dari blocker di inbox, tolak pesan dengan 403 `BLOCKED`), tolak penjual chat ke diri sendiri (403), tolak chat baru jika tiket tidak tersedia (409 `CONFLICT`), dan batas laju 30 pesan/menit (429 `RATE_LIMITED`). 94 backend tests dan 42 Flutter tests lulus sempurna.
+- **T6.2** selesai tuntas: Layanan realtime Socket.IO dipasang pada backend (`realtime/` dengan `auth.js`, `events.js`, `index.js`). Mendukung autentikasi handshake JWT (`auth: { token }`, penolakan token tak valid atau akun dibekukan `connect_error`), room otomatis per pengguna (`user:{id}`), penyiaran `message:new` (`{ message, conversation: { id, belum_dibaca } }`) ke lawan bicara pada `POST /listings/:id/conversations` dan `POST /conversations/:id/messages`, serta penyiaran `unread:update` (`{ chats }`) saat ada pesan baru atau percakapan dibaca (`POST /conversations/:id/read`). 101 backend tests dan 42 Flutter tests lulus sempurna.
 
 ## Sedang
-- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T6.2.
+- Menunggu konfirmasi `"lanjut"` dari pengguna sebelum memulai T6.3.
 
 ## Langkah berikutnya
-- **T6.2**: Backend: Socket.IO (`realtime/`) dengan autentikasi JWT, room per pengguna, event `message:new` dan `unread:update`.
+- **T6.3**: Flutter: koneksi socket tunggal (login/logout, sambung ulang otomatis), layar chat (kartu listing, bubble, input, saran pesan cepat, polling cadangan), Activity segmen **Chats** (`ConversationRow`), badge belum dibaca di ikon Activity.

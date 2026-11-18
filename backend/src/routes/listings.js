@@ -16,8 +16,10 @@ const {
   formatMessage,
   fetchConversationWithDetails,
   checkBlockBetween,
+  countUnreadChats,
   postMessageBodySchema,
 } = require('./conversations');
+const { emitMessageNew } = require('../realtime');
 
 const listingIdParamSchema = z.object({
   id: z.coerce.number().int().positive('ID listing tidak valid.'),
@@ -1322,6 +1324,41 @@ function createListingsRouter(
             currentUserId
           );
 
+          // Siarkan realtime event message:new dan unread:update ke penjual
+          const io = req.app.get('io');
+          if (io) {
+            try {
+              const lawanBelumDibacaRes = await db.query(
+                `SELECT count(*)::int AS count FROM messages m
+                 JOIN conversations c ON c.id = m.conversation_id
+                 WHERE m.conversation_id = $1
+                   AND m.sender_id <> $2
+                   AND m.created_at > COALESCE(
+                     CASE WHEN c.buyer_id = $2 THEN c.buyer_last_read_at ELSE c.seller_last_read_at END,
+                     '1970-01-01'::timestamptz
+                   )`,
+                [conversationId, listing.seller_id]
+              );
+              const belumDibacaLawan = lawanBelumDibacaRes.rows[0]
+                ? Number(lawanBelumDibacaRes.rows[0].count)
+                : 1;
+              const unreadChatsLawan = await countUnreadChats(
+                db,
+                listing.seller_id
+              );
+
+              emitMessageNew(io, {
+                lawanId: Number(listing.seller_id),
+                message: formatMessage(createdMessage),
+                conversationId: Number(conversationId),
+                belumDibacaLawan,
+                unreadChatsLawan,
+              });
+            } catch {
+              // Abaikan kegagalan broadcast agar respon HTTP tetap sukses
+            }
+          }
+
           return res.status(201).json({
             data: {
               conversation: formatConversation(fullConv, currentUserId),
@@ -1379,6 +1416,27 @@ function createListingsRouter(
             conversationId,
             currentUserId
           );
+
+          // Siarkan realtime event message:new dan unread:update ke penjual
+          const io = req.app.get('io');
+          if (io) {
+            try {
+              const unreadChatsLawan = await countUnreadChats(
+                db,
+                listing.seller_id
+              );
+
+              emitMessageNew(io, {
+                lawanId: Number(listing.seller_id),
+                message: formatMessage(createdMessage),
+                conversationId: Number(conversationId),
+                belumDibacaLawan: 1,
+                unreadChatsLawan,
+              });
+            } catch {
+              // Abaikan kegagalan broadcast agar respon HTTP tetap sukses
+            }
+          }
 
           return res.status(201).json({
             data: {
