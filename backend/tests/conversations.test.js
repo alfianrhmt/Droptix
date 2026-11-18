@@ -192,10 +192,10 @@ function createConversationsMockDb() {
       }
 
       // Check listing for conversation start
-      if (q.includes('FROM listings l') && q.includes('JOIN users u ON u.id = l.seller_id') && q.includes('WHERE l.id = $1')) {
-        const l = listings.find((x) => x.id === params[0]);
+      if (q.includes('FROM listings l') && q.includes('JOIN users u ON u.id = l.seller_id') && q.includes('WHERE l.id = $1') && !q.includes('JOIN events e')) {
+        const l = listings.find((x) => Number(x.id) === Number(params[0]));
         if (!l) return { rows: [] };
-        const u = users.find((x) => x.id === l.seller_id);
+        const u = users.find((x) => Number(x.id) === Number(l.seller_id));
         return {
           rows: [
             {
@@ -226,6 +226,72 @@ function createConversationsMockDb() {
           (x) => x.listing_id === params[0] && x.buyer_id === params[1]
         );
         return { rows: c ? [{ id: c.id }] : [] };
+      }
+
+      // Detail listing fetch: SELECT l.* ... FROM listings l JOIN events e
+      if (q.includes('FROM listings l') && q.includes('JOIN events e ON e.id = l.event_id') && q.includes('WHERE l.id = $1')) {
+        const l = listings.find((x) => Number(x.id) === Number(params[0]));
+        if (!l) return { rows: [] };
+        const e = events.find((x) => Number(x.id) === Number(l.event_id)) || {};
+        const u = users.find((x) => Number(x.id) === Number(l.seller_id)) || {};
+        const tertarik = conversations.filter((c) => Number(c.listing_id) === Number(l.id)).length;
+        return {
+          rows: [
+            {
+              ...l,
+              event_nama: e.nama,
+              event_poster_url: e.poster_url,
+              category_id: 1,
+              category_slug: 'konser-festival',
+              category_nama: 'Konser & Festival Musik',
+              venue_nama: 'Stadion Gelora 10 Nopember',
+              venue_kota: 'Surabaya',
+              venue_alamat: 'Jl. Tambaksari',
+              venue_lat: -7.25,
+              venue_lng: 112.75,
+              seller_nama: u.nama,
+              seller_created_at: new Date().toISOString(),
+              tertarik,
+              is_favorite: false,
+            },
+          ],
+        };
+      }
+
+      // Photos query for listing detail
+      if (q.includes('FROM listing_photos WHERE listing_id = $1')) {
+        return { rows: [] };
+      }
+
+      // List listings
+      if (q.includes('FROM listings l') && q.includes('JOIN events e ON e.id = l.event_id') && !q.includes('WHERE l.id = $1')) {
+        return {
+          rows: listings.filter(l => !l.deleted_at && !l.hidden).map(l => {
+            const e = events.find(x => x.id === l.event_id) || {};
+            const u = users.find(x => x.id === l.seller_id) || {};
+            const tertarik = conversations.filter(c => c.listing_id === l.id).length;
+            return {
+              ...l,
+              event_nama: e.nama,
+              event_poster_url: e.poster_url,
+              category_id: 1,
+              category_slug: 'konser-festival',
+              category_nama: 'Konser & Festival Musik',
+              venue_nama: 'Stadion Gelora 10 Nopember',
+              venue_kota: 'Surabaya',
+              venue_alamat: 'Jl. Tambaksari',
+              venue_lat: -7.25,
+              venue_lng: 112.75,
+              seller_nama: u.nama,
+              seller_created_at: new Date().toISOString(),
+              tertarik,
+              is_favorite: false,
+            };
+          }),
+        };
+      }
+      if (q.includes('SELECT count(*)::int AS total FROM listings l')) {
+        return { rows: [{ total: listings.filter(l => !l.deleted_at && !l.hidden).length }] };
       }
 
       // Detail conversation fetch
@@ -846,6 +912,232 @@ describe('T6.1: Backend Conversation and Message Endpoints', () => {
 
       expect(resLimit.status).toBe(429);
       expect(resLimit.body.error.code).toBe('RATE_LIMITED');
+    });
+  });
+
+  describe('T6.5: Comprehensive Chat Verification Tests', () => {
+    describe('Satu percakapan per (listing, pembeli)', () => {
+      it('hanya membuat satu percakapan untuk pasangan (listing, pembeli), pesan berikutnya masuk ke percakapan yang sama', async () => {
+        // Pembeli 1 kirim pesan pertama
+        const res1 = await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Pesan pertama dari pembeli 1' });
+        expect(res1.status).toBe(201);
+        const convId1 = res1.body.data.conversation.id;
+
+        // Pembeli 1 kirim pesan kedua pada listing yang sama via POST /listings/:id/conversations
+        const res2 = await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Pesan kedua dari pembeli 1' });
+        expect(res2.status).toBe(201);
+        expect(res2.body.data.conversation.id).toBe(convId1);
+
+        // Pastikan tidak ada baris percakapan duplikat di DB untuk (listing 10, buyer 1)
+        const matchedConvs = db.conversations.filter(
+          (c) => c.listing_id === 10 && c.buyer_id === 1
+        );
+        expect(matchedConvs.length).toBe(1);
+
+        // GET /listings/10/conversation juga mengembalikan percakapan yang sama
+        const resGet = await request(app)
+          .get('/api/v1/listings/10/conversation')
+          .set('Authorization', `Bearer ${buyerToken}`);
+        expect(resGet.status).toBe(200);
+        expect(resGet.body.data.id).toBe(convId1);
+      });
+
+      it('membuat percakapan terpisah jika pembeli lain mengirim pesan ke listing yang sama', async () => {
+        // Buyer 1 chat
+        const res1 = await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Halo dari buyer 1' });
+        const convId1 = res1.body.data.conversation.id;
+
+        // User 3 (buyer 2) chat
+        const res3 = await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${otherToken}`)
+          .send({ isi: 'Halo dari user 3' });
+        expect(res3.status).toBe(201);
+        const convId2 = res3.body.data.conversation.id;
+
+        expect(convId2).not.toBe(convId1);
+
+        // Penjual melihat 2 percakapan berbeda di kotak masuk
+        const inbox = await request(app)
+          .get('/api/v1/conversations')
+          .set('Authorization', `Bearer ${sellerToken}`);
+        expect(inbox.body.data.length).toBe(2);
+      });
+    });
+
+    describe('Penjual tidak bisa chat dengan listingnya sendiri', () => {
+      it('menolak penjual memulai chat pada listing miliknya sendiri (403 FORBIDDEN)', async () => {
+        const res = await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${sellerToken}`)
+          .send({ isi: 'Chat diri sendiri' });
+
+        expect(res.status).toBe(403);
+        expect(res.body.error.code).toBe('FORBIDDEN');
+        expect(res.body.error.message).toContain('listing sendiri');
+      });
+
+      it('GET /listings/:id/conversation mengembalikan 404 jika diakses oleh penjual listing', async () => {
+        const res = await request(app)
+          .get('/api/v1/listings/10/conversation')
+          .set('Authorization', `Bearer ${sellerToken}`);
+
+        expect(res.status).toBe(404);
+      });
+    });
+
+    describe('"Tertarik" unik per listing (BR-3)', () => {
+      it('jumlah "tertarik" bertambah saat pembeli baru chat, dan tetap sama jika pembeli yang sama mengirim banyak pesan', async () => {
+        // Awalnya tertarik = 0
+        const initialListing = await request(app).get('/api/v1/listings/10');
+        expect(initialListing.status).toBe(200);
+        expect(initialListing.body.data.tertarik).toBe(0);
+
+        // Pembeli 1 mengirim pesan pertama -> tertarik menjadi 1
+        await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Pesan pembeli 1 #1' });
+
+        const afterBuyer1 = await request(app).get('/api/v1/listings/10');
+        expect(afterBuyer1.body.data.tertarik).toBe(1);
+
+        // Pembeli 1 mengirim pesan kedua & ketiga pada listing yang sama -> tertarik tetap 1
+        await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Pesan pembeli 1 #2' });
+
+        const afterBuyer1More = await request(app).get('/api/v1/listings/10');
+        expect(afterBuyer1More.body.data.tertarik).toBe(1);
+
+        // Pembeli lain (User 3) mengirim pesan pertama -> pembeli unik bertambah, tertarik menjadi 2
+        await request(app)
+          .post('/api/v1/listings/10/conversations')
+          .set('Authorization', `Bearer ${otherToken}`)
+          .send({ isi: 'Pesan pembeli 2 #1' });
+
+        const afterBuyer2 = await request(app).get('/api/v1/listings/10');
+        expect(afterBuyer2.body.data.tertarik).toBe(2);
+      });
+    });
+
+    describe('Nomor WhatsApp tidak bocor di endpoint mana pun selain /whatsapp', () => {
+      it('memastikan tidak ada nomor telepon / no_wa di endpoint listing, conversation, dan message', async () => {
+        // Buat percakapan pembeli 1 pada listing 13 (yang memiliki izinkan_wa = true)
+        const startRes = await request(app)
+          .post('/api/v1/listings/13/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Tertarik dengan tiket Anda' });
+        const convId = startRes.body.data.conversation.id;
+
+        const endpoints = [
+          // Detail listing
+          { method: 'get', url: '/api/v1/listings/13', token: buyerToken },
+          // Daftar listing
+          { method: 'get', url: '/api/v1/listings', token: buyerToken },
+          // Single conversation per listing
+          { method: 'get', url: '/api/v1/listings/13/conversation', token: buyerToken },
+          // Kotak masuk buyer & seller
+          { method: 'get', url: '/api/v1/conversations', token: buyerToken },
+          { method: 'get', url: '/api/v1/conversations', token: sellerToken },
+          // Detail conversation
+          { method: 'get', url: `/api/v1/conversations/${convId}`, token: buyerToken },
+          // Riwayat pesan
+          { method: 'get', url: `/api/v1/conversations/${convId}/messages`, token: buyerToken },
+        ];
+
+        for (const ep of endpoints) {
+          const res = await request(app)
+            [ep.method](ep.url)
+            .set('Authorization', `Bearer ${ep.token}`);
+          expect(res.status).toBe(200);
+
+          const strBody = JSON.stringify(res.body);
+          // Nomor penjual: '081234567890' / '6281234567890'
+          expect(strBody).not.toContain('081234567890');
+          expect(strBody).not.toContain('6281234567890');
+          // Nomor pembeli: '08111111111' / '62811111111'
+          expect(strBody).not.toContain('08111111111');
+          expect(strBody).not.toContain('62811111111');
+        }
+
+        // Dan pengiriman pesan balasan juga tidak mengandung nomor telepon
+        const replyRes = await request(app)
+          .post(`/api/v1/conversations/${convId}/messages`)
+          .set('Authorization', `Bearer ${sellerToken}`)
+          .send({ isi: 'Masih ada, silakan jika berminat' });
+        expect(replyRes.status).toBe(201);
+        const replyStr = JSON.stringify(replyRes.body);
+        expect(replyStr).not.toContain('081234567890');
+        expect(replyStr).not.toContain('08111111111');
+
+        // SATU-SATUNYA endpoint yang memuat URL WhatsApp dengan nomor adalah /whatsapp
+        const waRes = await request(app)
+          .post(`/api/v1/conversations/${convId}/whatsapp`)
+          .set('Authorization', `Bearer ${buyerToken}`);
+        expect(waRes.status).toBe(200);
+        expect(waRes.body.data.wa_url).toContain('6281234567890');
+      });
+    });
+
+    describe('Hak akses percakapan: hanya peserta yang diizinkan', () => {
+      it('orang luar ditolak saat membaca detail, riwayat pesan, mengirim pesan, menandai dibaca, dan meminta WA (404)', async () => {
+        // Percakapan antara User 1 dan User 2
+        const initRes = await request(app)
+          .post('/api/v1/listings/13/conversations')
+          .set('Authorization', `Bearer ${buyerToken}`)
+          .send({ isi: 'Pesan rahasia antar peserta' });
+        const convId = initRes.body.data.conversation.id;
+
+        // User 3 (orang luar) mencoba akses:
+        // 1. GET /conversations/:id
+        const resDetail = await request(app)
+          .get(`/api/v1/conversations/${convId}`)
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(resDetail.status).toBe(404);
+
+        // 2. GET /conversations/:id/messages
+        const resMsgs = await request(app)
+          .get(`/api/v1/conversations/${convId}/messages`)
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(resMsgs.status).toBe(404);
+
+        // 3. POST /conversations/:id/messages
+        const resPost = await request(app)
+          .post(`/api/v1/conversations/${convId}/messages`)
+          .set('Authorization', `Bearer ${otherToken}`)
+          .send({ isi: 'Mencoba nimbrung' });
+        expect(resPost.status).toBe(404);
+
+        // 4. POST /conversations/:id/read
+        const resRead = await request(app)
+          .post(`/api/v1/conversations/${convId}/read`)
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(resRead.status).toBe(404);
+
+        // 5. POST /conversations/:id/whatsapp
+        const resWa = await request(app)
+          .post(`/api/v1/conversations/${convId}/whatsapp`)
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(resWa.status).toBe(404);
+
+        // 6. Kotak masuk GET /conversations milik User 3 tidak memuat percakapan convId
+        const resInbox = await request(app)
+          .get('/api/v1/conversations')
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(resInbox.status).toBe(200);
+        expect(resInbox.body.data.find((c) => c.id === convId)).toBeUndefined();
+      });
     });
   });
 });

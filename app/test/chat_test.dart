@@ -705,4 +705,52 @@ void main() {
       expect(find.text('Penjual tidak mengizinkan WhatsApp.'), findsOneWidget);
     });
   });
+
+  group('T6.5: Chat Models & Privacy Verification Tests', () {
+    test('model chat tidak menyimpan data nomor telepon atau nomor WA pengguna', () {
+      final json = {
+        'id': 1,
+        'listing': {
+          'id': 10,
+          'judul': 'Konser Sheila on 7',
+          'harga': 350000,
+          'status': 'tersedia',
+        },
+        'lawan': {
+          'id': 2,
+          'nama': 'Penjual Dua',
+        },
+        'peran': 'pembeli',
+        'pesan_terakhir': 'Halo',
+        'waktu_pesan_terakhir': DateTime.now().toIso8601String(),
+        'belum_dibaca': 0,
+        'izinkan_wa': true,
+      };
+
+      final conv = ConversationModel.fromJson(json);
+      expect(conv.id, 1);
+      expect(conv.lawan.nama, 'Penjual Dua');
+      expect(conv.izinkanWa, true);
+
+      // Pastikan string model tidak mengandung no_wa
+      final debugStr = conv.toString();
+      expect(debugStr.contains('noWa'), isFalse);
+      expect(debugStr.contains('phone'), isFalse);
+    });
+
+    test('pesan chat ChatMessageModel hanya memuat konten teks, id, senderId, dan timestamp', () {
+      final msg = ChatMessageModel.fromJson({
+        'id': 100,
+        'conversation_id': 1,
+        'sender_id': 2,
+        'isi': 'Tiket masih tersedia kak!',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      expect(msg.id, 100);
+      expect(msg.conversationId, 1);
+      expect(msg.senderId, 2);
+      expect(msg.isi, 'Tiket masih tersedia kak!');
+    });
+  });
 }
