@@ -1,3 +1,6 @@
+import '../../core/widgets/banner_carousel.dart';
+import '../listings/listing_models.dart';
+
 /// Model data kategori event.
 class EventCategory {
   const EventCategory({
@@ -121,3 +124,49 @@ class SimilarEventException implements Exception {
 
   final List<SimilarEventItem> similar;
 }
+
+/// Banner trending hasil GET /events/trending (BR-6).
+class TrendingBanner {
+  const TrendingBanner({
+    required this.type,
+    required this.categorySlug,
+    this.event,
+    this.listing,
+  });
+
+  final String type; // 'event' | 'nearest'
+  final String categorySlug;
+  final ListingEventSummary? event;
+  final ListingItem? listing;
+
+  factory TrendingBanner.fromJson(Map<String, dynamic> json) {
+    return TrendingBanner(
+      type: json['type'] as String? ?? 'event',
+      categorySlug: json['category_slug'] as String? ?? '',
+      event: json['event'] is Map
+          ? ListingEventSummary.fromJson(
+              Map<String, dynamic>.from(json['event'] as Map))
+          : null,
+      listing: json['listing'] is Map
+          ? ListingItem.fromJson(
+              Map<String, dynamic>.from(json['listing'] as Map))
+          : null,
+    );
+  }
+
+  BannerItem toBannerItem() {
+    if (type == 'nearest' && listing != null) {
+      return BannerItem(
+        imageUrl: listing!.event.posterUrl ?? '',
+        eventName: listing!.event.nama,
+        keyword: listing!.event.nama,
+      );
+    }
+    return BannerItem(
+      imageUrl: event?.posterUrl ?? '',
+      eventName: event?.nama ?? '',
+      keyword: event?.nama,
+    );
+  }
+}
+

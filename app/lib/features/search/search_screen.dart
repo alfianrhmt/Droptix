@@ -24,6 +24,7 @@ class SearchScreen extends StatefulWidget {
     this.initialTanggal,
     this.initialKota,
     this.initialMaxKm,
+    this.initialSort,
     this.userLat,
     this.userLng,
     this.onBack,
@@ -40,6 +41,7 @@ class SearchScreen extends StatefulWidget {
   final String? initialTanggal;
   final String? initialKota;
   final int? initialMaxKm;
+  final String? initialSort;
   final double? userLat;
   final double? userLng;
   final VoidCallback? onBack;
@@ -96,6 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _tanggal = widget.initialTanggal;
     _kota = widget.initialKota;
     _maxKm = widget.initialMaxKm;
+    _sort = widget.initialSort ?? 'relevan';
     _lat = widget.userLat;
     _lng = widget.userLng;
 

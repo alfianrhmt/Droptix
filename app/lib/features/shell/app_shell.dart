@@ -4,7 +4,7 @@ import '../../core/location/location_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../activity/activity_screen.dart';
-import '../gallery/component_gallery_screen.dart';
+import '../home/home_screen.dart';
 import '../location/location_picker_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../sell/sell_screen.dart';
@@ -75,7 +75,9 @@ class _AppShellState extends State<AppShell> {
         body = const ProfileScreen();
         break;
       default:
-        body = const ComponentGalleryScreen(embedded: true);
+        body = HomeScreen(
+          onNavigateToTab: _onTabTap,
+        );
         break;
     }
 

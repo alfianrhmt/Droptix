@@ -83,6 +83,10 @@ class _FakeEventRepository implements EventRepository {
   @override
   Future<String> uploadPoster(Uint8List bytes, {String filename = 'poster.png'}) async =>
       '/uploads/poster.png';
+
+  @override
+  Future<List<TrendingBanner>> getTrending({double? lat, double? lng}) async =>
+      const [];
 }
 
 class _FakeListingRepository implements ListingRepository {

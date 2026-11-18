@@ -20,6 +20,7 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 14 | Bobot relevansi BR-5 dan generator klausa SQL `ORDER BY` dipusatkan di `backend/src/config/relevance.js` | Memastikan bobot mudah disetel di satu tempat dan formula relevansi konsisten antara kalkulasi SQL Postgres dan pengujian JavaScript |
 | 15 | Banner trending BR-6 membagi kategori menjadi tipe `event` (`konser-festival`, `olahraga`, `hiburan-lain` dengan bobot percakapan 7 hari) dan `nearest` (`bioskop`, `wisata` dengan jarak Haversine terdekat) | Mengimplementasikan diferensiasi kebutuhan pengguna: acara besar diprioritaskan popularitasnya, sedangkan bioskop/wisata diprioritaskan kedekatan lokasinya |
 | 16 | Penyimpanan 5 pencarian terakhir memakai `RecentSearchesStorage` via `SharedPreferences` (kunci `droptix_recent_searches`) dengan deduplikasi case-insensitive | Ringan, bekerja offline tanpa database lokal tambahan, dan otomatis memindahkan istilah pencarian aktif ke urutan pertama |
+| 17 | Carousel horizontal "Dekat Kamu" menggunakan tinggi container 340px untuk menampung PosterCard rasio 2:3 (lebar 150) beserta teks judul 2 baris dan harga | Mencegah RenderFlex overflow pada layar sempit 360x740 dan skala teks dinamis |
 
 
 
