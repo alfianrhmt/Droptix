@@ -3,9 +3,12 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
+const { execSync } = require('child_process');
 
 const PORT = 8080;
-const WEB_DIR = path.resolve(__dirname, '../../app/build/web');
+const ROOT_DIR = path.resolve(__dirname, '../..');
+const WEB_DIR = path.resolve(ROOT_DIR, 'app/build/web');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -30,7 +33,6 @@ const server = http.createServer((req, res) => {
   const cleanUrl = req.url.split('?')[0].split('#')[0];
   let filePath = path.join(WEB_DIR, cleanUrl === '/' ? 'index.html' : cleanUrl);
 
-  // Fallback ke index.html untuk SPA Flutter routing
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
     filePath = path.join(WEB_DIR, 'index.html');
   }
@@ -53,5 +55,27 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server Droptix Web siap di port ${PORT}`);
+  console.log(`Server Droptix Web aktif di port ${PORT}.`);
+  console.log(`Ketik [q] lalu tekan Enter kapan saja untuk mematikan backend dan keluar.\n`);
+});
+
+// Menangani perintah 'q' untuk keluar dan mematikan backend
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+rl.on('line', (line) => {
+  const cmd = line.trim().toLowerCase();
+  if (cmd === 'q' || cmd === 'quit' || cmd === 'exit') {
+    console.log('\nMenghentikan backend dan database Docker...');
+    try {
+      execSync('docker compose down', { stdio: 'inherit', cwd: ROOT_DIR });
+      console.log('[OK] Backend berhasil dihentikan.');
+    } catch (err) {
+      console.error('Gagal menghentikan docker:', err.message);
+    }
+    console.log('Sampai jumpa!');
+    process.exit(0);
+  }
 });
