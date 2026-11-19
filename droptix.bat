@@ -82,7 +82,7 @@ echo ===================================================================
 echo.
 echo Buka browser di HP Anda (Chrome / Safari), lalu ketik alamat ini:
 echo.
-echo               >>> http://%LOCAL_IP%:8080 <<<
+echo         http://%LOCAL_IP%:8080
 echo.
 echo [STATUS] Backend dan server HP sedang BERJALAN.
 echo Selama jendela terminal ini TERBUKA, backend TETAP HIDUP.
