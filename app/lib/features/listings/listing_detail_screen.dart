@@ -205,24 +205,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
     final auth = AuthScope.of(context);
     auth.requireAuthAction(context, () {
-      if (widget.chatRepository != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              listingId: item.id,
-              listingDetail: item,
-              chatRepository: widget.chatRepository,
-              socketService: widget.socketService,
-            ),
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            listingId: item.id,
+            listingDetail: item,
+            chatRepository: widget.chatRepository,
+            socketService: widget.socketService,
           ),
-        );
-      } else {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ChatPlaceholderScreen(listing: item),
-          ),
-        );
-      }
+        ),
+      );
     });
   }
 
@@ -1078,123 +1070,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// Layar placeholder obrolan sebelum M6 (Chat dalam aplikasi) selesai.
-class ChatPlaceholderScreen extends StatelessWidget {
-  const ChatPlaceholderScreen({
-    super.key,
-    required this.listing,
-  });
-
-  final ListingItem listing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Chat Penjual: ${listing.seller?.nama ?? 'Penjual'}',
-          style: AppTextStyles.titleMedium,
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Kartu ringkasan tiket
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Row(
-                children: [
-                  EventPoster(
-                    title: listing.event.nama,
-                    posterUrl: listing.event.posterUrl,
-                    categorySlug: listing.event.categorySlug,
-                    width: 50,
-                    borderRadius: 8,
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          listing.event.nama,
-                          style: AppTextStyles.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          listing.venueNama,
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Rp ${listing.harga.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                          style: AppTextStyles.label
-                              .copyWith(color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-
-            // Konten placeholder M6
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: const BoxDecoration(
-                        color: AppColors.surfaceHigh,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.mark_chat_unread_rounded,
-                        color: AppColors.primary,
-                        size: 48,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      'Fitur Chat Hadir di M6',
-                      style: AppTextStyles.titleLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Fitur chat langsung dengan penjual (${listing.seller?.nama ?? 'Penjual'}) dengan pembaruan pesan seketika via WebSocket, penawaran harga, dan opsi WhatsApp sedang dipersiapkan di Milestone 6.',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.body
-                          .copyWith(color: AppColors.textSecondary, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

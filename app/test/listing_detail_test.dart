@@ -12,6 +12,7 @@ import 'package:droptix/core/theme/theme.dart';
 import 'package:droptix/core/widgets/countdown_timer.dart';
 import 'package:droptix/core/widgets/event_poster.dart';
 import 'package:droptix/core/widgets/stats_card.dart';
+import 'package:droptix/features/chat/chat_screen.dart';
 import 'package:droptix/features/events/event_models.dart';
 import 'package:droptix/features/listings/listing_detail_screen.dart';
 import 'package:droptix/features/listings/listing_models.dart';
@@ -500,7 +501,7 @@ void main() {
       expect(elevatedButton.onPressed, isNull);
     });
 
-    testWidgets('tombol Chat dengan penjual membuka ChatPlaceholderScreen (M6 placeholder)', (tester) async {
+    testWidgets('tombol Chat dengan penjual membuka ChatScreen', (tester) async {
       final listing = _createTestListing();
       final repo = _FakeListingDetailRepository(detailItem: listing);
 
@@ -516,10 +517,9 @@ void main() {
       await tester.tap(find.byKey(const Key('listing_chat_button')));
       await tester.pumpAndSettle();
 
-      // Terbuka layar ChatPlaceholderScreen
-      expect(find.byType(ChatPlaceholderScreen), findsOneWidget);
-      expect(find.text('Fitur Chat Hadir di M6'), findsOneWidget);
-      expect(find.textContaining('Fitur chat langsung dengan penjual (Rina Penjual)'), findsOneWidget);
+      // Terbuka layar ChatScreen
+      expect(find.byType(ChatScreen), findsOneWidget);
+      expect(find.text('Rina Penjual'), findsWidgets);
     });
 
     testWidgets('tiket fisik menampilkan area penjual pada bagian lokasi (bukan venue acara)', (tester) async {
