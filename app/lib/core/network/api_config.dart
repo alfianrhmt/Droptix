@@ -9,9 +9,12 @@ abstract final class ApiConfig {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
     if (kIsWeb) {
       final host = Uri.base.host;
-      if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
+      if (host.isNotEmpty) {
+        final port = Uri.base.hasPort && Uri.base.port != 80 && Uri.base.port != 443
+            ? ':${Uri.base.port}'
+            : '';
         final scheme = Uri.base.scheme.isNotEmpty ? Uri.base.scheme : 'http';
-        return '$scheme://$host:3000/api/v1';
+        return '$scheme://$host$port/api/v1';
       }
     }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {

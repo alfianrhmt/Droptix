@@ -30,6 +30,35 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
+  // Teruskan panggilan API dan uploads langsung ke backend Express (port 3000)
+  if (req.url.startsWith('/api/v1') || req.url.startsWith('/uploads')) {
+    const proxyReq = http.request(
+      {
+        host: '127.0.0.1',
+        port: 3000,
+        path: req.url,
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: '127.0.0.1:3000',
+        },
+      },
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, {
+          ...proxyRes.headers,
+          'access-control-allow-origin': '*',
+        });
+        proxyRes.pipe(res, { end: true });
+      }
+    );
+    proxyReq.on('error', (err) => {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: { message: 'Gagal terhubung ke backend: ' + err.message } }));
+    });
+    req.pipe(proxyReq, { end: true });
+    return;
+  }
+
   const cleanUrl = req.url.split('?')[0].split('#')[0];
   let filePath = path.join(WEB_DIR, cleanUrl === '/' ? 'index.html' : cleanUrl);
 
