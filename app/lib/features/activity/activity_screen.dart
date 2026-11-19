@@ -73,6 +73,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
   bool _chatsLoadingMore = false;
   final ScrollController _chatsScrollController = ScrollController();
   StreamSubscription? _chatsSocketSub;
+  Timer? _chatsPollingTimer;
 
   @override
   void initState() {
@@ -87,6 +88,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
     _savedScrollController.dispose();
     _chatsScrollController.dispose();
     _chatsSocketSub?.cancel();
+    _chatsPollingTimer?.cancel();
+    _socketService?.unreadCountNotifier.removeListener(_onUnreadUpdate);
     super.dispose();
   }
 
@@ -131,6 +134,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       } else if (_segment == ActivitySegment.saved) {
         _fetchSavedListings();
       } else if (_segment == ActivitySegment.chats) {
+        _startChatsPolling();
         _fetchConversations();
       }
     }
@@ -138,11 +142,33 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   void _listenToSocket() {
     if (_socketService == null) return;
+    _chatsSocketSub?.cancel();
     _chatsSocketSub = _socketService!.onNewMessage.listen((_) {
       if (_segment == ActivitySegment.chats && mounted) {
-        _fetchConversations(isRefresh: true);
+        _fetchConversations(isRefresh: true, isSilent: true);
       }
     });
+    _socketService!.unreadCountNotifier.addListener(_onUnreadUpdate);
+  }
+
+  void _onUnreadUpdate() {
+    if (_segment == ActivitySegment.chats && mounted) {
+      _fetchConversations(isRefresh: true, isSilent: true);
+    }
+  }
+
+  void _startChatsPolling() {
+    _chatsPollingTimer?.cancel();
+    _chatsPollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && _segment == ActivitySegment.chats) {
+        _fetchConversations(isRefresh: true, isSilent: true);
+      }
+    });
+  }
+
+  void _stopChatsPolling() {
+    _chatsPollingTimer?.cancel();
+    _chatsPollingTimer = null;
   }
 
   Future<void> _fetchMyListings() async {
@@ -581,6 +607,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
               isActive: _segment == ActivitySegment.selling,
               onTap: () {
                 if (_segment != ActivitySegment.selling) {
+                  _stopChatsPolling();
                   setState(() => _segment = ActivitySegment.selling);
                   _fetchMyListings();
                 }
@@ -594,6 +621,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
               isActive: _segment == ActivitySegment.saved,
               onTap: () {
                 if (_segment != ActivitySegment.saved) {
+                  _stopChatsPolling();
                   setState(() => _segment = ActivitySegment.saved);
                   if (_savedListings.isEmpty) {
                     _fetchSavedListings();
@@ -610,9 +638,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
               onTap: () {
                 if (_segment != ActivitySegment.chats) {
                   setState(() => _segment = ActivitySegment.chats);
-                  if (_conversations.isEmpty) {
-                    _fetchConversations();
-                  }
+                  _startChatsPolling();
+                  _fetchConversations(isRefresh: true);
                 }
               },
             ),
@@ -951,15 +978,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
     );
   }
 
-  Future<void> _fetchConversations({bool isRefresh = false}) async {
+  Future<void> _fetchConversations({bool isRefresh = false, bool isSilent = false}) async {
     if (isRefresh) {
       _chatsPage = 1;
       _chatsHasMore = true;
     }
-    setState(() {
-      _chatsLoading = _chatsPage == 1 && !isRefresh;
-      _chatsErrorMessage = null;
-    });
+    if (!isSilent) {
+      setState(() {
+        _chatsLoading = _chatsPage == 1 && !isRefresh;
+        _chatsErrorMessage = null;
+      });
+    }
 
     try {
       final res = await _chatRepo.getConversations(
@@ -981,19 +1010,23 @@ class _ActivityScreenState extends State<ActivityScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        setState(() {
-          _chatsErrorMessage = e.message;
-          _chatsLoading = false;
-          _chatsLoadingMore = false;
-        });
+        if (!isSilent || _conversations.isEmpty) {
+          setState(() {
+            _chatsErrorMessage = e.message;
+            _chatsLoading = false;
+            _chatsLoadingMore = false;
+          });
+        }
       }
     } catch (_) {
       if (mounted) {
-        setState(() {
-          _chatsErrorMessage = 'Gagal memuat percakapan. Coba lagi.';
-          _chatsLoading = false;
-          _chatsLoadingMore = false;
-        });
+        if (!isSilent || _conversations.isEmpty) {
+          setState(() {
+            _chatsErrorMessage = 'Gagal memuat percakapan. Coba lagi.';
+            _chatsLoading = false;
+            _chatsLoadingMore = false;
+          });
+        }
       }
     }
   }

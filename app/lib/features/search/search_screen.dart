@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/auth/token_storage.dart';
 import '../../core/location/cities.dart';
@@ -77,6 +78,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<String> _recentSearches = [];
   bool _showRecentSearches = false;
+  Timer? _searchDebounce;
 
   final List<ListingItem> _items = [];
   int _page = 1;
@@ -128,6 +130,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _focusNode.removeListener(_onFocusChanged);
     _scrollController.removeListener(_onScroll);
     _focusNode.dispose();
@@ -139,7 +142,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _onFocusChanged() {
     if (_focusNode.hasFocus) {
       _loadRecentSearches().then((_) {
-        if (mounted && _recentSearches.isNotEmpty) {
+        if (mounted && _recentSearches.isNotEmpty && _searchController.text.trim().isEmpty) {
           setState(() => _showRecentSearches = true);
         }
       });
@@ -218,7 +221,25 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  void _onSearchChanged(String val) {
+    setState(() {
+      if (val.trim().isEmpty) {
+        _showRecentSearches = _focusNode.hasFocus && _recentSearches.isNotEmpty;
+      } else {
+        _showRecentSearches = false;
+      }
+    });
+
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      _query = val.trim();
+      _fetchListings(refresh: true);
+    });
+  }
+
   void _onSubmitSearch(String value) {
+    _searchDebounce?.cancel();
     final term = value.trim();
     _focusNode.unfocus();
     setState(() {
@@ -710,10 +731,9 @@ class _SearchScreenState extends State<SearchScreen> {
               suffixIcon: _searchController.text.isNotEmpty
                   ? GestureDetector(
                       onTap: () {
+                        _searchDebounce?.cancel();
                         _searchController.clear();
-                        _query = '';
-                        setState(() {});
-                        _fetchListings(refresh: true);
+                        _onSearchChanged('');
                       },
                       behavior: HitTestBehavior.opaque,
                       child: const Icon(Icons.close_rounded,
@@ -721,9 +741,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     )
                   : null,
               onSubmitted: _onSubmitSearch,
-              onChanged: (val) {
-                setState(() {});
-              },
+              onChanged: _onSearchChanged,
             ),
           ),
         ],

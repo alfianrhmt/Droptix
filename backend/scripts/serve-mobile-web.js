@@ -1,6 +1,7 @@
 'use strict';
 
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
@@ -30,8 +31,8 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  // Teruskan panggilan API dan uploads langsung ke backend Express (port 3000)
-  if (req.url.startsWith('/api/v1') || req.url.startsWith('/uploads')) {
+  // Teruskan panggilan API, uploads, dan WebSocket Socket.IO langsung ke backend Express (port 3000)
+  if (req.url.startsWith('/api/v1') || req.url.startsWith('/uploads') || req.url.startsWith('/socket.io')) {
     const proxyReq = http.request(
       {
         host: '127.0.0.1',
@@ -80,6 +81,36 @@ const server = http.createServer((req, res) => {
       'Access-Control-Allow-Origin': '*',
     });
     res.end(content);
+  });
+});
+
+server.on('upgrade', (req, clientSocket, head) => {
+  const serverSocket = net.connect(3000, '127.0.0.1', () => {
+    let rawHeaders = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      const key = req.rawHeaders[i];
+      let val = req.rawHeaders[i + 1];
+      if (key.toLowerCase() === 'host') {
+        val = '127.0.0.1:3000';
+      }
+      rawHeaders += `${key}: ${val}\r\n`;
+    }
+    rawHeaders += '\r\n';
+
+    serverSocket.write(rawHeaders);
+    if (head && head.length > 0) {
+      serverSocket.write(head);
+    }
+    clientSocket.pipe(serverSocket);
+    serverSocket.pipe(clientSocket);
+  });
+
+  serverSocket.on('error', () => {
+    clientSocket.destroy();
+  });
+
+  clientSocket.on('error', () => {
+    serverSocket.destroy();
   });
 });
 

@@ -50,7 +50,7 @@ class ChatSocketService {
       _socket = io.io(
         hostUrl,
         io.OptionBuilder()
-            .setTransports(['websocket'])
+            .setTransports(['websocket', 'polling'])
             .setAuth({'token': token})
             .enableAutoConnect()
             .enableReconnection()
