@@ -421,7 +421,7 @@ class _CreateEventFormState extends State<_CreateEventForm> {
   EventCategory? _selectedCategory;
   VenueItem? _selectedVenue;
   List<VenueItem> _venues = const [];
-  DateTime? _selectedDate;
+  final List<DateTime> _selectedDates = [];
   Uint8List? _croppedPosterBytes;
   String? _uploadedPosterUrl;
   bool _submitting = false;
@@ -482,29 +482,148 @@ class _CreateEventFormState extends State<_CreateEventForm> {
     }
   }
 
-  Future<void> _pickDate() async {
+  Future<void> _addDate() async {
     final now = DateTime.now();
+    final firstAllowed = DateTime(now.year, now.month, now.day);
+    final initial = _selectedDates.isNotEmpty
+        ? _selectedDates.last.add(const Duration(days: 1))
+        : firstAllowed.add(const Duration(days: 7));
+
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? now.add(const Duration(days: 7)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365 * 2)),
+      initialDate: initial.isBefore(firstAllowed) ? firstAllowed : initial,
+      firstDate: firstAllowed,
+      lastDate: firstAllowed.add(const Duration(days: 365 * 2)),
     );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_selectedDate ?? now),
-    );
-    if (!mounted) return;
+    final normalized = DateTime(date.year, date.month, date.day);
     setState(() {
-      _selectedDate = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time?.hour ?? 19,
-        time?.minute ?? 0,
-      );
+      if (!_selectedDates.any((d) =>
+          d.year == normalized.year &&
+          d.month == normalized.month &&
+          d.day == normalized.day)) {
+        _selectedDates.add(normalized);
+        _selectedDates.sort();
+      }
     });
+  }
+
+  String _formatChipDate(DateTime dt) {
+    const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    final day = days[dt.weekday - 1];
+    final month = months[dt.month - 1];
+    return '$day, ${dt.day} $month ${dt.year}';
+  }
+
+  Future<void> _showAddVenueDialog() async {
+    final nameCtrl = TextEditingController();
+    final cityCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    String? dialogError;
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text('Tambah Venue Baru', style: AppTextStyles.titleMedium),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppTextField(
+                  controller: nameCtrl,
+                  label: 'Nama Venue',
+                  hintText: 'Contoh: Gelora Bung Tomo',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppTextField(
+                  controller: cityCtrl,
+                  label: 'Kota',
+                  hintText: 'Contoh: Surabaya',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppTextField(
+                  controller: addressCtrl,
+                  label: 'Alamat (opsional)',
+                  hintText: 'Contoh: Jl. Kauman No. 1',
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    dialogError!,
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.urgent),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.of(dlgCtx).pop(),
+              child: const Text('Batal'),
+            ),
+            PrimaryButton(
+              label: 'Simpan Venue',
+              isLoading: saving,
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final n = nameCtrl.text.trim();
+                      final k = cityCtrl.text.trim();
+                      final a = addressCtrl.text.trim();
+                      if (n.length < 2) {
+                        setDlgState(() =>
+                            dialogError = 'Nama venue minimal 2 karakter.');
+                        return;
+                      }
+                      if (k.length < 2) {
+                        setDlgState(
+                            () => dialogError = 'Kota minimal 2 karakter.');
+                        return;
+                      }
+                      setDlgState(() {
+                        saving = true;
+                        dialogError = null;
+                      });
+                      try {
+                        final created = await widget.repository.createVenue(
+                          nama: n,
+                          kota: k,
+                          alamat: a.isEmpty ? null : a,
+                        );
+                        if (!mounted) return;
+                        setState(() {
+                          if (!_venues.any((v) => v.id == created.id)) {
+                            _venues = [..._venues, created];
+                          }
+                          _selectedVenue = created;
+                        });
+                        if (dlgCtx.mounted) Navigator.of(dlgCtx).pop();
+                      } on ApiException catch (e) {
+                        setDlgState(() {
+                          dialogError = e.message;
+                          saving = false;
+                        });
+                      } catch (_) {
+                        setDlgState(() {
+                          dialogError = 'Gagal menyimpan venue.';
+                          saving = false;
+                        });
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submit({bool force = false}) async {
@@ -518,10 +637,13 @@ class _CreateEventFormState extends State<_CreateEventForm> {
       setState(() => _error = 'Nama event minimal 3 karakter.');
       return;
     }
-    if (cat.requiresVenueAndDate &&
-        (_selectedVenue == null || _selectedDate == null)) {
+    if (cat.requiresVenue && _selectedVenue == null) {
+      setState(() => _error = 'Venue wajib diisi untuk kategori ${cat.nama}.');
+      return;
+    }
+    if (cat.requiresDate && _selectedDates.isEmpty) {
       setState(() => _error =
-          'Venue dan tanggal wajib diisi untuk kategori ${cat.nama}.');
+          'Pilih minimal satu tanggal acara untuk kategori ${cat.nama}.');
       return;
     }
 
@@ -531,12 +653,17 @@ class _CreateEventFormState extends State<_CreateEventForm> {
     });
 
     try {
+      final tanggalOpsi = _selectedDates
+          .map((d) =>
+              '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}')
+          .toList();
       final created = await widget.repository.createEvent(
         categoryId: cat.id,
         nama: nama,
         posterUrl: _uploadedPosterUrl,
         venueId: _selectedVenue?.id,
-        tanggal: _selectedDate,
+        tanggal: _selectedDates.isNotEmpty ? _selectedDates.first : null,
+        tanggalOpsi: tanggalOpsi.isNotEmpty ? tanggalOpsi : null,
         force: force,
       );
       if (mounted) widget.onCreated(created);
@@ -610,7 +737,8 @@ class _CreateEventFormState extends State<_CreateEventForm> {
 
   @override
   Widget build(BuildContext context) {
-    final requiresVenue = _selectedCategory?.requiresVenueAndDate ?? false;
+    final requiresVenue = _selectedCategory?.requiresVenue ?? false;
+    final requiresDate = _selectedCategory?.requiresDate ?? false;
 
     return SingleChildScrollView(
       child: Column(
@@ -671,73 +799,131 @@ class _CreateEventFormState extends State<_CreateEventForm> {
             hintText: 'Contoh: Nada Senja Live in Surabaya',
           ),
           const SizedBox(height: AppSpacing.md),
-          if (_venues.isNotEmpty) ...[
-            Text(
-              requiresVenue ? 'Venue (wajib)' : 'Venue (opsional)',
-              style: AppTextStyles.label,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            DropdownButtonFormField<int?>(
-              isExpanded: true,
-              initialValue: _selectedVenue?.id,
-              dropdownColor: AppColors.surfaceHigh,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: AppColors.surfaceHigh,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              items: [
-                if (!requiresVenue)
-                  const DropdownMenuItem<int?>(
-                    value: null,
-                    child: Text(
-                      'Tanpa venue khusus',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                for (final v in _venues)
-                  DropdownMenuItem<int?>(
-                    value: v.id,
-                    child: Text(
-                      '${v.nama} (${v.kota})',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              onChanged: (id) {
-                setState(() {
-                  _selectedVenue = id == null
-                      ? null
-                      : _venues.where((v) => v.id == id).firstOrNull;
-                });
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          OutlinedButton.icon(
-            onPressed: _pickDate,
-            icon: const Icon(Icons.calendar_today_rounded, size: 18),
-            label: Text(
-              _selectedDate == null
-                  ? (requiresVenue
-                      ? 'Pilih tanggal & jam (wajib)'
-                      : 'Pilih tanggal & jam (opsional)')
-                  : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year} '
-                      '${_selectedDate!.hour.toString().padLeft(2, '0')}:'
-                      '${_selectedDate!.minute.toString().padLeft(2, '0')}',
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, AppTouchTarget.min),
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.divider),
-              shape: RoundedRectangleBorder(
+          Text(
+            requiresVenue ? 'Venue (wajib)' : 'Venue (opsional)',
+            style: AppTextStyles.label,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          DropdownButtonFormField<int?>(
+            key: ValueKey(_selectedVenue?.id),
+            isExpanded: true,
+            initialValue: _selectedVenue?.id,
+            dropdownColor: AppColors.surfaceHigh,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: AppColors.surfaceHigh,
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            hint: const Text('Pilih venue'),
+            items: [
+              if (!requiresVenue)
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text(
+                    'Tanpa venue khusus',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              for (final v in _venues)
+                DropdownMenuItem<int?>(
+                  value: v.id,
+                  child: Text(
+                    '${v.nama} (${v.kota})',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (id) {
+              setState(() {
+                _selectedVenue = id == null
+                    ? null
+                    : _venues.where((v) => v.id == id).firstOrNull;
+              });
+            },
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _showAddVenueDialog,
+              icon: const Icon(Icons.add_location_alt_outlined, size: 16),
+              label: const Text('Venue tidak ada? Tambah baru'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.primary,
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            requiresDate
+                ? 'Tanggal acara (wajib)'
+                : 'Tanggal acara (opsional)',
+            style: AppTextStyles.label,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          if (_selectedDates.isEmpty)
+            OutlinedButton.icon(
+              onPressed: _addDate,
+              icon: const Icon(Icons.calendar_today_rounded, size: 18),
+              label: Text(
+                requiresDate
+                    ? 'Pilih tanggal acara (bisa multi tanggal)'
+                    : 'Pilih tanggal acara (opsional)',
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, AppTouchTarget.min),
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.divider),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final d in _selectedDates)
+                  Chip(
+                    label: Text(_formatChipDate(d)),
+                    backgroundColor: AppColors.surfaceHigh,
+                    labelStyle: AppTextStyles.caption.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                    deleteIconColor: AppColors.textSecondary,
+                    onDeleted: () {
+                      setState(() {
+                        _selectedDates.remove(d);
+                      });
+                    },
+                    side: const BorderSide(color: AppColors.divider),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                    ),
+                  ),
+                ActionChip(
+                  avatar: const Icon(Icons.add_rounded,
+                      size: 16, color: AppColors.primary),
+                  label: const Text('Tambah tanggal'),
+                  backgroundColor: AppColors.primary.withAlpha(20),
+                  labelStyle: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                  onPressed: _addDate,
+                ),
+              ],
+            ),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [

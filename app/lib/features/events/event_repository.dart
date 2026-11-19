@@ -40,6 +40,28 @@ class EventRepository {
     }
   }
 
+  Future<VenueItem> createVenue({
+    required String nama,
+    required String kota,
+    String? alamat,
+  }) async {
+    try {
+      final res = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/venues',
+        data: {
+          'nama': nama.trim(),
+          'kota': kota.trim(),
+          if (alamat != null && alamat.trim().isNotEmpty)
+            'alamat': alamat.trim(),
+        },
+      );
+      final data = Map<String, dynamic>.from(res.data!['data'] as Map);
+      return VenueItem.fromJson(data);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<List<EventItem>> searchEvents({
     String? q,
     String? categorySlug,
@@ -68,6 +90,7 @@ class EventRepository {
     String? posterUrl,
     int? venueId,
     DateTime? tanggal,
+    List<String>? tanggalOpsi,
     bool force = false,
   }) async {
     try {
@@ -79,6 +102,8 @@ class EventRepository {
           'poster_url': ?posterUrl,
           'venue_id': ?venueId,
           if (tanggal != null) 'tanggal': tanggal.toUtc().toIso8601String(),
+          if (tanggalOpsi != null && tanggalOpsi.isNotEmpty)
+            'tanggal_opsi': tanggalOpsi,
           if (force) 'force': true,
         },
       );

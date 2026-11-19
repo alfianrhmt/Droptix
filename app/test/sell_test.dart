@@ -70,12 +70,21 @@ class _FakeEventRepository implements EventRepository {
       [testEvent];
 
   @override
+  Future<VenueItem> createVenue({
+    required String nama,
+    required String kota,
+    String? alamat,
+  }) async =>
+      VenueItem(id: 99, nama: nama, kota: kota, alamat: alamat);
+
+  @override
   Future<EventItem> createEvent({
     required int categoryId,
     required String nama,
     String? posterUrl,
     int? venueId,
     DateTime? tanggal,
+    List<String>? tanggalOpsi,
     bool force = false,
   }) async =>
       testEvent;

@@ -43,8 +43,11 @@ class _SellScreenState extends State<SellScreen> {
   List<VenueItem> _venues = const [];
   VenueItem? _selectedVenue;
   bool _useCustomVenue = false;
+  bool _editingVenue = false;
   final _customVenueController = TextEditingController();
   final _cityController = TextEditingController();
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
   DateTime? _waktuAcara;
 
   // Langkah 2: Jenis & tipe
@@ -124,6 +127,21 @@ class _SellScreenState extends State<SellScreen> {
     } catch (_) {}
   }
 
+  void _updateWaktuAcara() {
+    if (_selectedDate == null) {
+      _waktuAcara = null;
+      return;
+    }
+    final time = _selectedTime ?? const TimeOfDay(hour: 19, minute: 0);
+    _waktuAcara = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
   Future<void> _pickEvent() async {
     final picked = await showEventPickerSheet(
       context,
@@ -134,43 +152,188 @@ class _SellScreenState extends State<SellScreen> {
     setState(() {
       _selectedEvent = picked;
       _stepError = null;
+      _editingVenue = false;
+
+      // 1. Venue & Kota otomatis terisi dari template event jika ada
       if (picked.venue != null) {
         _useCustomVenue = false;
         _selectedVenue = picked.venue;
         _cityController.text = picked.venue!.kota;
       }
-      if (picked.tanggal != null &&
-          picked.tanggal!.isAfter(DateTime.now())) {
-        _waktuAcara = picked.tanggal;
+
+      // 2. Tanggal & Jam
+      if (picked.tanggal != null) {
+        _selectedDate = DateTime(
+          picked.tanggal!.year,
+          picked.tanggal!.month,
+          picked.tanggal!.day,
+        );
+        _selectedTime = TimeOfDay(
+          hour: picked.tanggal!.hour,
+          minute: picked.tanggal!.minute,
+        );
+      } else if (picked.tanggalOpsi.isNotEmpty) {
+        final parsed = DateTime.tryParse(picked.tanggalOpsi.first);
+        if (parsed != null) {
+          _selectedDate = DateTime(parsed.year, parsed.month, parsed.day);
+          _selectedTime = const TimeOfDay(hour: 19, minute: 0);
+        }
       }
+      _updateWaktuAcara();
     });
   }
 
-  Future<void> _pickDateTime() async {
+  Future<void> _pickCustomDate() async {
     final now = DateTime.now();
-    final initial = _waktuAcara ?? now.add(const Duration(days: 3));
+    final firstAllowed = DateTime(now.year, now.month, now.day);
+    final initial = _selectedDate ?? firstAllowed.add(const Duration(days: 3));
     final date = await showDatePicker(
       context: context,
-      initialDate: initial.isAfter(now) ? initial : now.add(const Duration(days: 1)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365 * 2)),
+      initialDate: initial.isBefore(firstAllowed) ? firstAllowed : initial,
+      firstDate: firstAllowed,
+      lastDate: firstAllowed.add(const Duration(days: 365 * 2)),
     );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_waktuAcara ?? DateTime(2026, 1, 1, 19)),
-    );
-    if (!mounted) return;
     setState(() {
-      _waktuAcara = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time?.hour ?? 19,
-        time?.minute ?? 0,
-      );
+      _selectedDate = DateTime(date.year, date.month, date.day);
+      _updateWaktuAcara();
       _stepError = null;
     });
+  }
+
+  Future<void> _pickTime() async {
+    final initial = _selectedTime ?? const TimeOfDay(hour: 19, minute: 0);
+    final time = await showTimePicker(
+      context: context,
+      initialTime: initial,
+    );
+    if (time == null || !mounted) return;
+    setState(() {
+      _selectedTime = time;
+      _updateWaktuAcara();
+      _stepError = null;
+    });
+  }
+
+  Future<void> _showAddVenueDialog() async {
+    final nameCtrl = TextEditingController();
+    final cityCtrl = TextEditingController(text: _cityController.text.trim());
+    final addressCtrl = TextEditingController();
+    String? dialogError;
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text('Tambah Venue Baru', style: AppTextStyles.titleMedium),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppTextField(
+                  controller: nameCtrl,
+                  label: 'Nama Venue',
+                  hintText: 'Contoh: Gelora Bung Tomo',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppTextField(
+                  controller: cityCtrl,
+                  label: 'Kota',
+                  hintText: 'Contoh: Surabaya',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppTextField(
+                  controller: addressCtrl,
+                  label: 'Alamat (opsional)',
+                  hintText: 'Contoh: Jl. Kauman No. 1',
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    dialogError!,
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.urgent),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.of(dlgCtx).pop(),
+              child: const Text('Batal'),
+            ),
+            PrimaryButton(
+              label: 'Simpan Venue',
+              isLoading: saving,
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final n = nameCtrl.text.trim();
+                      final k = cityCtrl.text.trim();
+                      final a = addressCtrl.text.trim();
+                      if (n.length < 2) {
+                        setDlgState(() =>
+                            dialogError = 'Nama venue minimal 2 karakter.');
+                        return;
+                      }
+                      if (k.length < 2) {
+                        setDlgState(
+                            () => dialogError = 'Kota minimal 2 karakter.');
+                        return;
+                      }
+                      setDlgState(() {
+                        saving = true;
+                        dialogError = null;
+                      });
+                      try {
+                        final created = await _eventRepo.createVenue(
+                          nama: n,
+                          kota: k,
+                          alamat: a.isEmpty ? null : a,
+                        );
+                        if (!mounted) return;
+                        setState(() {
+                          if (!_venues.any((v) => v.id == created.id)) {
+                            _venues = [..._venues, created];
+                          }
+                          _selectedVenue = created;
+                          _cityController.text = created.kota;
+                          _useCustomVenue = false;
+                          _editingVenue = false;
+                        });
+                        if (dlgCtx.mounted) Navigator.of(dlgCtx).pop();
+                      } on ApiException catch (e) {
+                        setDlgState(() {
+                          dialogError = e.message;
+                          saving = false;
+                        });
+                      } catch (_) {
+                        setDlgState(() {
+                          dialogError = 'Gagal menyimpan venue.';
+                          saving = false;
+                        });
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatIndoDate(DateTime dt) {
+    const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    final day = days[dt.weekday - 1];
+    final month = months[dt.month - 1];
+    return '$day, ${dt.day} $month ${dt.year}';
   }
 
   Future<void> _addTicketPhoto() async {
@@ -205,16 +368,23 @@ class _SellScreenState extends State<SellScreen> {
       case 0:
         if (_selectedEvent == null) {
           error = 'Pilih event terlebih dahulu.';
-        } else if (!_useCustomVenue && _selectedVenue == null) {
-          error = 'Pilih venue atau gunakan "Venue lainnya".';
-        } else if (_useCustomVenue &&
-            _customVenueController.text.trim().isEmpty) {
-          error = 'Nama venue wajib diisi.';
-        } else if (_cityController.text.trim().isEmpty) {
-          error = 'Kota acara wajib diisi.';
-        } else if (_waktuAcara == null ||
-            !_waktuAcara!.isAfter(DateTime.now())) {
-          error = 'Pilih tanggal & jam acara di masa depan.';
+        } else {
+          final cat = _selectedEvent!.category;
+          if (cat.requiresVenue && !_useCustomVenue && _selectedVenue == null) {
+            error = 'Pilih venue untuk kategori ${cat.nama}.';
+          } else if (_useCustomVenue &&
+              _customVenueController.text.trim().isEmpty) {
+            error = 'Nama venue wajib diisi.';
+          } else if (_cityController.text.trim().isEmpty) {
+            error = 'Kota acara wajib diisi.';
+          } else if (_selectedDate == null) {
+            error = 'Pilih tanggal acara untuk tiket Anda.';
+          } else if (cat.requiresTime && _selectedTime == null) {
+            error = 'Pilih jam acara untuk kategori ${cat.nama}.';
+          } else if (_waktuAcara == null ||
+              !_waktuAcara!.isAfter(DateTime.now())) {
+            error = 'Pilih tanggal & jam acara di masa depan.';
+          }
         }
         break;
       case 1:
@@ -346,6 +516,9 @@ class _SellScreenState extends State<SellScreen> {
       _selectedEvent = null;
       _selectedVenue = null;
       _useCustomVenue = false;
+      _editingVenue = false;
+      _selectedDate = null;
+      _selectedTime = null;
       _customVenueController.clear();
       _cityController.text = defaultCity;
       _waktuAcara = null;
@@ -517,6 +690,13 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   Widget _buildStep1EventVenueTime() {
+    final cat = _selectedEvent?.category;
+    final requiresVenue = cat?.requiresVenue ?? true;
+    final requiresDate = cat?.requiresDate ?? true;
+    final requiresTime = cat?.requiresTime ?? true;
+
+    final hasEventVenue = _selectedEvent?.venue != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -534,7 +714,8 @@ class _SellScreenState extends State<SellScreen> {
             child: _selectedEvent == null
                 ? Row(
                     children: [
-                      const Icon(Icons.search_rounded, color: AppColors.primary),
+                      const Icon(Icons.search_rounded,
+                          color: AppColors.primary),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
@@ -581,78 +762,258 @@ class _SellScreenState extends State<SellScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Venue', style: AppTextStyles.label),
-            TextButton(
-              onPressed: () {
+
+        // Section Venue
+        if (hasEventVenue && !_editingVenue) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  requiresVenue ? 'Venue (wajib)' : 'Venue (opsional)',
+                  style: AppTextStyles.label,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _editingVenue = true),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                ),
+                child: Text(
+                  'Ubah venue',
+                  style:
+                      AppTextStyles.caption.copyWith(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.primary.withAlpha(50)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on_rounded,
+                    color: AppColors.primary, size: 24),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedVenue?.nama ?? _selectedEvent!.venue!.nama,
+                        style: AppTextStyles.body
+                            .copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_cityController.text.trim().isNotEmpty ? _cityController.text.trim() : _selectedEvent!.venue!.kota} • Sesuai event',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  requiresVenue ? 'Venue (wajib)' : 'Venue (opsional)',
+                  style: AppTextStyles.label,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _useCustomVenue = !_useCustomVenue;
+                    if (_useCustomVenue) _selectedVenue = null;
+                  });
+                },
+                child: Text(
+                  _useCustomVenue ? 'Pilih dari daftar' : 'Venue lainnya',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          if (_useCustomVenue)
+            AppTextField(
+              controller: _customVenueController,
+              label: 'Nama venue manual',
+              hintText: 'Contoh: Parkir Timur Senayan',
+            )
+          else ...[
+            DropdownButtonFormField<int?>(
+              key: ValueKey(_selectedVenue?.id),
+              isExpanded: true,
+              initialValue: _selectedVenue?.id,
+              dropdownColor: AppColors.surfaceHigh,
+              hint: const Text('Pilih venue'),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppColors.surfaceHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: [
+                if (!requiresVenue)
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('Tanpa venue khusus',
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                for (final v in _venues)
+                  DropdownMenuItem<int?>(
+                    value: v.id,
+                    child: Text('${v.nama} (${v.kota})',
+                        overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (id) {
+                final v = _venues.where((x) => x.id == id).firstOrNull;
                 setState(() {
-                  _useCustomVenue = !_useCustomVenue;
-                  if (_useCustomVenue) _selectedVenue = null;
+                  _selectedVenue = v;
+                  if (v != null) _cityController.text = v.kota;
                 });
               },
-              child: Text(
-                _useCustomVenue ? 'Pilih dari daftar' : 'Venue lainnya',
-                style: AppTextStyles.caption.copyWith(color: AppColors.primary),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _showAddVenueDialog,
+                icon: const Icon(Icons.add_location_alt_outlined, size: 16),
+                label: const Text('Venue tidak ada? Tambah baru'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: AppColors.primary,
+                ),
               ),
             ),
           ],
-        ),
-        if (_useCustomVenue)
+          const SizedBox(height: AppSpacing.sm),
           AppTextField(
-            controller: _customVenueController,
-            label: 'Nama venue manual',
-            hintText: 'Contoh: Parkir Timur Senayan',
-          )
-        else
-          DropdownButtonFormField<int>(
-            isExpanded: true,
-            initialValue: _selectedVenue?.id,
-            dropdownColor: AppColors.surfaceHigh,
-            hint: const Text('Pilih venue'),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: AppColors.surfaceHigh,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                borderSide: BorderSide.none,
+            controller: _cityController,
+            label: 'Kota acara',
+            hintText: 'Contoh: Surabaya',
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+
+        // Section Tanggal
+        Text(
+          requiresDate ? 'Tanggal acara (wajib)' : 'Tanggal acara (opsional)',
+          style: AppTextStyles.label,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        if (_selectedEvent != null && _selectedEvent!.tanggalOpsi.isNotEmpty) ...[
+          if (_selectedEvent!.tanggalOpsi.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Text(
+                'Pilih tanggal tiket yang Anda miliki:',
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
               ),
             ),
-            items: [
-              for (final v in _venues)
-                DropdownMenuItem<int>(
-                  value: v.id,
-                  child: Text(
-                    '${v.nama} (${v.kota})',
-                    overflow: TextOverflow.ellipsis,
-                  ),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final dStr in _selectedEvent!.tanggalOpsi)
+                Builder(
+                  builder: (ctx) {
+                    final parsed = DateTime.tryParse(dStr);
+                    final isSelected = _selectedDate != null &&
+                        parsed != null &&
+                        _selectedDate!.year == parsed.year &&
+                        _selectedDate!.month == parsed.month &&
+                        _selectedDate!.day == parsed.day;
+                    return ChoiceChip(
+                      label: Text(
+                        parsed != null ? _formatIndoDate(parsed) : dStr,
+                      ),
+                      selected: isSelected,
+                      backgroundColor: AppColors.surfaceHigh,
+                      selectedColor: AppColors.primary,
+                      labelStyle: AppTextStyles.bodySmall.copyWith(
+                        color: isSelected
+                            ? AppColors.onPrimary
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      side: BorderSide(
+                        color:
+                            isSelected ? AppColors.primary : AppColors.divider,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
+                      onSelected: (selected) {
+                        if (selected && parsed != null) {
+                          setState(() {
+                            _selectedDate =
+                                DateTime(parsed.year, parsed.month, parsed.day);
+                            _updateWaktuAcara();
+                            _stepError = null;
+                          });
+                        }
+                      },
+                    );
+                  },
                 ),
             ],
-            onChanged: (id) {
-              final v = _venues.where((x) => x.id == id).firstOrNull;
-              setState(() {
-                _selectedVenue = v;
-                if (v != null) _cityController.text = v.kota;
-              });
-            },
           ),
+        ] else ...[
+          OutlinedButton.icon(
+            onPressed: _pickCustomDate,
+            icon: const Icon(Icons.calendar_today_rounded, size: 18),
+            label: Text(
+              _selectedDate == null
+                  ? (requiresDate
+                      ? 'Pilih tanggal acara (wajib)'
+                      : 'Pilih tanggal acara (opsional)')
+                  : _formatIndoDate(_selectedDate!),
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, AppTouchTarget.min),
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
-        AppTextField(
-          controller: _cityController,
-          label: 'Kota acara',
-          hintText: 'Contoh: Surabaya',
+
+        // Section Jam
+        Text(
+          requiresTime ? 'Jam acara (wajib)' : 'Jam acara (opsional)',
+          style: AppTextStyles.label,
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text('Waktu acara', style: AppTextStyles.label),
         const SizedBox(height: AppSpacing.xs),
         OutlinedButton.icon(
-          onPressed: _pickDateTime,
-          icon: const Icon(Icons.calendar_today_rounded, size: 18),
+          onPressed: _pickTime,
+          icon: const Icon(Icons.access_time_rounded, size: 18),
           label: Text(
-            _waktuAcara == null
-                ? 'Pilih tanggal & jam acara'
-                : _formatDateTime(_waktuAcara!),
+            _selectedTime == null
+                ? (requiresTime
+                    ? 'Pilih jam acara (wajib)'
+                    : 'Pilih jam acara (opsional)')
+                : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')} WIB',
           ),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, AppTouchTarget.min),

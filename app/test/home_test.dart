@@ -172,12 +172,22 @@ class _FakeEventRepository implements EventRepository {
       const [];
 
   @override
+  Future<VenueItem> createVenue({
+    required String nama,
+    required String kota,
+    String? alamat,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<EventItem> createEvent({
     required int categoryId,
     required String nama,
     String? posterUrl,
     int? venueId,
     DateTime? tanggal,
+    List<String>? tanggalOpsi,
     bool force = false,
   }) {
     throw UnimplementedError();

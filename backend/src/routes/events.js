@@ -6,7 +6,8 @@ const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
 const { formatListingCard } = require('./listings');
 
-const STRICT_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
+const STRICT_VENUE_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga', 'wisata']);
+const STRICT_TANGGAL_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
 const MAX_EVENTS_PER_DAY = 5;
 
 const getTrendingQuerySchema = z.object({
@@ -29,6 +30,7 @@ const createEventSchema = z.object({
   poster_url: z.string().trim().max(500).nullable().optional(),
   venue_id: z.coerce.number().int().positive().nullable().optional(),
   tanggal: z.string().datetime({ offset: true }).nullable().optional(),
+  tanggal_opsi: z.array(z.string().trim()).nullable().optional(),
   force: z.boolean().optional().default(false),
 });
 
@@ -42,6 +44,7 @@ const updateEventSchema = z.object({
   poster_url: z.string().trim().max(500).nullable().optional(),
   venue_id: z.coerce.number().int().positive().nullable().optional(),
   tanggal: z.string().datetime({ offset: true }).nullable().optional(),
+  tanggal_opsi: z.array(z.string().trim()).nullable().optional(),
 });
 
 const eventIdParamSchema = z.object({
@@ -53,6 +56,18 @@ function normalizeEventName(nama) {
 }
 
 function formatEventRow(row) {
+  let tanggalOpsi = [];
+  if (Array.isArray(row.tanggal_opsi) && row.tanggal_opsi.length > 0) {
+    tanggalOpsi = row.tanggal_opsi
+      .map((d) => (d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0]))
+      .filter(Boolean);
+  } else if (row.tanggal) {
+    const d = row.tanggal instanceof Date ? row.tanggal : new Date(row.tanggal);
+    if (!Number.isNaN(d.getTime())) {
+      tanggalOpsi = [d.toISOString().split('T')[0]];
+    }
+  }
+
   return {
     id: row.id,
     nama: row.nama,
@@ -74,6 +89,7 @@ function formatEventRow(row) {
         }
       : null,
     tanggal: row.tanggal ?? null,
+    tanggal_opsi: tanggalOpsi,
   };
 }
 
@@ -89,7 +105,7 @@ function ensureFutureDate(tanggal) {
 
 async function fetchEventById(db, id) {
   const result = await db.query(
-    `SELECT e.id, e.nama, e.poster_url, e.tanggal, e.created_by, e.hidden,
+    `SELECT e.id, e.nama, e.poster_url, e.tanggal, e.tanggal_opsi, e.created_by, e.hidden,
             c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama, c.ikon AS category_ikon,
             v.id AS venue_id, v.nama AS venue_nama, v.kota AS venue_kota,
             v.alamat AS venue_alamat, v.lat AS venue_lat, v.lng AS venue_lng
@@ -252,7 +268,7 @@ function createEventsRouter(db, requireAuth) {
       }
 
       const result = await db.query(
-        `SELECT e.id, e.nama, e.poster_url, e.tanggal,
+        `SELECT e.id, e.nama, e.poster_url, e.tanggal, e.tanggal_opsi,
                 c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama, c.ikon AS category_ikon,
                 v.id AS venue_id, v.nama AS venue_nama, v.kota AS venue_kota,
                 v.alamat AS venue_alamat, v.lat AS venue_lat, v.lng AS venue_lng
@@ -273,9 +289,7 @@ function createEventsRouter(db, requireAuth) {
 
   router.post('/', requireAuth, validate(createEventSchema), async (req, res, next) => {
     try {
-      const { category_id, nama, poster_url, venue_id, tanggal, force } = req.body;
-
-      ensureFutureDate(tanggal);
+      const { category_id, nama, poster_url, venue_id, tanggal, tanggal_opsi, force } = req.body;
 
       const catResult = await db.query(
         'SELECT id, slug, nama, ikon FROM categories WHERE id = $1',
@@ -290,17 +304,33 @@ function createEventsRouter(db, requireAuth) {
         );
       }
 
-      if (STRICT_CATEGORY_SLUGS.has(category.slug)) {
-        const details = [];
-        if (!venue_id) {
-          details.push({ field: 'venue_id', message: 'Venue wajib diisi untuk kategori ini.' });
+      const details = [];
+      if (STRICT_VENUE_CATEGORY_SLUGS.has(category.slug) && !venue_id) {
+        details.push({ field: 'venue_id', message: 'Venue wajib diisi untuk kategori ini.' });
+      }
+
+      let resolvedTanggalOpsi = null;
+      let resolvedTanggal = tanggal ? new Date(tanggal) : null;
+
+      if (Array.isArray(tanggal_opsi) && tanggal_opsi.length > 0) {
+        resolvedTanggalOpsi = tanggal_opsi.map((d) => String(d).trim()).filter(Boolean);
+        if (!resolvedTanggal && resolvedTanggalOpsi.length > 0) {
+          resolvedTanggal = new Date(`${resolvedTanggalOpsi[0]}T00:00:00Z`);
         }
-        if (!tanggal) {
-          details.push({ field: 'tanggal', message: 'Tanggal wajib diisi untuk kategori ini.' });
-        }
-        if (details.length > 0) {
-          return next(Errors.validation('Data tidak valid', details));
-        }
+      } else if (resolvedTanggal) {
+        resolvedTanggalOpsi = [resolvedTanggal.toISOString().split('T')[0]];
+      }
+
+      if (STRICT_TANGGAL_CATEGORY_SLUGS.has(category.slug) && !resolvedTanggal) {
+        details.push({ field: 'tanggal', message: 'Tanggal wajib diisi untuk kategori ini.' });
+      }
+
+      if (details.length > 0) {
+        return next(Errors.validation('Data tidak valid', details));
+      }
+
+      if (resolvedTanggal) {
+        ensureFutureDate(resolvedTanggal.toISOString());
       }
 
       if (venue_id) {
@@ -345,8 +375,8 @@ function createEventsRouter(db, requireAuth) {
       }
 
       const insertResult = await db.query(
-        `INSERT INTO events (category_id, nama, nama_normal, poster_url, venue_id, tanggal, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO events (category_id, nama, nama_normal, poster_url, venue_id, tanggal, tanggal_opsi, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id`,
         [
           category_id,
@@ -354,7 +384,8 @@ function createEventsRouter(db, requireAuth) {
           namaNormal,
           poster_url ?? null,
           venue_id ?? null,
-          tanggal ?? null,
+          resolvedTanggal ? resolvedTanggal.toISOString() : null,
+          resolvedTanggalOpsi,
           req.user.id,
         ]
       );
@@ -399,24 +430,31 @@ function createEventsRouter(db, requireAuth) {
           req.body.poster_url !== undefined ? req.body.poster_url : existing.poster_url;
         const nextVenueId =
           req.body.venue_id !== undefined ? req.body.venue_id : existing.venue_id;
-        const nextTanggal =
+        let nextTanggalOpsi =
+          req.body.tanggal_opsi !== undefined ? req.body.tanggal_opsi : existing.tanggal_opsi;
+        let nextTanggal =
           req.body.tanggal !== undefined ? req.body.tanggal : existing.tanggal;
 
-        if (req.body.tanggal !== undefined && req.body.tanggal !== null) {
-          ensureFutureDate(req.body.tanggal);
+        if (Array.isArray(nextTanggalOpsi) && nextTanggalOpsi.length > 0) {
+          nextTanggalOpsi = nextTanggalOpsi.map((d) => String(d).trim()).filter(Boolean);
+          if (!nextTanggal && nextTanggalOpsi.length > 0) {
+            nextTanggal = `${nextTanggalOpsi[0]}T00:00:00Z`;
+          }
         }
 
-        if (STRICT_CATEGORY_SLUGS.has(existing.category_slug)) {
-          const details = [];
-          if (!nextVenueId) {
-            details.push({ field: 'venue_id', message: 'Venue wajib diisi untuk kategori ini.' });
-          }
-          if (!nextTanggal) {
-            details.push({ field: 'tanggal', message: 'Tanggal wajib diisi untuk kategori ini.' });
-          }
-          if (details.length > 0) {
-            return next(Errors.validation('Data tidak valid', details));
-          }
+        if (nextTanggal) {
+          ensureFutureDate(nextTanggal);
+        }
+
+        const details = [];
+        if (STRICT_VENUE_CATEGORY_SLUGS.has(existing.category_slug) && !nextVenueId) {
+          details.push({ field: 'venue_id', message: 'Venue wajib diisi untuk kategori ini.' });
+        }
+        if (STRICT_TANGGAL_CATEGORY_SLUGS.has(existing.category_slug) && !nextTanggal) {
+          details.push({ field: 'tanggal', message: 'Tanggal wajib diisi untuk kategori ini.' });
+        }
+        if (details.length > 0) {
+          return next(Errors.validation('Data tidak valid', details));
         }
 
         if (req.body.venue_id) {
@@ -434,14 +472,15 @@ function createEventsRouter(db, requireAuth) {
 
         await db.query(
           `UPDATE events
-           SET nama = $1, nama_normal = $2, poster_url = $3, venue_id = $4, tanggal = $5
-           WHERE id = $6`,
+           SET nama = $1, nama_normal = $2, poster_url = $3, venue_id = $4, tanggal = $5, tanggal_opsi = $6
+           WHERE id = $7`,
           [
             nextNama,
             normalizeEventName(nextNama),
             nextPosterUrl ?? null,
             nextVenueId ?? null,
             nextTanggal ?? null,
+            nextTanggalOpsi,
             eventId,
           ]
         );

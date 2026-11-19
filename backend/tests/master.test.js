@@ -121,6 +121,26 @@ function createMasterMockDb() {
         return { rows: rows.slice(0, limit) };
       }
 
+      if (q.includes('FROM venues WHERE LOWER(nama) = LOWER($1) AND LOWER(kota) = LOWER($2)')) {
+        const v = venues.find(
+          (x) => x.nama.toLowerCase() === params[0].toLowerCase() && x.kota.toLowerCase() === params[1].toLowerCase()
+        );
+        return { rows: v ? [v] : [] };
+      }
+
+      if (q.startsWith('INSERT INTO venues')) {
+        const newVenue = {
+          id: venues.length + 1,
+          nama: params[0],
+          kota: params[1],
+          alamat: params[2] ?? null,
+          lat: null,
+          lng: null,
+        };
+        venues.push(newVenue);
+        return { rows: [newVenue] };
+      }
+
       if (q.startsWith('SELECT id FROM venues WHERE id = $1')) {
         const v = venues.find((x) => x.id === params[0]);
         return { rows: v ? [{ id: v.id }] : [] };
@@ -176,7 +196,8 @@ function createMasterMockDb() {
           poster_url: params[3],
           venue_id: params[4],
           tanggal: params[5],
-          created_by: params[6],
+          tanggal_opsi: params[6],
+          created_by: params[7],
           created_at: new Date().toISOString(),
           hidden: false,
         };
@@ -192,13 +213,14 @@ function createMasterMockDb() {
       }
 
       if (q.startsWith('UPDATE events')) {
-        const e = events.find((x) => x.id === params[5]);
+        const e = events.find((x) => x.id === params[6]);
         if (e) {
           e.nama = params[0];
           e.nama_normal = params[1];
           e.poster_url = params[2];
           e.venue_id = params[3];
           e.tanggal = params[4];
+          e.tanggal_opsi = params[5];
         }
         return { rows: [] };
       }
@@ -235,6 +257,15 @@ describe('Master data: categories, venues, events, uploads (T2.1 & T2.4)', () =>
     expect(venueRes.status).toBe(200);
     expect(venueRes.body.data).toHaveLength(1);
     expect(venueRes.body.data[0].nama).toBe('Grand City Convention Hall');
+
+    const createVenueRes = await request(app).post('/api/v1/venues').send({
+      nama: 'Jatim International Expo',
+      kota: 'Surabaya',
+      alamat: 'Jl. Ahmad Yani No.99',
+    });
+    expect(createVenueRes.status).toBe(201);
+    expect(createVenueRes.body.data.nama).toBe('Jatim International Expo');
+    expect(createVenueRes.body.data.kota).toBe('Surabaya');
   });
 
   it('POST /events mewajibkan venue_id & tanggal untuk Konser/Olahraga, cek nama mirip, dukung force, dan batas 5/hari', async () => {

@@ -17,8 +17,16 @@ class EventCategory {
   final String ikon;
   final int urutan;
 
-  bool get requiresVenueAndDate =>
+  bool get requiresVenue =>
+      slug == 'konser-festival' || slug == 'olahraga' || slug == 'wisata';
+
+  bool get requiresDate =>
       slug == 'konser-festival' || slug == 'olahraga';
+
+  bool get requiresTime =>
+      slug == 'konser-festival' || slug == 'olahraga' || slug == 'bioskop';
+
+  bool get requiresVenueAndDate => requiresVenue && requiresDate;
 
   factory EventCategory.fromJson(Map<String, dynamic> json) {
     return EventCategory(
@@ -70,6 +78,7 @@ class EventItem {
     required this.category,
     this.venue,
     this.tanggal,
+    this.tanggalOpsi = const [],
   });
 
   final int id;
@@ -78,8 +87,24 @@ class EventItem {
   final EventCategory category;
   final VenueItem? venue;
   final DateTime? tanggal;
+  final List<String> tanggalOpsi;
 
   factory EventItem.fromJson(Map<String, dynamic> json) {
+    final rawTanggalOpsi = json['tanggal_opsi'];
+    List<String> parsedTanggalOpsi = const [];
+    if (rawTanggalOpsi is List) {
+      parsedTanggalOpsi = rawTanggalOpsi
+          .map((e) => e.toString().split('T').first)
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    final parsedTanggal = json['tanggal'] is String
+        ? DateTime.tryParse(json['tanggal'] as String)
+        : null;
+    if (parsedTanggalOpsi.isEmpty && parsedTanggal != null) {
+      parsedTanggalOpsi = [parsedTanggal.toIso8601String().split('T').first];
+    }
+
     return EventItem(
       id: (json['id'] as num).toInt(),
       nama: json['nama'] as String,
@@ -90,9 +115,8 @@ class EventItem {
       venue: json['venue'] is Map
           ? VenueItem.fromJson(Map<String, dynamic>.from(json['venue'] as Map))
           : null,
-      tanggal: json['tanggal'] is String
-          ? DateTime.tryParse(json['tanggal'] as String)
-          : null,
+      tanggal: parsedTanggal,
+      tanggalOpsi: parsedTanggalOpsi,
     );
   }
 }
