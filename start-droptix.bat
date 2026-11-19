@@ -36,13 +36,11 @@ echo       - Jaringan HP    : http://%LOCAL_IP%:3000/api/v1
 echo.
 
 echo [3/3] Pilih target aplikasi Flutter:
-echo   [1] Google Chrome (Web) - Paling Cepat dan Mudah
+echo   [1] Google Chrome (Web) - Rekomendasi
 echo   [2] Windows Desktop
 echo   [3] Jalankan langsung di HP Android (Kabel USB)
-echo   [4] Buat file APK untuk HP (Build APK Otomatis)
 echo.
-choice /c 1234 /m "Masukkan pilihan"
-if errorlevel 4 goto TARGET_BUILD_APK
+choice /c 123 /m "Masukkan pilihan"
 if errorlevel 3 goto TARGET_PHONE_USB
 if errorlevel 2 goto TARGET_WINDOWS
 if errorlevel 1 goto TARGET_CHROME
@@ -67,28 +65,6 @@ echo Menjalankan Droptix langsung di HP Android via USB...
 echo Menggunakan URL API: http://%LOCAL_IP%:3000/api/v1
 cd /d "%~dp0app"
 call flutter run -d android --dart-define=API_BASE_URL=http://%LOCAL_IP%:3000/api/v1
-goto FINISH
-
-:TARGET_BUILD_APK
-echo.
-echo ===================================================
-echo             MEMBUAT FILE APK ANDROID
-echo ===================================================
-echo Mengompilasi aplikasi dengan URL backend:
-echo http://%LOCAL_IP%:3000/api/v1
-echo.
-cd /d "%~dp0app"
-call flutter build apk --debug --dart-define=API_BASE_URL=http://%LOCAL_IP%:3000/api/v1
-if errorlevel 1 (
-    echo [ERROR] Gagal mengompilasi APK.
-    goto FINISH
-)
-echo.
-echo [SUKSES] File APK berhasil dibuat!
-echo Lokasi: app\build\app\outputs\flutter-apk\app-debug.apk
-echo.
-echo Membuka folder APK di File Explorer agar bisa langsung dikirim ke HP...
-start explorer "%~dp0app\build\app\outputs\flutter-apk"
 goto FINISH
 
 :FINISH
