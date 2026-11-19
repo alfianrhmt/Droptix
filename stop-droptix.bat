@@ -1,5 +1,6 @@
 @echo off
-title Droptix — Menghentikan Backend
+setlocal
+title Droptix Stop
 
 echo ===================================================
 echo             DROPTIX STOP BACKEND
@@ -8,6 +9,7 @@ echo.
 
 set "PATH=%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin;C:\Program Files\Docker\Docker\resources\bin;%PATH%"
 
+cd /d "%~dp0"
 echo Menghentikan container database dan API backend...
 docker compose down
 
