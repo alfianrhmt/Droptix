@@ -35,19 +35,19 @@ echo       - Komputer lokal : http://localhost:3000/api/v1
 echo       - Jaringan HP    : http://%LOCAL_IP%:3000/api/v1
 echo.
 
-echo [3/3] Pilih target aplikasi Flutter:
-echo   [1] Google Chrome (Web) - Rekomendasi
+echo [3/3] Pilih target aplikasi:
+echo   [1] Google Chrome (Web di Laptop)
 echo   [2] Windows Desktop
-echo   [3] Jalankan langsung di HP Android (Kabel USB)
+echo   [3] Buka di Layar HP (Browser Chrome/Safari di HP - Satu Wi-Fi)
 echo.
 choice /c 123 /m "Masukkan pilihan"
-if errorlevel 3 goto TARGET_PHONE_USB
+if errorlevel 3 goto TARGET_PHONE_WEB
 if errorlevel 2 goto TARGET_WINDOWS
 if errorlevel 1 goto TARGET_CHROME
 
 :TARGET_CHROME
 echo.
-echo Menjalankan Droptix di Google Chrome...
+echo Menjalankan Droptix di Google Chrome Laptop...
 cd /d "%~dp0app"
 call flutter run -d chrome
 goto FINISH
@@ -59,12 +59,21 @@ cd /d "%~dp0app"
 call flutter run -d windows
 goto FINISH
 
-:TARGET_PHONE_USB
+:TARGET_PHONE_WEB
 echo.
-echo Menjalankan Droptix langsung di HP Android via USB...
-echo Menggunakan URL API: http://%LOCAL_IP%:3000/api/v1
+echo ===================================================================
+echo                   SERVER APLIKASI UNTUK HP AKTIF
+echo ===================================================================
+echo.
+echo Buka browser di HP Anda (Google Chrome / Safari), lalu ketik:
+echo.
+echo               >>> http://%LOCAL_IP%:8080 <<<
+echo.
+echo Catatan: Pastikan HP dan laptop terhubung ke Wi-Fi yang sama.
+echo ===================================================================
+echo.
 cd /d "%~dp0app"
-call flutter run -d android --dart-define=API_BASE_URL=http://%LOCAL_IP%:3000/api/v1
+call flutter run -d web-server --web-port 8080 --web-hostname 0.0.0.0 --dart-define=API_BASE_URL=http://%LOCAL_IP%:3000/api/v1
 goto FINISH
 
 :FINISH
