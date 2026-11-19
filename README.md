@@ -8,7 +8,15 @@ Aplikasi agregator tiket resell — mobile-first (Flutter) dengan backend Expres
 - [Flutter](https://flutter.dev/) ≥ 3.13
 - Node.js ≥ 20 (untuk pengembangan backend tanpa Docker)
 
-## Menjalankan backend
+## Cara Cepat (Windows One-Click)
+
+Cukup klik ganda berkas skrip di root folder proyek:
+- **`start-droptix.bat`**: Otomatis mengecek Docker Desktop, menyalakan database PostgreSQL & API Express, dan menjalankan aplikasi Flutter.
+- **`stop-droptix.bat`**: Menghentikan container database dan backend saat selesai digunakan untuk menghemat memori/baterai laptop.
+
+---
+
+## Menjalankan backend (Manual)
 
 ```bash
 # Salin dan isi variabel lingkungan
