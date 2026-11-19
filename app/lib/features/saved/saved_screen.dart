@@ -168,13 +168,23 @@ class _SavedScreenState extends State<SavedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text('Saved', style: AppTextStyles.titleMedium),
-        centerTitle: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.lg,
+                AppSpacing.screenH,
+                AppSpacing.md,
+              ),
+              child: Text('Saved', style: AppTextStyles.titleLarge),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
-      body: _buildBody(),
     );
   }
 

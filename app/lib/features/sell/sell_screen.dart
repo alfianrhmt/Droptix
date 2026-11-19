@@ -374,100 +374,131 @@ class _SellScreenState extends State<SellScreen> {
   Widget build(BuildContext context) {
     final progress = (_step + 1) / 6;
 
-    return AppBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.md,
-                  AppSpacing.screenH,
-                  AppSpacing.sm,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (_step > 0)
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_step > 0) {
+          _prevStep();
+        }
+      },
+      child: AppBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                    AppSpacing.screenH,
+                    AppSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
                           IconButton(
-                            onPressed: _submitting ? null : _prevStep,
+                            onPressed: _submitting
+                                ? null
+                                : () {
+                                    if (_step > 0) {
+                                      _prevStep();
+                                    } else {
+                                      Navigator.of(context).maybePop();
+                                    }
+                                  },
                             icon: const Icon(Icons.arrow_back_rounded),
                             color: AppColors.textPrimary,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
-                              minWidth: 36,
-                              minHeight: 36,
+                              minWidth: 40,
+                              minHeight: 40,
                             ),
                           ),
-                        Expanded(
-                          child: Text(
-                            _step < 5
-                                ? 'Jual Tiket (${_step + 1}/5) — ${_stepTitles[_step]}'
-                                : 'Pratinjau Listing',
-                            style: AppTextStyles.titleMedium,
-                            overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _step < 5
+                                      ? 'Jual Tiket (${_step + 1}/5)'
+                                      : 'Pratinjau Listing',
+                                  style: AppTextStyles.titleLarge,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (_step < 5) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _stepTitles[_step],
+                                    style: AppTextStyles.bodySmall
+                                        .copyWith(color: AppColors.textSecondary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 6,
-                        backgroundColor: AppColors.surfaceHigh,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.sm,
-                    AppSpacing.screenH,
-                    AppSpacing.lg,
-                  ),
-                  child: _buildStepBody(),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                  AppSpacing.screenH,
-                  AppSpacing.md,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_stepError != null) ...[
-                      Text(
-                        _stepError!,
-                        style:
-                            AppTextStyles.bodySmall.copyWith(color: AppColors.urgent),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 6,
+                          backgroundColor: AppColors.surfaceHigh,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      ),
                     ],
-                    PrimaryButton(
-                      label: _step < 5 ? 'Lanjut' : 'Posting Tiket',
-                      isLoading: _submitting,
-                      onPressed: _step < 5 ? _nextStep : _submit,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.sm,
+                      AppSpacing.screenH,
+                      AppSpacing.lg,
+                    ),
+                    child: _buildStepBody(),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.xs,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_stepError != null) ...[
+                        Text(
+                          _stepError!,
+                          style:
+                              AppTextStyles.bodySmall.copyWith(color: AppColors.urgent),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                      PrimaryButton(
+                        label: _step < 5 ? 'Lanjut' : 'Posting Tiket',
+                        isLoading: _submitting,
+                        onPressed: _step < 5 ? _nextStep : _submit,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

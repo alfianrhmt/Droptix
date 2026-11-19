@@ -12,10 +12,10 @@ import 'package:droptix/core/widgets/widgets.dart';
 import 'package:droptix/features/chat/chat_inbox_screen.dart';
 import 'package:droptix/features/chat/chat_models.dart';
 import 'package:droptix/features/chat/chat_repository.dart';
-import 'package:droptix/features/chat/chat_socket_service.dart';
 import 'package:droptix/features/listings/listing_models.dart';
 import 'package:droptix/features/listings/listing_repository.dart';
 import 'package:droptix/features/saved/saved_screen.dart';
+import 'package:droptix/features/sell/sell_screen.dart';
 import 'package:droptix/features/sell/sell_tab_screen.dart';
 import 'package:droptix/features/shell/app_shell.dart';
 
@@ -448,4 +448,82 @@ void main() {
       expect(find.text('Profile'), findsOneWidget);
     });
   });
+
+  group('T9.5: Header & Back Button Tests', () {
+    testWidgets('SellScreen menampilkan tombol panah balik pada langkah 1 dan mengetuknya menutup halaman', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final auth = await _buildAuth();
+      bool popped = false;
+
+      await tester.pumpWidget(
+        wrap(
+          Navigator(
+            initialRoute: '/',
+            onGenerateRoute: (settings) {
+              if (settings.name == '/sell') {
+                return MaterialPageRoute(
+                  builder: (context) => SellScreen(onPosted: () {}),
+                );
+              }
+              return MaterialPageRoute(
+                builder: (context) => Scaffold(
+                  body: Center(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pushNamed('/sell'),
+                      child: const Text('Buka Jual'),
+                    ),
+                  ),
+                ),
+              );
+            },
+            observers: [
+              _PopObserver(onPop: () => popped = true),
+            ],
+          ),
+          auth,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Buka halaman SellScreen
+      await tester.tap(find.text('Buka Jual'));
+      await tester.pumpAndSettle();
+
+      // Memastikan ada tombol panah kembali pada langkah 1
+      expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+      expect(find.textContaining('Jual Tiket (1/5)'), findsOneWidget);
+
+      // Ketuk tombol panah kembali
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+      await tester.pumpAndSettle();
+
+      expect(popped, isTrue);
+    });
+
+    testWidgets('Header judul pada Saved, Chat, Sell, dan Profile menggunakan ukuran titleLarge yang seragam', (tester) async {
+      final savedText = Text('Saved', style: AppTextStyles.titleLarge);
+      final chatText = Text('Chat', style: AppTextStyles.titleLarge);
+      final sellText = Text('Penjualan', style: AppTextStyles.titleLarge);
+      final profileText = Text('Profile', style: AppTextStyles.titleLarge);
+
+      expect(savedText.style?.fontSize, equals(profileText.style?.fontSize));
+      expect(chatText.style?.fontSize, equals(profileText.style?.fontSize));
+      expect(sellText.style?.fontSize, equals(profileText.style?.fontSize));
+      expect(profileText.style?.fontSize, equals(22));
+    });
+  });
+}
+
+class _PopObserver extends NavigatorObserver {
+  _PopObserver({required this.onPop});
+  final VoidCallback onPop;
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    onPop();
+    super.didPop(route, previousRoute);
+  }
 }
