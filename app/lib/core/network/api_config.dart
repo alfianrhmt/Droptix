@@ -7,6 +7,13 @@ abstract final class ApiConfig {
 
   static String get baseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
+        final scheme = Uri.base.scheme.isNotEmpty ? Uri.base.scheme : 'http';
+        return '$scheme://$host:3000/api/v1';
+      }
+    }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:3000/api/v1';
     }

@@ -76,13 +76,13 @@ echo Buka browser di HP Anda (Chrome / Safari), lalu ketik alamat ini:
 echo.
 echo               >>> http://%LOCAL_IP%:8080 <<<
 echo.
-echo PENTING JIKA TIDAK BISA DIBUKA DI HP:
-echo 1. Pastikan HP dan laptop di Wi-Fi yang sama (atau Hotspot HP ke Laptop).
-echo 2. Jika di Wi-Fi kafe/publik (AP Isolation aktif), gunakan Hotspot HP.
+echo Catatan:
+echo - Pastikan HP dan laptop di jaringan yang sama (misal Hotspot HP).
+echo - Biarkan jendela ini TETAP TERBUKA selama Anda membuka di HP.
+echo - Tekan Ctrl + C jika ingin berhenti dan kembali ke menu.
 echo ===================================================================
 echo.
-cd /d "%~dp0app"
-call flutter run -d web-server --web-port 8080 --web-hostname 0.0.0.0 --dart-define=API_BASE_URL=http://%LOCAL_IP%:3000/api/v1
+node "%~dp0backend\scripts\serve-mobile-web.js"
 pause
 goto MAIN_MENU
 
