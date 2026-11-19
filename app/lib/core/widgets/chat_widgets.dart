@@ -3,6 +3,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
 import '../theme/app_text_styles.dart';
 import 'badges.dart';
+import 'event_poster.dart';
 
 // ---------------------------------------------------------------------------
 // ConversationRow
@@ -65,16 +66,21 @@ class ConversationRow extends StatelessWidget {
             // Thumbnail poster 56×56
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: conversation.posterUrl != null
-                    ? Image.network(
-                        conversation.posterUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _fallback(),
-                      )
-                    : _fallback(),
+              child: Builder(
+                builder: (context) {
+                  final resolved = EventPoster.resolveUrl(conversation.posterUrl);
+                  return SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: resolved != null
+                        ? Image.network(
+                            resolved,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => _fallback(),
+                          )
+                        : _fallback(),
+                  );
+                },
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -185,13 +191,21 @@ class ChatListingCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: SizedBox(
-                width: 40,
-                height: 56,
-                child: posterUrl != null
-                    ? Image.network(posterUrl!, fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _fallback())
-                    : _fallback(),
+              child: Builder(
+                builder: (context) {
+                  final resolved = EventPoster.resolveUrl(posterUrl);
+                  return SizedBox(
+                    width: 40,
+                    height: 56,
+                    child: resolved != null
+                        ? Image.network(
+                            resolved,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => _fallback(),
+                          )
+                        : _fallback(),
+                  );
+                },
               ),
             ),
             const SizedBox(width: AppSpacing.md),

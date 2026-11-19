@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
 import 'empty_state.dart';
+import 'event_poster.dart';
 
 /// Model data banner.
 class BannerItem {
@@ -105,12 +106,13 @@ class _BannerImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedUrl = EventPoster.resolveUrl(imageUrl);
     return AspectRatio(
       aspectRatio: 2 / 1,
-      child: imageUrl.isEmpty
+      child: resolvedUrl == null
           ? _fallback()
           : Image.network(
-              imageUrl,
+              resolvedUrl,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => _fallback(),
               loadingBuilder: (_, child, progress) =>

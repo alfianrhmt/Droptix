@@ -3,6 +3,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
 import '../theme/app_text_styles.dart';
 import 'badges.dart';
+import 'event_poster.dart';
 
 /// Model data untuk PosterCard dan ListingRow.
 class ListingData {
@@ -293,9 +294,10 @@ class _PosterImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (posterUrl == null || posterUrl!.isEmpty) return _fallback();
+    final resolvedUrl = EventPoster.resolveUrl(posterUrl);
+    if (resolvedUrl == null) return _fallback();
     return Image.network(
-      posterUrl!,
+      resolvedUrl,
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => _fallback(),
       loadingBuilder: (_, child, prog) =>
