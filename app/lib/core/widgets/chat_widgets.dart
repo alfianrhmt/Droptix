@@ -572,21 +572,26 @@ class DroptixBottomNav extends StatelessWidget {
           selectedIcon: Icon(Icons.home_rounded),
           label: 'Home',
         ),
-        NavigationDestination(
-          icon: _NavUnreadIcon(
-            icon: Icons.receipt_long_outlined,
-            unreadCount: unreadCount,
-          ),
-          selectedIcon: _NavUnreadIcon(
-            icon: Icons.receipt_long_rounded,
-            unreadCount: unreadCount,
-          ),
-          label: 'Activity',
+        const NavigationDestination(
+          icon: Icon(Icons.bookmark_outline_rounded),
+          selectedIcon: Icon(Icons.bookmark_rounded),
+          label: 'Saved',
         ),
         const NavigationDestination(
           icon: Icon(Icons.sell_outlined),
           selectedIcon: Icon(Icons.sell_rounded),
           label: 'Sell',
+        ),
+        NavigationDestination(
+          icon: _NavUnreadIcon(
+            icon: Icons.chat_bubble_outline_rounded,
+            unreadCount: unreadCount,
+          ),
+          selectedIcon: _NavUnreadIcon(
+            icon: Icons.chat_bubble_rounded,
+            unreadCount: unreadCount,
+          ),
+          label: 'Chat',
         ),
         const NavigationDestination(
           icon: Icon(Icons.person_outline_rounded),

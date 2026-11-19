@@ -255,8 +255,14 @@ void main() {
     await tester.tap(find.widgetWithText(ElevatedButton, 'Masuk'));
     await tester.pumpAndSettle();
 
-    // Setelah login, otomatis lanjut ke tab Sell
+    // Setelah login, otomatis lanjut ke tab Sell (Opsi A: daftar Penjualan & tombol Jual Tiket)
     expect(auth.isLoggedIn, isTrue);
+    expect(find.text('Penjualan'), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, 'Jual Tiket'), findsOneWidget);
+
+    // Ketuk tombol Jual Tiket untuk membuka wizard 5-langkah
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Jual Tiket'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Jual Tiket (1/5)'), findsOneWidget);
   });
 

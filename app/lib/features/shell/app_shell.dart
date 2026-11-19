@@ -3,16 +3,17 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
-import '../activity/activity_screen.dart';
+import '../chat/chat_inbox_screen.dart';
 import '../chat/chat_repository.dart';
 import '../chat/chat_socket_service.dart';
 import '../home/home_screen.dart';
 import '../location/location_picker_sheet.dart';
 import '../profile/profile_screen.dart';
-import '../sell/sell_screen.dart';
+import '../saved/saved_screen.dart';
+import '../sell/sell_tab_screen.dart';
 
-/// Kerangka navigasi utama 4 tab: Home, Activity, Sell, Profile.
-/// Tab Activity dan Sell menerapkan alur "login saat aksi" untuk tamu.
+/// Kerangka navigasi utama 5 tab: Home, Saved, Sell, Chat, Profile.
+/// Tab Saved, Sell, dan Chat menerapkan alur "login saat aksi" untuk tamu.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
@@ -86,7 +87,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onTabTap(int index) {
-    if (index == 1 || index == 2) {
+    if (index == 1 || index == 2 || index == 3) {
       AuthScope.of(context).requireAuthAction(context, () {
         setState(() => _tabIndex = index);
       });
@@ -115,19 +116,20 @@ class _AppShellState extends State<AppShell> {
     Widget body;
     switch (_tabIndex) {
       case 1:
-        body = ActivityScreen(
-          chatRepository: _chatRepo,
-          socketService: _socketService,
-          onNavigateToSell: () => setState(() => _tabIndex = 2),
+        body = SavedScreen(
           onNavigateToHome: () => setState(() => _tabIndex = 0),
         );
         break;
       case 2:
-        body = SellScreen(
-          onPosted: () => setState(() => _tabIndex = 1),
-        );
+        body = const SellTabScreen();
         break;
       case 3:
+        body = ChatInboxScreen(
+          chatRepository: _chatRepo,
+          socketService: _socketService,
+        );
+        break;
+      case 4:
         body = const ProfileScreen();
         break;
       default:
