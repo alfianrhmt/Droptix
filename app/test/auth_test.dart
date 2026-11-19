@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -70,15 +71,30 @@ class _FakeAuthRepository extends AuthRepository {
   }
 
   @override
-  Future<UserModel> updateMe({String? nama, String? noWa, String? kota}) async {
+  Future<UserModel> updateMe({
+    String? nama,
+    String? noWa,
+    String? kota,
+    String? fotoUrl,
+    bool removeFoto = false,
+  }) async {
     fakeUser = UserModel(
       id: fakeUser.id,
       nama: nama ?? fakeUser.nama,
       email: fakeUser.email,
       noWa: noWa ?? fakeUser.noWa,
       kota: kota ?? fakeUser.kota,
+      fotoUrl: removeFoto ? null : (fotoUrl ?? fakeUser.fotoUrl),
     );
     return fakeUser;
+  }
+
+  @override
+  Future<String> uploadProfilePhoto(
+    dynamic bytes, {
+    String filename = 'avatar.jpg',
+  }) async {
+    return '/uploads/fake-avatar.jpg';
   }
 
   @override
@@ -273,6 +289,44 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Ubah password'), findsOneWidget);
+  });
+
+  testWidgets(
+      'EditProfileScreen menampilkan foto profil dan dapat memilih foto baru',
+      (tester) async {
+    final auth = createFakeAuth();
+    await auth.login(email: 'raka@droptix.dev', password: 'password123');
+
+    await tester.pumpWidget(
+      wrapWithAuth(
+        auth,
+        EditProfileScreen(
+          pickPhotoBytes: (source) async => Uint8List.fromList([1, 2, 3]),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserAvatar), findsOneWidget);
+    expect(find.text('Ubah Foto Profil'), findsOneWidget);
+
+    // Ketuk tombol Ubah Foto Profil
+    await tester.tap(find.text('Ubah Foto Profil'));
+    await tester.pumpAndSettle();
+
+    // Muncul modal opsi foto
+    expect(find.text('Pilih dari Galeri'), findsOneWidget);
+    expect(find.text('Ambil Foto Kamera'), findsOneWidget);
+
+    // Pilih dari galeri
+    await tester.tap(find.text('Pilih dari Galeri'));
+    await tester.pumpAndSettle();
+
+    // Simpan perubahan
+    await tester.tap(find.text('Simpan perubahan'));
+    await tester.pumpAndSettle();
+
+    expect(auth.user?.fotoUrl, equals('/uploads/fake-avatar.jpg'));
   });
 }
 

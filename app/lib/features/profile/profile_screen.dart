@@ -121,32 +121,49 @@ class ProfileScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: AppColors.divider, width: 1),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(user.nama, style: AppTextStyles.titleMedium),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  user.email,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: AppColors.textSecondary),
+                UserAvatar(
+                  fotoUrl: user.fotoUrl,
+                  nama: user.nama,
+                  radius: 32,
+                  showEditBadge: false,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  ),
                 ),
-                if (user.kota != null && user.kota!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Kota: ${user.kota}',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textSecondary),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user.nama, style: AppTextStyles.titleMedium),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        user.email,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary),
+                      ),
+                      if (user.kota != null && user.kota!.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Kota: ${user.kota}',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                      if (user.noWa != null && user.noWa!.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'WhatsApp: +${user.noWa}',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-                if (user.noWa != null && user.noWa!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'WhatsApp: +${user.noWa}',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
+                ),
               ],
             ),
           ),

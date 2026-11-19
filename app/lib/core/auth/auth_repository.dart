@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../network/api_client.dart';
 import '../network/api_error.dart';
@@ -81,6 +82,8 @@ class AuthRepository {
     String? nama,
     String? noWa,
     String? kota,
+    String? fotoUrl,
+    bool removeFoto = false,
   }) async {
     try {
       final res = await _client.dio.put<Map<String, dynamic>>(
@@ -89,10 +92,30 @@ class AuthRepository {
           'nama': ?nama,
           'no_wa': ?noWa,
           'kota': ?kota,
+          if (removeFoto) 'foto_url': null else 'foto_url': ?fotoUrl,
         },
       );
       final data = res.data!['data'] as Map<String, dynamic>;
       return UserModel.fromJson(data);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<String> uploadProfilePhoto(
+    Uint8List bytes, {
+    String filename = 'avatar.jpg',
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
+      });
+      final res = await _client.dio.post<Map<String, dynamic>>(
+        '/uploads',
+        data: formData,
+      );
+      final data = Map<String, dynamic>.from(res.data!['data'] as Map);
+      return data['url'] as String;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

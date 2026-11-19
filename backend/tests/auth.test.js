@@ -26,6 +26,7 @@ function createMockDb() {
           password_hash: params[2],
           no_wa: params[3],
           kota: params[4],
+          foto_url: null,
           banned_at: null,
           created_at: new Date().toISOString(),
         };
@@ -38,6 +39,7 @@ function createMockDb() {
               email: user.email,
               no_wa: user.no_wa,
               kota: user.kota,
+              foto_url: null,
             },
           ],
         };
@@ -51,11 +53,14 @@ function createMockDb() {
         return { rows: u ? [u] : [] };
       }
       if (q.startsWith('UPDATE users') && q.includes('SET nama = $1')) {
-        const u = users.find((x) => x.id === params[3]);
+        const u = users.find((x) => x.id === params[params.length - 1]);
         if (!u) return { rows: [] };
         u.nama = params[0];
         u.no_wa = params[1];
         u.kota = params[2];
+        if (params.length > 4) {
+          u.foto_url = params[3];
+        }
         return {
           rows: [
             {
@@ -64,6 +69,7 @@ function createMockDb() {
               email: u.email,
               no_wa: u.no_wa,
               kota: u.kota,
+              foto_url: u.foto_url || null,
               created_at: u.created_at,
             },
           ],
@@ -108,6 +114,7 @@ describe('Auth, /me, validasi, format error & rate limit (T1.3 & T1.5)', () => {
       email: 'budi@example.com',
       no_wa: '6281234567890',
       kota: 'Surabaya',
+      foto_url: null,
     });
 
     const dup = await request(app).post('/api/v1/auth/register').send({
@@ -199,11 +206,17 @@ describe('Auth, /me, validasi, format error & rate limit (T1.3 & T1.5)', () => {
     const upd = await request(app)
       .put('/api/v1/me')
       .set('Authorization', `Bearer ${token}`)
-      .send({ nama: 'Rina Wijaya', no_wa: '081999888777', kota: 'Bandung' });
+      .send({
+        nama: 'Rina Wijaya',
+        no_wa: '081999888777',
+        kota: 'Bandung',
+        foto_url: '/uploads/avatar-rina.jpg',
+      });
     expect(upd.status).toBe(200);
     expect(upd.body.data.nama).toBe('Rina Wijaya');
     expect(upd.body.data.no_wa).toBe('6281999888777');
     expect(upd.body.data.kota).toBe('Bandung');
+    expect(upd.body.data.foto_url).toBe('/uploads/avatar-rina.jpg');
 
     const badPass = await request(app)
       .put('/api/v1/me/password')

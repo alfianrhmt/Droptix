@@ -86,11 +86,14 @@ function createAuthRouter(db) {
         const { rows } = await db.query(
           `INSERT INTO users (nama, email, password_hash, no_wa, kota, setuju_syarat_at)
            VALUES ($1, $2, $3, $4, $5, now())
-           RETURNING id, nama, email, no_wa, kota`,
+           RETURNING id, nama, email, no_wa, kota, foto_url`,
           [nama, email, passwordHash, normalizedWa, kota || null]
         );
 
-        const user = rows[0];
+        const user = {
+          ...rows[0],
+          foto_url: rows[0].foto_url || null,
+        };
         const token = signToken(user);
         return res.status(201).json({ data: { token, user } });
       } catch (err) {
@@ -103,7 +106,7 @@ function createAuthRouter(db) {
     try {
       const { email, password } = req.body;
       const { rows } = await db.query(
-        `SELECT id, nama, email, password_hash, no_wa, kota, banned_at
+        `SELECT id, nama, email, password_hash, no_wa, kota, foto_url, banned_at
          FROM users
          WHERE email = $1
          LIMIT 1`,
@@ -130,6 +133,7 @@ function createAuthRouter(db) {
         email: row.email,
         no_wa: row.no_wa,
         kota: row.kota,
+        foto_url: row.foto_url || null,
       };
       const token = signToken(user);
       return res.status(200).json({ data: { token, user } });

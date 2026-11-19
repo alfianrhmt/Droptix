@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../features/auth/login_screen.dart';
 import '../network/api_error.dart';
@@ -104,6 +105,8 @@ class AuthController extends ChangeNotifier {
     String? nama,
     String? noWa,
     String? kota,
+    String? fotoUrl,
+    bool removeFoto = false,
   }) async {
     _isBusy = true;
     notifyListeners();
@@ -112,6 +115,8 @@ class AuthController extends ChangeNotifier {
         nama: nama,
         noWa: noWa,
         kota: kota,
+        fotoUrl: fotoUrl,
+        removeFoto: removeFoto,
       );
       _user = updated;
       await tokenStorage.saveUser(updated);
@@ -119,6 +124,10 @@ class AuthController extends ChangeNotifier {
       _isBusy = false;
       notifyListeners();
     }
+  }
+
+  Future<String> uploadProfilePhoto(Uint8List bytes) async {
+    return await repository.uploadProfilePhoto(bytes);
   }
 
   Future<void> changePassword({

@@ -49,7 +49,7 @@ function createRequireAuth(db) {
       }
 
       const { rows } = await db.query(
-        `SELECT id, nama, email, no_wa, kota, banned_at, created_at
+        `SELECT id, nama, email, no_wa, kota, foto_url, banned_at, created_at
          FROM users
          WHERE id = $1
          LIMIT 1`,
@@ -71,6 +71,7 @@ function createRequireAuth(db) {
         email: user.email,
         no_wa: user.no_wa,
         kota: user.kota,
+        foto_url: user.foto_url || null,
         created_at: user.created_at,
       };
       return next();
@@ -108,7 +109,7 @@ function createOptionalAuth(db) {
       }
 
       const { rows } = await db.query(
-        `SELECT id, nama, email, no_wa, kota, banned_at, created_at
+        `SELECT id, nama, email, no_wa, kota, foto_url, banned_at, created_at
          FROM users
          WHERE id = $1
          LIMIT 1`,
@@ -127,6 +128,7 @@ function createOptionalAuth(db) {
         email: user.email,
         no_wa: user.no_wa,
         kota: user.kota,
+        foto_url: user.foto_url || null,
         created_at: user.created_at,
       };
       return next();

@@ -37,6 +37,7 @@ const updateMeSchema = z.object({
     .max(60, 'Nama kota maksimal 60 karakter.')
     .optional()
     .nullable(),
+  foto_url: z.string().trim().optional().nullable(),
 });
 
 const updatePasswordSchema = z.object({
@@ -226,7 +227,7 @@ function createMeRouter(db, requireAuth) {
     validate(updateMeSchema),
     async (req, res, next) => {
       try {
-        const { nama, no_wa, kota } = req.body;
+        const { nama, no_wa, kota, foto_url } = req.body;
 
         let nextWa = req.user.no_wa;
         if (no_wa !== undefined) {
@@ -251,13 +252,19 @@ function createMeRouter(db, requireAuth) {
 
         const nextNama = nama !== undefined ? nama : req.user.nama;
         const nextKota = kota !== undefined ? kota || null : req.user.kota;
+        const nextFotoUrl =
+          foto_url !== undefined
+            ? foto_url === null || foto_url === ''
+              ? null
+              : foto_url
+            : req.user.foto_url;
 
         const { rows } = await db.query(
           `UPDATE users
-           SET nama = $1, no_wa = $2, kota = $3
-           WHERE id = $4
-           RETURNING id, nama, email, no_wa, kota, created_at`,
-          [nextNama, nextWa, nextKota, req.user.id]
+           SET nama = $1, no_wa = $2, kota = $3, foto_url = $4
+           WHERE id = $5
+           RETURNING id, nama, email, no_wa, kota, foto_url, created_at`,
+          [nextNama, nextWa, nextKota, nextFotoUrl, req.user.id]
         );
 
         return res.json({ data: rows[0] });

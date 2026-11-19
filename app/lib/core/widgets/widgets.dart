@@ -16,4 +16,5 @@ export 'resell_type_tiles.dart';
 export 'search_bar.dart';
 export 'section_header.dart';
 export 'stats_card.dart';
+export 'user_avatar.dart';
 
