@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -57,6 +58,7 @@ class _EventPickerSheet extends StatefulWidget {
 
 class _EventPickerSheetState extends State<_EventPickerSheet> {
   final _searchController = TextEditingController();
+  Timer? _searchDebounce;
   bool _createMode = false;
   bool _loading = true;
   String? _error;
@@ -74,8 +76,18 @@ class _EventPickerSheetState extends State<_EventPickerSheet> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        _search();
+      }
+    });
   }
 
   Future<void> _loadInitial() async {
@@ -216,7 +228,11 @@ class _EventPickerSheetState extends State<_EventPickerSheet> {
           label: 'Cari nama event',
           hintText: 'Contoh: Nada Senja, Pestapora, Dewa 19',
           textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _search(),
+          onChanged: _onSearchChanged,
+          onSubmitted: (_) {
+            _searchDebounce?.cancel();
+            _search();
+          },
         ),
         const SizedBox(height: AppSpacing.sm),
         if (_categories.isNotEmpty)
@@ -229,6 +245,7 @@ class _EventPickerSheetState extends State<_EventPickerSheet> {
                   label: 'Semua',
                   selected: _selectedCategorySlug == null,
                   onTap: () {
+                    _searchDebounce?.cancel();
                     setState(() => _selectedCategorySlug = null);
                     _search();
                   },
@@ -240,6 +257,7 @@ class _EventPickerSheetState extends State<_EventPickerSheet> {
                       label: cat.nama,
                       selected: _selectedCategorySlug == cat.slug,
                       onTap: () {
+                        _searchDebounce?.cancel();
                         setState(() => _selectedCategorySlug = cat.slug);
                         _search();
                       },
@@ -772,6 +790,32 @@ class _CreateEventFormState extends State<_CreateEventForm> {
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.urgent),
             ),
           ],
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(20),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.primary.withAlpha(50)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Periksa kembali kelengkapan nama, kategori, venue, dan tanggal. Setelah dibuat, event menjadi referensi bersama dan perubahan data hanya dapat diajukan ke admin demi keamanan transaksi tiket.',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(
             label: 'Simpan Event',

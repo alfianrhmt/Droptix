@@ -231,5 +231,43 @@ void main() {
     expect(pickedEvent!.nama, 'Nada Senja Surabaya');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'EventPickerSheet: live search debounce memperbarui pencarian otomatis tanpa enter',
+      (tester) async {
+    final adapter = _FakeEventAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'http://localhost/api/v1'))
+      ..httpClientAdapter = adapter;
+    final repo = EventRepository(
+      ApiClient(tokenStorage: TokenStorage(), dio: dio),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: ElevatedButton(
+                onPressed: () => showEventPickerSheet(context, repository: repo),
+                child: const Text('Buka'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Buka'));
+    await tester.pumpAndSettle();
+
+    // Input text di kolom cari event
+    await tester.enterText(find.byType(TextField).first, 'Nada');
+    // Tunggu debounce 250ms selesai
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nada Senja Live in Surabaya'), findsOneWidget);
+  });
 }
 

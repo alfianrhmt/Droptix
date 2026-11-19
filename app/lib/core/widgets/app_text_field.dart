@@ -16,6 +16,7 @@ class AppTextField extends StatefulWidget {
     this.keyboardType,
     this.textInputAction,
     this.onSubmitted,
+    this.onChanged,
     this.enabled = true,
   });
 
@@ -27,6 +28,7 @@ class AppTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
   final bool enabled;
 
   @override
@@ -61,6 +63,7 @@ class _AppTextFieldState extends State<AppTextField> {
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
           onSubmitted: widget.onSubmitted,
+          onChanged: widget.onChanged,
           enabled: widget.enabled,
           style: AppTextStyles.body,
           decoration: InputDecoration(
