@@ -80,11 +80,10 @@ echo ===================================================================
 echo                  SERVER APLIKASI DROPTIX AKTIF
 echo ===================================================================
 echo.
-echo Buka browser di HP Anda (Chrome / Safari), lalu ketik alamat ini:
+echo   1. Di Laptop : Browser Google Chrome terbuka otomatis ke http://localhost:8080
+echo   2. Di HP     : Buka browser HP (Chrome/Safari), ketik: http://%LOCAL_IP%:8080
 echo.
-echo         http://%LOCAL_IP%:8080
-echo.
-echo [STATUS] Backend dan server HP sedang BERJALAN.
+echo [STATUS] Backend dan server sedang BERJALAN.
 echo Selama jendela terminal ini TERBUKA, backend TETAP HIDUP.
 echo.
 echo ===================================================================

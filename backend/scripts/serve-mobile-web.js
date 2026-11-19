@@ -117,6 +117,14 @@ server.on('upgrade', (req, clientSocket, head) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server Droptix Web aktif di port ${PORT}.`);
   console.log(`Ketik [q] lalu tekan Enter kapan saja untuk mematikan backend dan keluar.\n`);
+
+  // Buka Google Chrome / browser default laptop otomatis ke http://localhost:8080
+  try {
+    const { exec } = require('child_process');
+    if (process.platform === 'win32') {
+      exec('start "" "http://localhost:8080"');
+    }
+  } catch (_) {}
 });
 
 // Menangani perintah 'q' untuk keluar dan mematikan backend
