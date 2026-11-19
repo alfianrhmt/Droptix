@@ -21,7 +21,7 @@ const List<CategoryItem> defaultCategories = [
   CategoryItem(label: 'Bioskop', icon: Icons.movie_rounded),
   CategoryItem(label: 'Olahraga', icon: Icons.sports_soccer_rounded),
   CategoryItem(label: 'Wisata', icon: Icons.landscape_rounded),
-  CategoryItem(label: 'Hiburan Lain', icon: Icons.theater_comedy_rounded),
+  CategoryItem(label: 'Lainnya', icon: Icons.more_horiz_rounded),
 ];
 
 /// Baris horizontal kategori, kotak 64×64.

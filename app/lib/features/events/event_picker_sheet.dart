@@ -519,12 +519,13 @@ class _CreateEventFormState extends State<_CreateEventForm> {
     return '$day, ${dt.day} $month ${dt.year}';
   }
 
-  Future<void> _showAddVenueDialog() async {
+  Future<VenueItem?> _showAddVenueDialog() async {
     final nameCtrl = TextEditingController();
     final cityCtrl = TextEditingController();
     final addressCtrl = TextEditingController();
     String? dialogError;
     bool saving = false;
+    VenueItem? createdVenue;
 
     await showDialog<void>(
       context: context,
@@ -599,6 +600,7 @@ class _CreateEventFormState extends State<_CreateEventForm> {
                           kota: k,
                           alamat: a.isEmpty ? null : a,
                         );
+                        createdVenue = created;
                         if (!mounted) return;
                         setState(() {
                           if (!_venues.any((v) => v.id == created.id)) {
@@ -624,6 +626,28 @@ class _CreateEventFormState extends State<_CreateEventForm> {
         ),
       ),
     );
+    return createdVenue;
+  }
+
+  Future<void> _openVenuePicker() async {
+    final result = await showModalBottomSheet<VenuePickerResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => VenueSearchSheet(
+        venues: _venues,
+        selectedVenue: _selectedVenue,
+        allowNone: !(_selectedCategory?.requiresVenue ?? false),
+        onAddNewVenue: _showAddVenueDialog,
+        searchRemote: (q) => widget.repository.getVenues(q: q),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _selectedVenue = result.venue);
+    }
   }
 
   Future<void> _submit({bool force = false}) async {
@@ -804,45 +828,56 @@ class _CreateEventFormState extends State<_CreateEventForm> {
             style: AppTextStyles.label,
           ),
           const SizedBox(height: AppSpacing.xs),
-          DropdownButtonFormField<int?>(
-            key: ValueKey(_selectedVenue?.id),
-            isExpanded: true,
-            initialValue: _selectedVenue?.id,
-            dropdownColor: AppColors.surfaceHigh,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: AppColors.surfaceHigh,
-              border: OutlineInputBorder(
+          InkWell(
+            onTap: _openVenuePicker,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 14,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceHigh,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                borderSide: BorderSide.none,
+                border: Border.all(
+                  color: _selectedVenue != null
+                      ? AppColors.primary.withAlpha(80)
+                      : AppColors.divider,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search_rounded,
+                    color: _selectedVenue != null
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      _selectedVenue != null
+                          ? '${_selectedVenue!.nama} (${_selectedVenue!.kota})'
+                          : 'Cari atau pilih venue...',
+                      style: AppTextStyles.body.copyWith(
+                        color: _selectedVenue != null
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: _selectedVenue != null
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_drop_down_rounded,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
               ),
             ),
-            hint: const Text('Pilih venue'),
-            items: [
-              if (!requiresVenue)
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text(
-                    'Tanpa venue khusus',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              for (final v in _venues)
-                DropdownMenuItem<int?>(
-                  value: v.id,
-                  child: Text(
-                    '${v.nama} (${v.kota})',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-            onChanged: (id) {
-              setState(() {
-                _selectedVenue = id == null
-                    ? null
-                    : _venues.where((v) => v.id == id).firstOrNull;
-              });
-            },
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -1009,6 +1044,240 @@ class _CreateEventFormState extends State<_CreateEventForm> {
             onPressed: () => _submit(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Hasil dari pemilihan venue pada [VenueSearchSheet].
+class VenuePickerResult {
+  const VenuePickerResult(this.venue);
+  final VenueItem? venue;
+}
+
+/// Bottom sheet pencarian dan pemilihan venue dengan kolom search interaktif.
+class VenueSearchSheet extends StatefulWidget {
+  const VenueSearchSheet({
+    super.key,
+    required this.venues,
+    required this.selectedVenue,
+    required this.allowNone,
+    required this.onAddNewVenue,
+    this.searchRemote,
+  });
+
+  final List<VenueItem> venues;
+  final VenueItem? selectedVenue;
+  final bool allowNone;
+  final Future<VenueItem?> Function() onAddNewVenue;
+  final Future<List<VenueItem>> Function(String q)? searchRemote;
+
+  @override
+  State<VenueSearchSheet> createState() => _VenueSearchSheetState();
+}
+
+class _VenueSearchSheetState extends State<VenueSearchSheet> {
+  final _searchController = TextEditingController();
+  List<VenueItem> _filteredVenues = const [];
+  Timer? _debounce;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredVenues = widget.venues;
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    _debounce?.cancel();
+    final q = val.trim().toLowerCase();
+    if (q.isEmpty) {
+      setState(() => _filteredVenues = widget.venues);
+      return;
+    }
+
+    final local = widget.venues
+        .where((v) =>
+            v.nama.toLowerCase().contains(q) || v.kota.toLowerCase().contains(q))
+        .toList();
+    setState(() => _filteredVenues = local);
+
+    if (widget.searchRemote != null) {
+      _debounce = Timer(const Duration(milliseconds: 300), () async {
+        setState(() => _loading = true);
+        try {
+          final remote = await widget.searchRemote!(q);
+          if (!mounted) return;
+          final map = {for (final v in local) v.id: v};
+          for (final r in remote) {
+            map[r.id] = r;
+          }
+          setState(() {
+            _filteredVenues = map.values.toList();
+            _loading = false;
+          });
+        } catch (_) {
+          if (mounted) setState(() => _loading = false);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            AppSpacing.md + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Pilih Venue', style: AppTextStyles.titleMedium),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final created = await widget.onAddNewVenue();
+                      if (created != null && context.mounted) {
+                        Navigator.of(context).pop(VenuePickerResult(created));
+                      }
+                    },
+                    icon: const Icon(Icons.add_location_alt_outlined, size: 16),
+                    label: const Text('+ Tambah Venue'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppTextField(
+                controller: _searchController,
+                label: 'Cari venue atau kota',
+                hintText: 'Contoh: Grand City, Surabaya',
+                onChanged: _onSearchChanged,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Flexible(
+                child: _loading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppSpacing.lg),
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        ),
+                      )
+                    : ListView(
+                        shrinkWrap: true,
+                        children: [
+                          if (widget.allowNone)
+                            ListTile(
+                              leading: const Icon(Icons.location_off_outlined,
+                                  color: AppColors.textSecondary),
+                              title: const Text('Tanpa venue khusus'),
+                              trailing: widget.selectedVenue == null
+                                  ? const Icon(Icons.check_circle_rounded,
+                                      color: AppColors.primary)
+                                  : null,
+                              onTap: () => Navigator.of(context)
+                                  .pop(const VenuePickerResult(null)),
+                            ),
+                          if (_filteredVenues.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppSpacing.xl),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Venue tidak ditemukan.',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                        color: AppColors.textSecondary),
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                  PrimaryButton(
+                                    label: 'Tambah Venue Baru',
+                                    icon: Icons.add_rounded,
+                                    onPressed: () async {
+                                      final created =
+                                          await widget.onAddNewVenue();
+                                      if (created != null && context.mounted) {
+                                        Navigator.of(context)
+                                            .pop(VenuePickerResult(created));
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            for (final v in _filteredVenues) ...[
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: AppSpacing.xs,
+                                ),
+                                leading: const Icon(Icons.location_on_rounded,
+                                    color: AppColors.primary),
+                                title: Text(
+                                  v.nama,
+                                  style: AppTextStyles.body
+                                      .copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  [
+                                    v.kota,
+                                    if (v.alamat != null &&
+                                        v.alamat!.isNotEmpty)
+                                      v.alamat!,
+                                  ].join(' • '),
+                                  style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: widget.selectedVenue?.id == v.id
+                                    ? const Icon(Icons.check_circle_rounded,
+                                        color: AppColors.primary)
+                                    : null,
+                                onTap: () => Navigator.of(context)
+                                    .pop(VenuePickerResult(v)),
+                              ),
+                              const Divider(
+                                  height: 1, color: AppColors.divider),
+                            ],
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

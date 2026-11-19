@@ -10,7 +10,7 @@ const CATEGORIES = [
   { urutan: 2, slug: 'bioskop', nama: 'Bioskop', ikon: 'movie' },
   { urutan: 3, slug: 'olahraga', nama: 'Olahraga', ikon: 'sports_soccer' },
   { urutan: 4, slug: 'wisata', nama: 'Wisata', ikon: 'landscape' },
-  { urutan: 5, slug: 'hiburan-lain', nama: 'Hiburan Lain', ikon: 'theater_comedy' },
+  { urutan: 5, slug: 'hiburan-lain', nama: 'Lainnya', ikon: 'more_horiz' },
 ];
 
 // 28 venue (18 Surabaya, 10 kota besar lain)

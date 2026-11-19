@@ -20,7 +20,7 @@ function createTrendingMockDb() {
     { id: 2, slug: 'bioskop', nama: 'Bioskop', urutan: 2 },
     { id: 3, slug: 'olahraga', nama: 'Olahraga', urutan: 3 },
     { id: 4, slug: 'wisata', nama: 'Wisata', urutan: 4 },
-    { id: 5, slug: 'hiburan-lain', nama: 'Hiburan Lain', urutan: 5 },
+    { id: 5, slug: 'hiburan-lain', nama: 'Lainnya', urutan: 5 },
   ];
   const venues = [
     { id: 1, nama: 'Grand City Hall', kota: 'Surabaya', lat: -7.262, lng: 112.751 },

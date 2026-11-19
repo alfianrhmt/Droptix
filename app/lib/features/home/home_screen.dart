@@ -19,7 +19,7 @@ import '../search/search_screen.dart';
 /// 3. BannerCarousel (event ramai / terdekat dari GET /events/trending)
 /// 4. ResellTypeTiles (Limited, Last-Minute)
 /// 5. QuickDateGrid (Hari ini, Besok, Akhir pekan, Lihat semua)
-/// 6. CategoryRow (Konser & Festival, Bioskop, Olahraga, Wisata, Hiburan Lain)
+/// 6. CategoryRow (Konser & Festival, Bioskop, Olahraga, Wisata, Lainnya)
 /// 7. Carousel "Dekat Kamu" (PosterCard horizontal)
 /// 8. Section "Segera Berakhir" (ListingRow vertikal)
 /// 9. Section "Baru Ditambahkan" (ListingRow vertikal, scroll tanpa batas)
@@ -449,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ('Bioskop', 'bioskop', Icons.movie_rounded),
       ('Olahraga', 'olahraga', Icons.sports_soccer_rounded),
       ('Wisata', 'wisata', Icons.landscape_rounded),
-      ('Hiburan Lain', 'hiburan-lain', Icons.theater_comedy_rounded),
+      ('Lainnya', 'hiburan-lain', Icons.more_horiz_rounded),
     ];
 
     final items = categoriesWithSlugs

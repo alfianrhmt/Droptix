@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "dev": "nodemon -L src/index.js",
     "migrate": "node db/migrate.js",
     "seed": "node db/seed.js",
     "test": "jest --forceExit"

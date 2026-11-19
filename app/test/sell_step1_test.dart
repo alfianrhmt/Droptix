@@ -6,7 +6,6 @@ import 'package:droptix/core/auth/user_model.dart';
 import 'package:droptix/core/network/api_client.dart';
 import 'package:droptix/core/theme/theme.dart';
 import 'package:droptix/features/events/event_models.dart';
-import 'package:droptix/features/events/event_picker_sheet.dart';
 import 'package:droptix/features/events/event_repository.dart';
 import 'package:droptix/features/listings/listing_models.dart';
 import 'package:droptix/features/listings/listing_repository.dart';

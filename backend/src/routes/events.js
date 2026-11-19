@@ -140,7 +140,7 @@ function createEventsRouter(db, requireAuth) {
 
       const banners = [];
 
-      // 1. Kategori acara (Konser & Festival, Olahraga, Hiburan Lain) -> Banner "event"
+      // 1. Kategori acara (Konser & Festival, Olahraga, Lainnya) -> Banner "event"
       // skor_event = active_listings_count + 0.5 * new_convs_7d
       const eventScoresSql = `
         WITH event_scores AS (

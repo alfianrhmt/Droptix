@@ -215,12 +215,13 @@ class _SellScreenState extends State<SellScreen> {
     });
   }
 
-  Future<void> _showAddVenueDialog() async {
+  Future<VenueItem?> _showAddVenueDialog() async {
     final nameCtrl = TextEditingController();
     final cityCtrl = TextEditingController(text: _cityController.text.trim());
     final addressCtrl = TextEditingController();
     String? dialogError;
     bool saving = false;
+    VenueItem? createdVenue;
 
     await showDialog<void>(
       context: context,
@@ -295,6 +296,7 @@ class _SellScreenState extends State<SellScreen> {
                           kota: k,
                           alamat: a.isEmpty ? null : a,
                         );
+                        createdVenue = created;
                         if (!mounted) return;
                         setState(() {
                           if (!_venues.any((v) => v.id == created.id)) {
@@ -323,6 +325,33 @@ class _SellScreenState extends State<SellScreen> {
         ),
       ),
     );
+    return createdVenue;
+  }
+
+  Future<void> _openVenuePicker() async {
+    final result = await showModalBottomSheet<VenuePickerResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => VenueSearchSheet(
+        venues: _venues,
+        selectedVenue: _selectedVenue,
+        allowNone: !(_selectedEvent?.category.requiresVenue ?? false),
+        onAddNewVenue: _showAddVenueDialog,
+        searchRemote: (q) => _eventRepo.getVenues(q: q),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _selectedVenue = result.venue;
+        if (result.venue != null) {
+          _cityController.text = result.venue!.kota;
+        }
+      });
+    }
   }
 
   String _formatIndoDate(DateTime dt) {
@@ -854,41 +883,56 @@ class _SellScreenState extends State<SellScreen> {
               hintText: 'Contoh: Parkir Timur Senayan',
             )
           else ...[
-            DropdownButtonFormField<int?>(
-              key: ValueKey(_selectedVenue?.id),
-              isExpanded: true,
-              initialValue: _selectedVenue?.id,
-              dropdownColor: AppColors.surfaceHigh,
-              hint: const Text('Pilih venue'),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: AppColors.surfaceHigh,
-                border: OutlineInputBorder(
+            InkWell(
+              onTap: _openVenuePicker,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHigh,
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide.none,
+                  border: Border.all(
+                    color: _selectedVenue != null
+                        ? AppColors.primary.withAlpha(80)
+                        : AppColors.divider,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search_rounded,
+                      color: _selectedVenue != null
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        _selectedVenue != null
+                            ? '${_selectedVenue!.nama} (${_selectedVenue!.kota})'
+                            : 'Cari atau pilih venue...',
+                        style: AppTextStyles.body.copyWith(
+                          color: _selectedVenue != null
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontWeight: _selectedVenue != null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_drop_down_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
                 ),
               ),
-              items: [
-                if (!requiresVenue)
-                  const DropdownMenuItem<int?>(
-                    value: null,
-                    child: Text('Tanpa venue khusus',
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                for (final v in _venues)
-                  DropdownMenuItem<int?>(
-                    value: v.id,
-                    child: Text('${v.nama} (${v.kota})',
-                        overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (id) {
-                final v = _venues.where((x) => x.id == id).firstOrNull;
-                setState(() {
-                  _selectedVenue = v;
-                  if (v != null) _cityController.text = v.kota;
-                });
-              },
             ),
             Align(
               alignment: Alignment.centerRight,
