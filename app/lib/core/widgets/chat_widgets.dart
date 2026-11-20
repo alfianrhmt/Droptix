@@ -232,13 +232,23 @@ class ChatListingCard extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.chipInactive,
+                color: status == 'Tersedia'
+                    ? AppColors.primary.withAlpha(25)
+                    : (status == 'Kedaluwarsa'
+                        ? AppColors.urgent.withAlpha(25)
+                        : AppColors.chipInactive),
                 borderRadius: BorderRadius.circular(AppRadius.full),
               ),
               child: Text(
                 status,
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.caption.copyWith(
+                  color: status == 'Tersedia'
+                      ? AppColors.primary
+                      : (status == 'Kedaluwarsa'
+                          ? AppColors.urgent
+                          : AppColors.textSecondary),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

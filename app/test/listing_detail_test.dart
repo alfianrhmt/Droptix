@@ -8,6 +8,7 @@ import 'package:droptix/core/auth/auth_repository.dart';
 import 'package:droptix/core/auth/token_storage.dart';
 import 'package:droptix/core/auth/user_model.dart';
 import 'package:droptix/core/network/api_client.dart';
+import 'package:droptix/core/network/api_error.dart';
 import 'package:droptix/core/theme/theme.dart';
 import 'package:droptix/core/widgets/countdown_timer.dart';
 import 'package:droptix/core/widgets/event_poster.dart';
@@ -68,15 +69,17 @@ class _FakeAuthRepository extends AuthRepository {
 }
 
 class _FakeListingDetailRepository implements ListingRepository {
-  _FakeListingDetailRepository({required this.detailItem});
+  _FakeListingDetailRepository({required this.detailItem, this.detailError});
 
   ListingItem detailItem;
+  Object? detailError;
   bool toggleFavoriteCalled = false;
   int? toggledId;
   bool? toggledCurrentStatus;
 
   @override
   Future<ListingItem> getListingDetail(int id, {double? lat, double? lng}) async {
+    if (detailError != null) throw detailError!;
     return detailItem;
   }
 
@@ -220,7 +223,8 @@ void main() {
   });
 
   Future<Widget> createTestWidget({
-    required ListingItem listing,
+    ListingItem? listing,
+    int? listingId,
     required _FakeListingDetailRepository repository,
     UserModel? loggedInUser,
     ModerationRepository? moderationRepository,
@@ -249,7 +253,7 @@ void main() {
           home: MediaQuery(
             data: const MediaQueryData(size: Size(360, 740)),
             child: ListingDetailScreen(
-              listingId: listing.id,
+              listingId: listingId ?? listing?.id ?? 1,
               initialItem: listing,
               listingRepository: repository,
               moderationRepository: moderationRepository ?? _FakeModerationRepository(),
@@ -536,6 +540,33 @@ void main() {
       expect(find.text('Surabaya Timur'), findsOneWidget);
       // Untuk tiket fisik, label "Venue Acara" tidak ditampilkan di box lokasi
       expect(find.text('Venue Acara'), findsNothing);
+    });
+
+    testWidgets('menampilkan tampilan ramah Tiket Sudah Tidak Tersedia saat 404/kedaluwarsa', (tester) async {
+      final listing = _createTestListing();
+      final repo = _FakeListingDetailRepository(
+        detailItem: listing,
+        detailError: const ApiException(
+          code: 'NOT_FOUND',
+          message: 'Listing tidak ditemukan atau sudah tidak aktif',
+          statusCode: 404,
+        ),
+      );
+
+      await tester.pumpWidget(await createTestWidget(
+        listing: null,
+        listingId: 999,
+        repository: repo,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tiket Sudah Tidak Tersedia'), findsOneWidget);
+      expect(
+        find.text('Tiket ini telah kedaluwarsa, sudah terjual habis, atau dinonaktifkan oleh penjual.'),
+        findsOneWidget,
+      );
+      expect(find.text('Kembali'), findsOneWidget);
+      expect(find.text('Coba Lagi'), findsNothing);
     });
   });
 }

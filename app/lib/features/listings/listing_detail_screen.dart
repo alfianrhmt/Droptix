@@ -322,19 +322,78 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     }
 
     if (_errorMessage != null && item == null) {
+      final msgLower = _errorMessage!.toLowerCase();
+      final isNotFoundOrExpired = msgLower.contains('tidak ditemukan') ||
+          msgLower.contains('tidak aktif') ||
+          msgLower.contains('kedaluwarsa') ||
+          msgLower.contains('not found') ||
+          msgLower.contains('404');
+
+      if (isNotFoundOrExpired) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceHigh,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.divider, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.event_busy_rounded,
+                    color: AppColors.textSecondary,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Tiket Sudah Tidak Tersedia',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Tiket ini telah kedaluwarsa, sudah terjual habis, atau dinonaktifkan oleh penjual.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                PrimaryButton(
+                  label: 'Kembali',
+                  icon: Icons.arrow_back_rounded,
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.screenH),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded,
+              const Icon(Icons.wifi_off_rounded,
                   color: AppColors.urgent, size: 48),
               const SizedBox(height: AppSpacing.md),
               Text(
-                _errorMessage!,
+                'Koneksi Terganggu',
+                style: AppTextStyles.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Gagal memuat detail tiket. Periksa koneksi internet Anda.',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.body,
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(

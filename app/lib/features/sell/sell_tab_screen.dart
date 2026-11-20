@@ -454,31 +454,35 @@ class _SellTabScreenState extends State<SellTabScreen> {
               AppSpacing.screenH,
               AppSpacing.sm,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text('Penjualan', style: AppTextStyles.titleLarge),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                ElevatedButton.icon(
-                  onPressed: _openSellWizard,
-                  icon: const Icon(Icons.add_rounded, size: 20),
-                  label: const Text('Jual Tiket'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.full),
+            child: SizedBox(
+              height: 40,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text('Penjualan', style: AppTextStyles.titleLarge),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  ElevatedButton.icon(
+                    onPressed: _openSellWizard,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text('Jual Tiket'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 

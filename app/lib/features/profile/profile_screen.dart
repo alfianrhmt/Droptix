@@ -59,11 +59,20 @@ class ProfileScreen extends StatelessWidget {
     if (user == null) {
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.screenH),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.lg,
+            AppSpacing.screenH,
+            AppSpacing.screenH,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Profile', style: AppTextStyles.titleLarge),
+              Container(
+                height: 40,
+                alignment: Alignment.centerLeft,
+                child: Text('Profile', style: AppTextStyles.titleLarge),
+              ),
               const Spacer(),
               const Icon(
                 Icons.person_outline_rounded,
@@ -112,8 +121,12 @@ class ProfileScreen extends StatelessWidget {
           vertical: AppSpacing.lg,
         ),
         children: [
-          Text('Profile', style: AppTextStyles.titleLarge),
-          const SizedBox(height: AppSpacing.lg),
+          Container(
+            height: 40,
+            alignment: Alignment.centerLeft,
+            child: Text('Profile', style: AppTextStyles.titleLarge),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
