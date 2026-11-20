@@ -7,7 +7,10 @@ const { validate } = require('../middleware/validate');
 const listVenuesQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   kota: z.string().trim().max(60).optional(),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+  user_kota: z.string().trim().max(60).optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
 });
 
 const createVenueBodySchema = z.object({
@@ -50,13 +53,13 @@ function createVenuesRouter(db) {
 
   router.get('/', validate(listVenuesQuerySchema, 'query'), async (req, res, next) => {
     try {
-      const { q, kota, limit } = req.query;
+      const { q, kota, user_kota, lat, lng, limit } = req.query;
       const conditions = [];
       const params = [];
 
       if (q) {
         params.push(`%${q}%`);
-        conditions.push(`nama ILIKE $${params.length}`);
+        conditions.push(`(nama ILIKE $${params.length} OR kota ILIKE $${params.length})`);
       }
       if (kota) {
         params.push(kota);
@@ -64,14 +67,32 @@ function createVenuesRouter(db) {
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const orderParts = [];
+      if (user_kota) {
+        params.push(user_kota);
+        orderParts.push(`CASE WHEN LOWER(kota) = LOWER($${params.length}) THEN 0 ELSE 1 END ASC`);
+      }
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        params.push(lat);
+        const latParam = params.length;
+        params.push(lng);
+        const lngParam = params.length;
+        orderParts.push(
+          `CASE WHEN lat IS NOT NULL AND lng IS NOT NULL THEN (6371 * acos(least(1.0, greatest(-1.0, cos(radians($${latParam})) * cos(radians(lat)) * cos(radians(lng) - radians($${lngParam})) + sin(radians($${latParam})) * sin(radians(lat)))))) ELSE 99999 END ASC`
+        );
+      }
+      orderParts.push('nama ASC', 'id ASC');
+
       params.push(limit);
+      const limitParam = params.length;
 
       const result = await db.query(
         `SELECT id, nama, kota, alamat, lat, lng
          FROM venues
          ${whereClause}
-         ORDER BY nama ASC, id ASC
-         LIMIT $${params.length}`,
+         ORDER BY ${orderParts.join(', ')}
+         LIMIT $${limitParam}`,
         params
       );
 

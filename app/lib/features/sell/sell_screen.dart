@@ -122,7 +122,13 @@ class _SellScreenState extends State<SellScreen> {
 
   Future<void> _loadVenues() async {
     try {
-      final list = await _eventRepo.getVenues();
+      final location = LocationScope.maybeOf(context);
+      final userCity = location?.city ?? AuthScope.maybeOf(context)?.user?.kota ?? 'Surabaya';
+      final list = await _eventRepo.getVenues(
+        userKota: userCity,
+        lat: location?.lat,
+        lng: location?.lng,
+      );
       if (mounted) setState(() => _venues = list);
     } catch (_) {}
   }
@@ -329,6 +335,12 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   Future<void> _openVenuePicker() async {
+    final location = LocationScope.maybeOf(context);
+    final userCity = location?.city ?? AuthScope.maybeOf(context)?.user?.kota ?? 'Surabaya';
+    final isBioskop = _selectedEvent?.category.slug == 'bioskop';
+    final requiresVenue =
+        (_selectedEvent?.category.requiresVenue ?? false) || isBioskop;
+
     final result = await showModalBottomSheet<VenuePickerResult>(
       context: context,
       isScrollControlled: true,
@@ -339,9 +351,15 @@ class _SellScreenState extends State<SellScreen> {
       builder: (ctx) => VenueSearchSheet(
         venues: _venues,
         selectedVenue: _selectedVenue,
-        allowNone: !(_selectedEvent?.category.requiresVenue ?? false),
+        userCity: userCity,
+        allowNone: !requiresVenue,
         onAddNewVenue: _showAddVenueDialog,
-        searchRemote: (q) => _eventRepo.getVenues(q: q),
+        searchRemote: (q) => _eventRepo.getVenues(
+          q: q,
+          userKota: userCity,
+          lat: location?.lat,
+          lng: location?.lng,
+        ),
       ),
     );
     if (result != null && mounted) {
@@ -406,17 +424,24 @@ class _SellScreenState extends State<SellScreen> {
           error = 'Pilih event terlebih dahulu.';
         } else {
           final cat = _selectedEvent!.category;
-          if (cat.requiresVenue && !_useCustomVenue && _selectedVenue == null) {
+          final isBioskop = cat.slug == 'bioskop';
+          final requiresVenueInSell = cat.requiresVenue || isBioskop;
+          final requiresDateInSell = cat.requiresDate || isBioskop;
+          final requiresTimeInSell = cat.requiresTime || isBioskop;
+
+          if (requiresVenueInSell && !_useCustomVenue && _selectedVenue == null) {
             error = 'Pilih venue untuk kategori ${cat.nama}.';
           } else if (_useCustomVenue &&
               _customVenueController.text.trim().isEmpty) {
             error = 'Nama venue wajib diisi.';
           } else if (_effectiveCity.isEmpty) {
             error = 'Kota acara wajib diisi.';
-          } else if (_selectedDate == null) {
-            error = 'Pilih tanggal acara untuk tiket Anda.';
-          } else if (cat.requiresTime && _selectedTime == null) {
-            error = 'Pilih jam acara untuk kategori ${cat.nama}.';
+          } else if (requiresDateInSell && _selectedDate == null) {
+            error = isBioskop
+                ? 'Pilih tanggal tayang tiket bioskop Anda.'
+                : 'Pilih tanggal acara untuk tiket Anda.';
+          } else if (requiresTimeInSell && _selectedTime == null) {
+            error = 'Pilih jam tayang/acara untuk kategori ${cat.nama}.';
           } else if (_waktuAcara == null ||
               !_waktuAcara!.isAfter(DateTime.now())) {
             error = 'Pilih tanggal & jam acara di masa depan.';
@@ -727,9 +752,10 @@ class _SellScreenState extends State<SellScreen> {
 
   Widget _buildStep1EventVenueTime() {
     final cat = _selectedEvent?.category;
-    final requiresVenue = cat?.requiresVenue ?? true;
-    final requiresDate = cat?.requiresDate ?? true;
-    final requiresTime = cat?.requiresTime ?? true;
+    final isBioskop = cat?.slug == 'bioskop';
+    final requiresVenue = (cat?.requiresVenue ?? true) || isBioskop;
+    final requiresDate = (cat?.requiresDate ?? true) || isBioskop;
+    final requiresTime = (cat?.requiresTime ?? true) || isBioskop;
 
     final hasEventVenue = _selectedEvent?.venue != null;
     final hasEventDates = _selectedEvent != null &&

@@ -194,5 +194,9 @@ class AuthScope extends InheritedNotifier<AuthController> {
     assert(scope != null, 'AuthScope tidak ditemukan di atas widget ini.');
     return scope!.notifier!;
   }
+
+  static AuthController? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<AuthScope>()?.notifier;
+  }
 }
 

@@ -22,13 +22,22 @@ class EventRepository {
     }
   }
 
-  Future<List<VenueItem>> getVenues({String? q, String? kota}) async {
+  Future<List<VenueItem>> getVenues({
+    String? q,
+    String? kota,
+    String? userKota,
+    double? lat,
+    double? lng,
+  }) async {
     try {
       final res = await _apiClient.dio.get<Map<String, dynamic>>(
         '/venues',
         queryParameters: {
           if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
           if (kota != null && kota.trim().isNotEmpty) 'kota': kota.trim(),
+          if (userKota != null && userKota.trim().isNotEmpty) 'user_kota': userKota.trim(),
+          'lat': ?lat,
+          'lng': ?lng,
         },
       );
       final list = res.data?['data'] as List<dynamic>? ?? const [];

@@ -164,7 +164,13 @@ class _FakeEventRepository implements EventRepository {
   Future<List<EventCategory>> getCategories() async => const [];
 
   @override
-  Future<List<VenueItem>> getVenues({String? q, String? kota}) async =>
+  Future<List<VenueItem>> getVenues({
+    String? q,
+    String? kota,
+    String? userKota,
+    double? lat,
+    double? lng,
+  }) async =>
       const [];
 
   @override

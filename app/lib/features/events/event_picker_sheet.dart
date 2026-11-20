@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/location/location_controller.dart';
 import '../../core/network/api_error.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
@@ -336,15 +337,64 @@ class _EventPickerSheetState extends State<_EventPickerSheet> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              subtitle: Text(
-                                [
-                                  ev.category.nama,
-                                  if (ev.venue != null) ev.venue!.kota,
-                                ].join(' • '),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.caption
-                                    .copyWith(color: AppColors.textSecondary),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      ev.category.nama,
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (ev.venue != null) ...[
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.location_on_outlined,
+                                            size: 13,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              '${ev.venue!.nama}, ${ev.venue!.kota}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: AppTextStyles.caption
+                                                  .copyWith(color: AppColors.textSecondary),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                    if (_getEventDateLabel(ev) != null) ...[
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.calendar_today_outlined,
+                                            size: 13,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              _getEventDateLabel(ev)!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: AppTextStyles.caption
+                                                  .copyWith(color: AppColors.textSecondary),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                               trailing: const Icon(
                                 Icons.chevron_right_rounded,
@@ -357,6 +407,33 @@ class _EventPickerSheetState extends State<_EventPickerSheet> {
         ),
       ],
     );
+  }
+
+  String _formatIndoDateShort(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  String? _getEventDateLabel(EventItem ev) {
+    if (ev.tanggalOpsi.isNotEmpty) {
+      if (ev.tanggalOpsi.length == 1) {
+        final dt = DateTime.tryParse(ev.tanggalOpsi.first);
+        return dt != null ? _formatIndoDateShort(dt) : ev.tanggalOpsi.first;
+      }
+      final first = DateTime.tryParse(ev.tanggalOpsi.first);
+      final last = DateTime.tryParse(ev.tanggalOpsi.last);
+      if (first != null && last != null) {
+        return '${_formatIndoDateShort(first)} - ${_formatIndoDateShort(last)} (${ev.tanggalOpsi.length} hari)';
+      }
+      return '${ev.tanggalOpsi.first} - ${ev.tanggalOpsi.last}';
+    }
+    if (ev.tanggal != null) {
+      return _formatIndoDateShort(ev.tanggal!);
+    }
+    return null;
   }
 }
 
@@ -449,7 +526,12 @@ class _CreateEventFormState extends State<_CreateEventForm> {
 
   Future<void> _loadVenues() async {
     try {
-      final venues = await widget.repository.getVenues();
+      final location = LocationScope.maybeOf(context);
+      final venues = await widget.repository.getVenues(
+        userKota: location?.city,
+        lat: location?.lat,
+        lng: location?.lng,
+      );
       if (mounted) setState(() => _venues = venues);
     } catch (_) {}
   }
@@ -630,6 +712,8 @@ class _CreateEventFormState extends State<_CreateEventForm> {
   }
 
   Future<void> _openVenuePicker() async {
+    final location = LocationScope.maybeOf(context);
+    final userCity = location?.city;
     final result = await showModalBottomSheet<VenuePickerResult>(
       context: context,
       isScrollControlled: true,
@@ -640,9 +724,15 @@ class _CreateEventFormState extends State<_CreateEventForm> {
       builder: (ctx) => VenueSearchSheet(
         venues: _venues,
         selectedVenue: _selectedVenue,
+        userCity: userCity,
         allowNone: !(_selectedCategory?.requiresVenue ?? false),
         onAddNewVenue: _showAddVenueDialog,
-        searchRemote: (q) => widget.repository.getVenues(q: q),
+        searchRemote: (q) => widget.repository.getVenues(
+          q: q,
+          userKota: userCity,
+          lat: location?.lat,
+          lng: location?.lng,
+        ),
       ),
     );
     if (result != null && mounted) {
@@ -1051,12 +1141,14 @@ class VenueSearchSheet extends StatefulWidget {
     required this.selectedVenue,
     required this.allowNone,
     required this.onAddNewVenue,
+    this.userCity,
     this.searchRemote,
   });
 
   final List<VenueItem> venues;
   final VenueItem? selectedVenue;
   final bool allowNone;
+  final String? userCity;
   final Future<VenueItem?> Function() onAddNewVenue;
   final Future<List<VenueItem>> Function(String q)? searchRemote;
 
@@ -1070,10 +1162,27 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
   Timer? _debounce;
   bool _loading = false;
 
+  List<VenueItem> _sortVenues(List<VenueItem> list) {
+    if (widget.userCity == null || widget.userCity!.trim().isEmpty) {
+      return list;
+    }
+    final target = widget.userCity!.trim().toLowerCase();
+    final inCity = <VenueItem>[];
+    final otherCity = <VenueItem>[];
+    for (final v in list) {
+      if (v.kota.trim().toLowerCase() == target) {
+        inCity.add(v);
+      } else {
+        otherCity.add(v);
+      }
+    }
+    return [...inCity, ...otherCity];
+  }
+
   @override
   void initState() {
     super.initState();
-    _filteredVenues = widget.venues;
+    _filteredVenues = _sortVenues(widget.venues);
   }
 
   @override
@@ -1087,7 +1196,7 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
     _debounce?.cancel();
     final q = val.trim().toLowerCase();
     if (q.isEmpty) {
-      setState(() => _filteredVenues = widget.venues);
+      setState(() => _filteredVenues = _sortVenues(widget.venues));
       return;
     }
 
@@ -1095,7 +1204,7 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
         .where((v) =>
             v.nama.toLowerCase().contains(q) || v.kota.toLowerCase().contains(q))
         .toList();
-    setState(() => _filteredVenues = local);
+    setState(() => _filteredVenues = _sortVenues(local));
 
     if (widget.searchRemote != null) {
       _debounce = Timer(const Duration(milliseconds: 300), () async {
@@ -1108,7 +1217,7 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
             map[r.id] = r;
           }
           setState(() {
-            _filteredVenues = map.values.toList();
+            _filteredVenues = _sortVenues(map.values.toList());
             _loading = false;
           });
         } catch (_) {
@@ -1243,7 +1352,13 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
                                 ),
                                 subtitle: Text(
                                   [
-                                    v.kota,
+                                    if (widget.userCity != null &&
+                                        widget.userCity!.trim().isNotEmpty &&
+                                        v.kota.trim().toLowerCase() ==
+                                            widget.userCity!.trim().toLowerCase())
+                                      '${v.kota} (Wilayah Anda)'
+                                    else
+                                      v.kota,
                                     if (v.alamat != null &&
                                         v.alamat!.isNotEmpty)
                                       v.alamat!,

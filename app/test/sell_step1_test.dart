@@ -62,14 +62,37 @@ class _Step1FakeEventRepo implements EventRepository {
     tanggalOpsi: [],
   );
 
+  final bioskopEvent = const EventItem(
+    id: 101,
+    nama: 'Avengers: Secret Wars',
+    category: EventCategory(
+      id: 2,
+      slug: 'bioskop',
+      nama: 'Bioskop',
+      ikon: 'movie',
+      urutan: 2,
+    ),
+    venue: null,
+    tanggal: null,
+    tanggalOpsi: [],
+  );
+
   @override
   Future<List<EventCategory>> getCategories() async => [
         multiDateEvent.category,
         wisataEvent.category,
+        bioskopEvent.category,
       ];
 
   @override
-  Future<List<VenueItem>> getVenues({String? q, String? kota}) async => venues;
+  Future<List<VenueItem>> getVenues({
+    String? q,
+    String? kota,
+    String? userKota,
+    double? lat,
+    double? lng,
+  }) async =>
+      venues;
 
   @override
   Future<VenueItem> createVenue({
@@ -84,7 +107,7 @@ class _Step1FakeEventRepo implements EventRepository {
 
   @override
   Future<List<EventItem>> searchEvents({String? q, String? categorySlug}) async =>
-      [multiDateEvent, wisataEvent];
+      [multiDateEvent, wisataEvent, bioskopEvent];
 
   @override
   Future<EventItem> createEvent({
@@ -220,6 +243,10 @@ void main() {
 
     // 2. Pilih Soundrenaline 2026 (konser multi tanggal)
     expect(find.text('Soundrenaline 2026'), findsOneWidget);
+    // Verifikasi ada informasi venue dan tanggal di hasil pencarian event
+    expect(find.textContaining('Stadion Gelora Bung Tomo, Surabaya'), findsOneWidget);
+    expect(find.textContaining('28 Nov 2026 - 30 Nov 2026 (3 hari)'), findsOneWidget);
+
     await tester.tap(find.text('Soundrenaline 2026'));
     await tester.pumpAndSettle();
 
@@ -322,5 +349,60 @@ void main() {
     // Dialog tertutup dan venue baru terpilih
     expect(find.text('Tambah Venue Baru'), findsNothing);
     expect(find.textContaining('Jatim International Expo'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Tahap 1: Pilih event bioskop -> venue & tanggal acara berstatus wajib',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final storage = TokenStorage();
+    await storage.saveSession(
+      'token-123',
+      const UserModel(id: 1, nama: 'Budi', email: 'budi@example.com', kota: 'Surabaya'),
+    );
+    final auth = AuthController(repository: _FakeAuthRepo(), tokenStorage: storage);
+    await auth.restoreSession();
+
+    final fakeEventRepo = _Step1FakeEventRepo();
+    final fakeListingRepo = _Step1FakeListingRepo();
+
+    await tester.pumpWidget(
+      AuthScope(
+        controller: auth,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: Scaffold(
+            body: SellScreen(
+              eventRepository: fakeEventRepo,
+              listingRepository: fakeListingRepo,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Buka event picker dan pilih film bioskop
+    await tester.tap(find.text('Pilih atau tambah event...'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Avengers: Secret Wars'), findsOneWidget);
+    await tester.tap(find.text('Avengers: Secret Wars'));
+    await tester.pumpAndSettle();
+
+    // 2. Verifikasi status field untuk Bioskop: Venue, Tanggal, Jam WAJIB
+    expect(find.text('Venue (wajib)'), findsOneWidget);
+    expect(find.text('Tanggal acara (wajib)'), findsOneWidget);
+    expect(find.text('Jam acara (wajib)'), findsOneWidget);
+
+    // 3. Jika mencoba lanjut tanpa memilih venue, muncul error validasi
+    await tester.tap(find.text('Lanjut'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pilih venue untuk kategori Bioskop.'), findsOneWidget);
   });
 }

@@ -246,14 +246,15 @@ function createEventsRouter(db, requireAuth) {
       const { q, category } = req.query;
       const conditions = [
         'e.hidden = false',
-        `(e.tanggal IS NULL OR e.tanggal > now() OR EXISTS (
-          SELECT 1 FROM listings l
-          WHERE l.event_id = e.id
-            AND l.deleted_at IS NULL
-            AND l.hidden = false
-            AND l.jumlah_terjual < l.jumlah_total
-            AND l.waktu_acara > now()
-        ))`,
+        `(
+          (e.tanggal IS NULL AND (e.tanggal_opsi IS NULL OR cardinality(e.tanggal_opsi) = 0))
+          OR
+          (e.tanggal IS NOT NULL AND e.tanggal > now())
+          OR
+          (e.tanggal_opsi IS NOT NULL AND EXISTS (
+            SELECT 1 FROM unnest(e.tanggal_opsi) AS t WHERE t::date >= CURRENT_DATE
+          ))
+        )`,
       ];
       const params = [];
 
