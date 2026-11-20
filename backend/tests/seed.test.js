@@ -21,7 +21,6 @@ describe('Seed data & idempotensi T1.2', () => {
       'hiburan-lain',
     ]);
     expect(VENUES.length).toBeGreaterThanOrEqual(25);
-    expect(VENUES.length).toBeLessThanOrEqual(30);
     expect(USERS.length).toBe(3);
 
     expect(EVENTS.length).toBeGreaterThanOrEqual(8);

@@ -152,6 +152,16 @@ class ProfileScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(user.nama, style: AppTextStyles.titleMedium),
+                      if (user.username.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '@${user.username}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         user.email,

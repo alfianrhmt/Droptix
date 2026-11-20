@@ -39,15 +39,18 @@ class ConversationUserModel {
   const ConversationUserModel({
     required this.id,
     required this.nama,
+    this.username,
   });
 
   final int id;
   final String nama;
+  final String? username;
 
   factory ConversationUserModel.fromJson(Map<String, dynamic> json) {
     return ConversationUserModel(
       id: json['id'] as int,
       nama: json['nama'] as String? ?? '',
+      username: json['username'] as String?,
     );
   }
 }

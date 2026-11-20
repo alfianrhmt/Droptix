@@ -13,6 +13,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _usernameCtrl = TextEditingController();
   final _namaCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -26,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _usernameCtrl.dispose();
     _namaCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
@@ -35,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
+    final username = _usernameCtrl.text.trim().toLowerCase();
     final nama = _namaCtrl.text.trim();
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
@@ -42,8 +45,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final kota = _kotaCtrl.text.trim();
 
     final localErrors = <String, String>{};
+    if (username.length < 3) {
+      localErrors['username'] = 'Username minimal 3 karakter.';
+    } else if (!RegExp(r'^[a-z0-9._]+$').hasMatch(username)) {
+      localErrors['username'] =
+          'Username hanya boleh huruf kecil, angka, titik, dan garis bawah.';
+    }
     if (nama.length < 2) {
-      localErrors['nama'] = 'Nama minimal 2 karakter.';
+      localErrors['nama'] = 'Nama lengkap minimal 2 karakter.';
     }
     if (email.isEmpty || !email.contains('@')) {
       localErrors['email'] = 'Masukkan email yang valid.';
@@ -72,6 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       await AuthScope.of(context).register(
+        username: username,
         nama: nama,
         email: email,
         password: password,
@@ -135,7 +145,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: AppSpacing.lg),
                 ],
                 AppTextField(
-                  label: 'Nama tampilan',
+                  label: 'Username',
+                  controller: _usernameCtrl,
+                  hintText: 'rakapratama',
+                  prefixText: '@',
+                  textInputAction: TextInputAction.next,
+                  errorText: _fieldErrors['username'],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  label: 'Nama lengkap',
                   controller: _namaCtrl,
                   hintText: 'Contoh: Raka Pratama',
                   textInputAction: TextInputAction.next,

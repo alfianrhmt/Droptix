@@ -17,6 +17,7 @@ class AuthRepository {
   ApiClient get client => _client;
 
   Future<AuthResult> register({
+    String? username,
     required String nama,
     required String email,
     required String password,
@@ -28,6 +29,7 @@ class AuthRepository {
       final res = await _client.dio.post<Map<String, dynamic>>(
         '/auth/register',
         data: {
+          if (username != null && username.isNotEmpty) 'username': username,
           'nama': nama,
           'email': email,
           'password': password,
@@ -79,6 +81,7 @@ class AuthRepository {
   }
 
   Future<UserModel> updateMe({
+    String? username,
     String? nama,
     String? noWa,
     String? kota,
@@ -89,6 +92,7 @@ class AuthRepository {
       final res = await _client.dio.put<Map<String, dynamic>>(
         '/me',
         data: {
+          'username': ?username,
           'nama': ?nama,
           'no_wa': ?noWa,
           'kota': ?kota,

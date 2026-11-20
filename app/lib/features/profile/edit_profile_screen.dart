@@ -34,6 +34,7 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  late final TextEditingController _usernameCtrl;
   late final TextEditingController _namaCtrl;
   late final TextEditingController _waCtrl;
   late final TextEditingController _kotaCtrl;
@@ -52,6 +53,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       final user = AuthScope.of(context).user;
+      _usernameCtrl = TextEditingController(text: user?.username ?? '');
       _namaCtrl = TextEditingController(text: user?.nama ?? '');
       _waCtrl = TextEditingController(text: user?.noWa ?? '');
       _kotaCtrl = TextEditingController(text: user?.kota ?? '');
@@ -62,6 +64,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
+    _usernameCtrl.dispose();
     _namaCtrl.dispose();
     _waCtrl.dispose();
     _kotaCtrl.dispose();
@@ -150,13 +153,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _submit() async {
+    final username = _usernameCtrl.text.trim().toLowerCase();
     final nama = _namaCtrl.text.trim();
     final noWa = _waCtrl.text.trim();
     final kota = _kotaCtrl.text.trim();
 
+    final localErrors = <String, String>{};
+    if (username.length < 3) {
+      localErrors['username'] = 'Username minimal 3 karakter.';
+    } else if (!RegExp(r'^[a-z0-9._]+$').hasMatch(username)) {
+      localErrors['username'] =
+          'Username hanya boleh huruf kecil, angka, titik, dan garis bawah.';
+    }
     if (nama.length < 2) {
+      localErrors['nama'] = 'Nama lengkap minimal 2 karakter.';
+    }
+
+    if (localErrors.isNotEmpty) {
       setState(() {
-        _fieldErrors = {'nama': 'Nama minimal 2 karakter.'};
+        _fieldErrors = localErrors;
         _generalError = null;
       });
       return;
@@ -177,6 +192,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       await auth.updateProfile(
+        username: username,
         nama: nama,
         noWa: noWa,
         kota: kota,
@@ -264,7 +280,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: AppSpacing.lg),
 
                 AppTextField(
-                  label: 'Nama tampilan',
+                  label: 'Username',
+                  controller: _usernameCtrl,
+                  hintText: 'rakapratama',
+                  prefixText: '@',
+                  errorText: _fieldErrors['username'],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  label: 'Nama lengkap',
                   controller: _namaCtrl,
                   errorText: _fieldErrors['nama'],
                 ),

@@ -1016,6 +1016,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(sellerName, style: AppTextStyles.label),
+                    if (item.seller?.username != null &&
+                        item.seller!.username!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '@${item.seller!.username}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       'Bergabung sejak $joinedDate',

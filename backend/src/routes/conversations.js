@@ -53,6 +53,7 @@ function formatConversation(row, currentUserId) {
     lawan: {
       id: isBuyer ? Number(row.seller_id) : Number(row.buyer_id),
       nama: isBuyer ? row.seller_nama : row.buyer_nama,
+      username: isBuyer ? row.seller_username : row.buyer_username,
     },
     peran: isBuyer ? 'pembeli' : 'penjual',
     pesan_terakhir: row.last_message_preview || null,
@@ -112,8 +113,8 @@ async function fetchConversationWithDetails(db, conversationId, currentUserId) {
            l.jumlah_total AS listing_jumlah_total, l.jumlah_terjual AS listing_jumlah_terjual,
            l.izinkan_wa AS listing_izinkan_wa,
            e.nama AS event_nama, e.poster_url AS event_poster_url,
-           ub.nama AS buyer_nama, ub.banned_at AS buyer_banned_at,
-           us.nama AS seller_nama, us.banned_at AS seller_banned_at,
+           ub.nama AS buyer_nama, ub.username AS buyer_username, ub.banned_at AS buyer_banned_at,
+           us.nama AS seller_nama, us.username AS seller_username, us.banned_at AS seller_banned_at,
            (SELECT count(*)::int FROM messages m
             WHERE m.conversation_id = c.id
               AND m.sender_id <> $2
@@ -184,8 +185,8 @@ function createConversationsRouter(db, requireAuth, useRateLimit = true) {
                  l.jumlah_total AS listing_jumlah_total, l.jumlah_terjual AS listing_jumlah_terjual,
                  l.izinkan_wa AS listing_izinkan_wa,
                  e.nama AS event_nama, e.poster_url AS event_poster_url,
-                 ub.nama AS buyer_nama, ub.banned_at AS buyer_banned_at,
-                 us.nama AS seller_nama, us.banned_at AS seller_banned_at,
+                 ub.nama AS buyer_nama, ub.username AS buyer_username, ub.banned_at AS buyer_banned_at,
+                 us.nama AS seller_nama, us.username AS seller_username, us.banned_at AS seller_banned_at,
                  (SELECT count(*)::int FROM messages m
                   WHERE m.conversation_id = c.id
                     AND m.sender_id <> $1

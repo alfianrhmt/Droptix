@@ -23,6 +23,7 @@ class _FakeAuthRepository extends AuthRepository {
 
   UserModel fakeUser = const UserModel(
     id: 1,
+    username: 'rakapratama',
     nama: 'Raka Pratama',
     email: 'raka@droptix.dev',
     noWa: '6281234567801',
@@ -41,6 +42,7 @@ class _FakeAuthRepository extends AuthRepository {
 
   @override
   Future<AuthResult> register({
+    String? username,
     required String nama,
     required String email,
     required String password,
@@ -50,6 +52,7 @@ class _FakeAuthRepository extends AuthRepository {
   }) async {
     fakeUser = UserModel(
       id: 2,
+      username: username ?? 'user2',
       nama: nama,
       email: email,
       noWa: noWa,
@@ -72,6 +75,7 @@ class _FakeAuthRepository extends AuthRepository {
 
   @override
   Future<UserModel> updateMe({
+    String? username,
     String? nama,
     String? noWa,
     String? kota,
@@ -80,6 +84,7 @@ class _FakeAuthRepository extends AuthRepository {
   }) async {
     fakeUser = UserModel(
       id: fakeUser.id,
+      username: username ?? fakeUser.username,
       nama: nama ?? fakeUser.nama,
       email: fakeUser.email,
       noWa: noWa ?? fakeUser.noWa,
@@ -204,9 +209,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField).at(0), 'Sari Indah');
-    await tester.enterText(find.byType(TextField).at(1), 'sari@droptix.dev');
-    await tester.enterText(find.byType(TextField).at(2), 'password123');
+    await tester.enterText(find.byType(TextField).at(0), 'sariindah');
+    await tester.enterText(find.byType(TextField).at(1), 'Sari Indah');
+    await tester.enterText(find.byType(TextField).at(2), 'sari@droptix.dev');
+    await tester.enterText(find.byType(TextField).at(3), 'password123');
 
     await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Daftar'));
     await tester.tap(find.widgetWithText(ElevatedButton, 'Daftar'));

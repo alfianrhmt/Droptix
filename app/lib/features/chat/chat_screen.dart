@@ -592,6 +592,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final otherName = _conversation?.lawan.nama ??
         _listingDetail?.seller?.nama ??
         'Penjual';
+    final otherUsername = _conversation?.lawan.username ??
+        _listingDetail?.seller?.username;
 
     final eventTitle = _conversation?.listing.judul ??
         _listingDetail?.event.nama ??
@@ -634,9 +636,21 @@ class _ChatScreenState extends State<ChatScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          otherName,
-          style: AppTextStyles.titleMedium,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              otherName,
+              style: AppTextStyles.titleMedium,
+            ),
+            if (otherUsername != null && otherUsername.isNotEmpty)
+              Text(
+                '@$otherUsername',
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
+          ],
         ),
         actions: [
           PopupMenuButton<String>(

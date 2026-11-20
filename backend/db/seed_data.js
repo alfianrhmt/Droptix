@@ -103,18 +103,21 @@ const VENUES = [
 
 const USERS = [
   {
+    username: 'raka_pratama',
     nama: 'Raka Pratama',
     email: 'raka@droptix.dev',
     no_wa: '6281234567801',
     kota: 'Surabaya',
   },
   {
+    username: 'dina_larasati',
     nama: 'Dina Larasati',
     email: 'dina@droptix.dev',
     no_wa: '6281234567802',
     kota: 'Surabaya',
   },
   {
+    username: 'bagas_wijaya',
     nama: 'Bagas Wijaya',
     email: 'bagas@droptix.dev',
     no_wa: '6281234567803',

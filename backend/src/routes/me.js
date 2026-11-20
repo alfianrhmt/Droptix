@@ -23,6 +23,17 @@ const getMyFavoritesQuerySchema = z.object({
 });
 
 const updateMeSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, 'Username minimal 3 karakter.')
+    .max(30, 'Username maksimal 30 karakter.')
+    .regex(
+      /^[a-z0-9._]+$/,
+      'Username hanya boleh berisi huruf kecil, angka, titik, dan garis bawah.'
+    )
+    .optional(),
   nama: z
     .string()
     .trim()
@@ -227,7 +238,23 @@ function createMeRouter(db, requireAuth) {
     validate(updateMeSchema),
     async (req, res, next) => {
       try {
-        const { nama, no_wa, kota, foto_url } = req.body;
+        const { username, nama, no_wa, kota, foto_url } = req.body;
+
+        let nextUsername = req.user.username;
+        if (username !== undefined && username !== req.user.username) {
+          const existingUsername = await db.query(
+            'SELECT id FROM users WHERE LOWER(username) = $1 AND id <> $2 LIMIT 1',
+            [username, req.user.id]
+          );
+          if (existingUsername.rows.length > 0) {
+            return next(
+              Errors.conflict('Username sudah digunakan, silakan pilih username lain.', [
+                { field: 'username', message: 'Username sudah digunakan.' },
+              ])
+            );
+          }
+          nextUsername = username;
+        }
 
         let nextWa = req.user.no_wa;
         if (no_wa !== undefined) {
@@ -261,10 +288,10 @@ function createMeRouter(db, requireAuth) {
 
         const { rows } = await db.query(
           `UPDATE users
-           SET nama = $1, no_wa = $2, kota = $3, foto_url = $4
-           WHERE id = $5
-           RETURNING id, nama, email, no_wa, kota, foto_url, created_at`,
-          [nextNama, nextWa, nextKota, nextFotoUrl, req.user.id]
+           SET username = $1, nama = $2, no_wa = $3, kota = $4, foto_url = $5
+           WHERE id = $6
+           RETURNING id, username, nama, email, no_wa, kota, foto_url, created_at`,
+          [nextUsername, nextNama, nextWa, nextKota, nextFotoUrl, req.user.id]
         );
 
         return res.json({ data: rows[0] });

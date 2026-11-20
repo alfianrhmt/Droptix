@@ -2,6 +2,7 @@
 class UserModel {
   const UserModel({
     required this.id,
+    this.username = '',
     required this.nama,
     required this.email,
     this.noWa,
@@ -11,6 +12,7 @@ class UserModel {
   });
 
   final int id;
+  final String username;
   final String nama;
   final String email;
   final String? noWa;
@@ -20,6 +22,7 @@ class UserModel {
 
   UserModel copyWith({
     int? id,
+    String? username,
     String? nama,
     String? email,
     String? noWa,
@@ -29,6 +32,7 @@ class UserModel {
   }) {
     return UserModel(
       id: id ?? this.id,
+      username: username ?? this.username,
       nama: nama ?? this.nama,
       email: email ?? this.email,
       noWa: noWa ?? this.noWa,
@@ -41,6 +45,8 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: (json['id'] as num).toInt(),
+      username: json['username'] as String? ??
+          (json['email'] as String? ?? '').split('@')[0],
       nama: json['nama'] as String,
       email: json['email'] as String,
       noWa: json['no_wa'] as String?,
@@ -54,6 +60,7 @@ class UserModel {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'username': username,
         'nama': nama,
         'email': email,
         'no_wa': noWa,

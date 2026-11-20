@@ -14,6 +14,10 @@ function createMockDb() {
     users,
     query: async (sql, params = []) => {
       const q = sql.trim();
+      if (q.includes('FROM users WHERE LOWER(username) = $1')) {
+        const u = users.find((x) => (x.username || '').toLowerCase() === params[0].toLowerCase());
+        return { rows: u ? [{ id: u.id }] : [] };
+      }
       if (q.startsWith('SELECT id FROM users WHERE email')) {
         const u = users.find((x) => x.email === params[0]);
         return { rows: u ? [{ id: u.id }] : [] };
@@ -26,6 +30,7 @@ function createMockDb() {
           password_hash: params[2],
           no_wa: params[3],
           kota: params[4],
+          username: params[5] || params[1].split('@')[0].toLowerCase(),
           foto_url: null,
           banned_at: null,
           created_at: new Date().toISOString(),
@@ -35,6 +40,7 @@ function createMockDb() {
           rows: [
             {
               id: user.id,
+              username: user.username,
               nama: user.nama,
               email: user.email,
               no_wa: user.no_wa,
@@ -44,27 +50,30 @@ function createMockDb() {
           ],
         };
       }
-      if (q.includes('FROM users') && q.includes('WHERE email = $1')) {
-        const u = users.find((x) => x.email === params[0]);
+      if (q.includes('FROM users') && (q.includes('WHERE email = $1') || q.includes('LOWER(username) = $1'))) {
+        const u = users.find((x) => x.email === params[0] || (x.username && x.username.toLowerCase() === params[0].toLowerCase()));
         return { rows: u ? [u] : [] };
       }
       if (q.includes('FROM users') && q.includes('WHERE id = $1')) {
         const u = users.find((x) => x.id === params[0]);
         return { rows: u ? [u] : [] };
       }
-      if (q.startsWith('UPDATE users') && q.includes('SET nama = $1')) {
+      if (q.startsWith('UPDATE users') && q.includes('SET')) {
         const u = users.find((x) => x.id === params[params.length - 1]);
         if (!u) return { rows: [] };
-        u.nama = params[0];
-        u.no_wa = params[1];
-        u.kota = params[2];
-        if (params.length > 4) {
-          u.foto_url = params[3];
+        // Handle SET username = $1, nama = $2, no_wa = $3, kota = $4, foto_url = $5
+        u.username = params[0];
+        u.nama = params[1];
+        u.no_wa = params[2];
+        u.kota = params[3];
+        if (params.length > 5) {
+          u.foto_url = params[4];
         }
         return {
           rows: [
             {
               id: u.id,
+              username: u.username,
               nama: u.nama,
               email: u.email,
               no_wa: u.no_wa,
@@ -110,6 +119,7 @@ describe('Auth, /me, validasi, format error & rate limit (T1.3 & T1.5)', () => {
     expect(res.body.data.token).toBeDefined();
     expect(res.body.data.user).toEqual({
       id: 1,
+      username: 'budi',
       nama: 'Budi Santoso',
       email: 'budi@example.com',
       no_wa: '6281234567890',

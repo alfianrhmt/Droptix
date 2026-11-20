@@ -317,6 +317,7 @@ function formatListingDetail(row, photos, userLat = null, userLng = null) {
     seller: {
       id: row.seller_id,
       nama: row.seller_nama,
+      username: row.seller_username || null,
       bergabung: row.seller_created_at,
     },
     confirmed_at: row.confirmed_at,
@@ -387,7 +388,7 @@ async function fetchListingDetail(db, listingId, currentUserId = null, userLat =
             c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama,
             v.nama AS venue_nama, v.kota AS venue_kota, v.alamat AS venue_alamat,
             v.lat AS venue_lat, v.lng AS venue_lng,
-            u.nama AS seller_nama, u.created_at AS seller_created_at,
+            u.nama AS seller_nama, u.username AS seller_username, u.created_at AS seller_created_at,
             (SELECT count(*)::int FROM conversations cv WHERE cv.listing_id = l.id) AS tertarik,
             CASE WHEN $2::int IS NOT NULL THEN EXISTS (
               SELECT 1 FROM favorites f WHERE f.user_id = $2 AND f.listing_id = l.id

@@ -51,17 +51,20 @@ class ListingSellerInfo {
   const ListingSellerInfo({
     required this.id,
     required this.nama,
+    this.username,
     required this.bergabung,
   });
 
   final int id;
   final String nama;
+  final String? username;
   final DateTime? bergabung;
 
   factory ListingSellerInfo.fromJson(Map<String, dynamic> json) {
     return ListingSellerInfo(
       id: (json['id'] as num).toInt(),
       nama: json['nama'] as String,
+      username: json['username'] as String?,
       bergabung: json['bergabung'] is String
           ? DateTime.tryParse(json['bergabung'] as String)
           : null,

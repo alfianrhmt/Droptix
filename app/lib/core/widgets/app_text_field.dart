@@ -11,6 +11,7 @@ class AppTextField extends StatefulWidget {
     required this.label,
     required this.controller,
     this.hintText,
+    this.prefixText,
     this.errorText,
     this.obscureText = false,
     this.keyboardType,
@@ -23,6 +24,7 @@ class AppTextField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final String? hintText;
+  final String? prefixText;
   final String? errorText;
   final bool obscureText;
   final TextInputType? keyboardType;
@@ -68,6 +70,11 @@ class _AppTextFieldState extends State<AppTextField> {
           style: AppTextStyles.body,
           decoration: InputDecoration(
             hintText: widget.hintText,
+            prefixText: widget.prefixText,
+            prefixStyle: AppTextStyles.body.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
             hintStyle: AppTextStyles.body
                 .copyWith(color: AppColors.textSecondary),
             filled: true,

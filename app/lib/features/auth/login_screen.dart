@@ -33,8 +33,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordCtrl.text;
 
     final localErrors = <String, String>{};
-    if (email.isEmpty || !email.contains('@')) {
-      localErrors['email'] = 'Masukkan email yang valid.';
+    if (email.isEmpty) {
+      localErrors['email'] = 'Email atau username wajib diisi.';
     }
     if (password.isEmpty) {
       localErrors['password'] = 'Password wajib diisi.';
@@ -118,9 +118,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: AppSpacing.lg),
                 ],
                 AppTextField(
-                  label: 'Email',
+                  label: 'Email atau Username',
                   controller: _emailCtrl,
-                  hintText: 'nama@email.com',
+                  hintText: 'nama@email.com atau username',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   errorText: _fieldErrors['email'],

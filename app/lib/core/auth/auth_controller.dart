@@ -75,6 +75,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> register({
+    String? username,
     required String nama,
     required String email,
     required String password,
@@ -86,6 +87,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await repository.register(
+        username: username,
         nama: nama,
         email: email,
         password: password,
@@ -102,6 +104,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> updateProfile({
+    String? username,
     String? nama,
     String? noWa,
     String? kota,
@@ -112,6 +115,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
     try {
       final updated = await repository.updateMe(
+        username: username,
         nama: nama,
         noWa: noWa,
         kota: kota,

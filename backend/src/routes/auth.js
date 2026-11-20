@@ -9,11 +9,22 @@ const { Errors } = require('../utils/errors');
 const { normalizeWaNumber } = require('../utils/phone');
 
 const registerSchema = z.object({
-  nama: z
-    .string({ required_error: 'Nama wajib diisi.' })
+  username: z
+    .string({ required_error: 'Username wajib diisi.' })
     .trim()
-    .min(2, 'Nama minimal 2 karakter.')
-    .max(80, 'Nama maksimal 80 karakter.'),
+    .toLowerCase()
+    .min(3, 'Username minimal 3 karakter.')
+    .max(30, 'Username maksimal 30 karakter.')
+    .regex(
+      /^[a-z0-9._]+$/,
+      'Username hanya boleh berisi huruf kecil, angka, titik, dan garis bawah.'
+    )
+    .optional(),
+  nama: z
+    .string({ required_error: 'Nama lengkap wajib diisi.' })
+    .trim()
+    .min(2, 'Nama lengkap minimal 2 karakter.')
+    .max(80, 'Nama lengkap maksimal 80 karakter.'),
   email: z
     .string({ required_error: 'Email wajib diisi.' })
     .trim()
@@ -40,10 +51,10 @@ const registerSchema = z.object({
 
 const loginSchema = z.object({
   email: z
-    .string({ required_error: 'Email wajib diisi.' })
+    .string({ required_error: 'Email atau username wajib diisi.' })
     .trim()
     .toLowerCase()
-    .email('Format email tidak valid.'),
+    .min(1, 'Email atau username wajib diisi.'),
   password: z
     .string({ required_error: 'Password wajib diisi.' })
     .min(1, 'Password wajib diisi.'),
@@ -57,7 +68,10 @@ function createAuthRouter(db) {
     validate(registerSchema),
     async (req, res, next) => {
       try {
-        const { nama, email, password, no_wa, kota } = req.body;
+        const { username, nama, email, password, no_wa, kota } = req.body;
+        const effectiveUsername = username
+          ? username.toLowerCase()
+          : email.split('@')[0].toLowerCase().replace(/[^a-z0-9._]/g, '');
 
         let normalizedWa = null;
         if (no_wa !== undefined && no_wa !== null && no_wa !== '') {
@@ -74,6 +88,18 @@ function createAuthRouter(db) {
           }
         }
 
+        const existingUsername = await db.query(
+          'SELECT id FROM users WHERE LOWER(username) = $1 LIMIT 1',
+          [effectiveUsername]
+        );
+        if (existingUsername.rows.length > 0) {
+          return next(
+            Errors.conflict('Username sudah digunakan, silakan pilih username lain.', [
+              { field: 'username', message: 'Username sudah digunakan.' },
+            ])
+          );
+        }
+
         const existing = await db.query(
           'SELECT id FROM users WHERE email = $1 LIMIT 1',
           [email]
@@ -84,10 +110,10 @@ function createAuthRouter(db) {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const { rows } = await db.query(
-          `INSERT INTO users (nama, email, password_hash, no_wa, kota, setuju_syarat_at)
-           VALUES ($1, $2, $3, $4, $5, now())
-           RETURNING id, nama, email, no_wa, kota, foto_url`,
-          [nama, email, passwordHash, normalizedWa, kota || null]
+          `INSERT INTO users (nama, email, password_hash, no_wa, kota, setuju_syarat_at, username)
+           VALUES ($1, $2, $3, $4, $5, now(), $6)
+           RETURNING id, username, nama, email, no_wa, kota, foto_url`,
+          [nama, email, passwordHash, normalizedWa, kota || null, effectiveUsername]
         );
 
         const user = {
@@ -104,23 +130,23 @@ function createAuthRouter(db) {
 
   router.post('/login', validate(loginSchema), async (req, res, next) => {
     try {
-      const { email, password } = req.body;
+      const { email: identifier, password } = req.body;
       const { rows } = await db.query(
-        `SELECT id, nama, email, password_hash, no_wa, kota, foto_url, banned_at
+        `SELECT id, username, nama, email, password_hash, no_wa, kota, foto_url, banned_at
          FROM users
-         WHERE email = $1
+         WHERE email = $1 OR LOWER(username) = $1
          LIMIT 1`,
-        [email]
+        [identifier]
       );
 
       if (rows.length === 0) {
-        return next(Errors.unauthorized('Email atau password salah.'));
+        return next(Errors.unauthorized('Email/username atau password salah.'));
       }
 
       const row = rows[0];
       const match = await bcrypt.compare(password, row.password_hash);
       if (!match) {
-        return next(Errors.unauthorized('Email atau password salah.'));
+        return next(Errors.unauthorized('Email/username atau password salah.'));
       }
 
       if (row.banned_at) {
@@ -129,6 +155,7 @@ function createAuthRouter(db) {
 
       const user = {
         id: row.id,
+        username: row.username,
         nama: row.nama,
         email: row.email,
         no_wa: row.no_wa,

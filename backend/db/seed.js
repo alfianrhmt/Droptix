@@ -72,10 +72,10 @@ async function runSeed({
         userIds.set(u.email, existing.rows[0].id);
       } else {
         const { rows } = await client.query(
-          `INSERT INTO users (nama, email, password_hash, no_wa, kota)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO users (nama, email, password_hash, no_wa, kota, username)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
-          [u.nama, u.email, passwordHash, u.no_wa, u.kota]
+          [u.nama, u.email, passwordHash, u.no_wa, u.kota, u.username || u.email.split('@')[0]]
         );
         userIds.set(u.email, rows[0].id);
       }
