@@ -592,8 +592,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             onPressed: _isTogglingFavorite ? null : _handleToggleFavorite,
             icon: Icon(
               item.isFavorite
-                  ? Icons.star_rounded
-                  : Icons.star_outline_rounded,
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_outline_rounded,
               color: item.isFavorite ? AppColors.primary : Colors.white,
               size: 20,
             ),

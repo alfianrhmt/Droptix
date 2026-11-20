@@ -348,12 +348,8 @@ void main() {
       expect(find.text('Limited'), findsOneWidget);
       expect(find.text('Last-Minute'), findsOneWidget);
 
-      // 5. QuickDateGrid
-      expect(find.byType(QuickDateGrid), findsOneWidget);
-      expect(find.text('Hari ini'), findsOneWidget);
-      expect(find.text('Besok'), findsOneWidget);
-      expect(find.text('Akhir pekan'), findsOneWidget);
-      expect(find.text('Lihat semua'), findsWidgets);
+      // 5. QuickDateGrid telah dihapus dari Home
+      expect(find.byType(QuickDateGrid), findsNothing);
 
       // 6. CategoryRow
       expect(find.byType(CategoryRow), findsOneWidget);

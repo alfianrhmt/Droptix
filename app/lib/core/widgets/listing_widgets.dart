@@ -265,8 +265,8 @@ class ListingRow extends StatelessWidget {
                   onTap: onFavoriteTap,
                   child: Icon(
                     listing.isSaved
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_outline_rounded,
                     color: listing.isSaved
                         ? AppColors.primary
                         : AppColors.textSecondary,

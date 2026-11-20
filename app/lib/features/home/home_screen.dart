@@ -18,11 +18,10 @@ import '../search/search_screen.dart';
 /// 2. SearchBar (tappable -> membuka SearchScreen)
 /// 3. BannerCarousel (event ramai / terdekat dari GET /events/trending)
 /// 4. ResellTypeTiles (Limited, Last-Minute)
-/// 5. QuickDateGrid (Hari ini, Besok, Akhir pekan, Lihat semua)
-/// 6. CategoryRow (Konser & Festival, Bioskop, Olahraga, Wisata, Lainnya)
-/// 7. Carousel "Dekat Kamu" (PosterCard horizontal)
-/// 8. Section "Segera Berakhir" (ListingRow vertikal)
-/// 9. Section "Baru Ditambahkan" (ListingRow vertikal, scroll tanpa batas)
+/// 5. CategoryRow (Konser & Festival, Bioskop, Olahraga, Wisata, Lainnya)
+/// 6. Carousel "Dekat Kamu" (PosterCard horizontal)
+/// 7. Section "Segera Berakhir" (ListingRow vertikal)
+/// 8. Section "Baru Ditambahkan" (ListingRow vertikal, scroll tanpa batas)
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -410,39 +409,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickDateGrid() {
-    return QuickDateGrid(
-      onTodayTap: () {
-        if (widget.onDateFilterTap != null) {
-          widget.onDateFilterTap!('hari_ini');
-        } else {
-          _openSearch(tanggal: 'hari_ini');
-        }
-      },
-      onTomorrowTap: () {
-        if (widget.onDateFilterTap != null) {
-          widget.onDateFilterTap!('besok');
-        } else {
-          _openSearch(tanggal: 'besok');
-        }
-      },
-      onWeekendTap: () {
-        if (widget.onDateFilterTap != null) {
-          widget.onDateFilterTap!('akhir_pekan');
-        } else {
-          _openSearch(tanggal: 'akhir_pekan');
-        }
-      },
-      onAllTap: () {
-        if (widget.onDateFilterTap != null) {
-          widget.onDateFilterTap!('semua');
-        } else {
-          _openSearch();
-        }
-      },
-    );
-  }
-
   Widget _buildCategoryRow() {
     const categoriesWithSlugs = [
       ('Konser & Festival', 'konser-festival', Icons.music_note_rounded),
@@ -712,8 +678,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildBanners(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildResellTypeTiles(),
-                const SizedBox(height: AppSpacing.xl),
-                _buildQuickDateGrid(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildCategoryRow(),
                 const SizedBox(height: AppSpacing.xxl),

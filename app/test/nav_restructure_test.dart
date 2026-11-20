@@ -337,8 +337,8 @@ void main() {
 
       expect(find.text('Konser Dewa 19 Surabaya'), findsOneWidget);
 
-      // Ketuk tombol simpan/favorit pada item (ikon bintang)
-      await tester.tap(find.byIcon(Icons.star_rounded));
+      // Ketuk tombol simpan/favorit pada item (ikon bookmark)
+      await tester.tap(find.byIcon(Icons.bookmark_rounded));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 

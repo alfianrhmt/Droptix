@@ -926,9 +926,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
     if (_savedListings.isEmpty) {
       return Center(
         child: EmptyState(
-          icon: Icons.star_border_rounded,
+          icon: Icons.bookmark_outline_rounded,
           message:
-              'Tiket yang kamu simpan akan muncul di sini.\nKetuk ikon bintang pada tiket yang kamu minati di Home atau Pencarian.',
+              'Tiket yang kamu simpan akan muncul di sini.\nKetuk ikon simpan pada tiket yang kamu minati di Home atau Pencarian.',
           actionLabel: widget.onNavigateToHome != null ? 'Cari Tiket' : null,
           onAction: widget.onNavigateToHome,
         ),

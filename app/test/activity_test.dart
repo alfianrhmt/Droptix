@@ -517,11 +517,11 @@ void main() {
     expect(find.text('Terjual'), findsOneWidget);
     expect(find.text('Kedaluwarsa'), findsOneWidget);
 
-    // 3. Menghapus favorit dengan mengetuk ikon bintang
-    final starIcons = find.byIcon(Icons.star_rounded);
-    expect(starIcons, findsNWidgets(3));
+    // 3. Menghapus favorit dengan mengetuk ikon bookmark
+    final bookmarkIcons = find.byIcon(Icons.bookmark_rounded);
+    expect(bookmarkIcons, findsNWidgets(3));
 
-    await tester.tap(starIcons.first);
+    await tester.tap(bookmarkIcons.first);
     await tester.pumpAndSettle();
 
     expect(fakeRepo.lastToggledFavoriteId, 101);
