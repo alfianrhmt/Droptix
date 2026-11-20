@@ -13,9 +13,9 @@ const CATEGORIES = [
   { urutan: 5, slug: 'hiburan-lain', nama: 'Lainnya', ikon: 'more_horiz' },
 ];
 
-// 28 venue (18 Surabaya, 10 kota besar lain)
+// 50+ venue event & konser populer di kota-kota besar Indonesia
 const VENUES = [
-  // Surabaya
+  // Surabaya & Jawa Timur
   { nama: 'Tunjungan Plaza 5 (XXI)', kota: 'Surabaya', alamat: 'Jl. Basuki Rahmat No.8-12, Surabaya', lat: -7.26278, lng: 112.73917 },
   { nama: 'Grand City Convention Hall', kota: 'Surabaya', alamat: 'Jl. Kusuma Bangsa No.1, Surabaya', lat: -7.2615, lng: 112.7485 },
   { nama: 'Pakuwon Mall (XXI)', kota: 'Surabaya', alamat: 'Jl. Mayjend. Jonosewojo No.2, Surabaya', lat: -7.2895, lng: 112.6751 },
@@ -35,20 +35,70 @@ const VENUES = [
   { nama: 'JX International (Jatim Expo)', kota: 'Surabaya', alamat: 'Jl. Ahmad Yani No.99, Surabaya', lat: -7.316553, lng: 112.735025 },
   { nama: 'Pakuwon City Mall Surabaya', kota: 'Surabaya', alamat: 'Jl. Kejawan Putih Mutiara, Surabaya', lat: -7.2766, lng: 112.8036 },
   { nama: 'Monumen Kapal Selam Surabaya', kota: 'Surabaya', alamat: 'Jl. Pemuda No.39, Surabaya', lat: -7.2655, lng: 112.7503 },
-  // Koordinat hasil pencarian berupa rentang/perkiraan area, disetel NULL sesuai DATABASE.md
-  { nama: 'Royal Plaza Surabaya', kota: 'Surabaya', alamat: 'Jl. Ahmad Yani No.16-18, Surabaya', lat: null, lng: null },
-  { nama: 'Marvell City Surabaya', kota: 'Surabaya', alamat: 'Jl. Raya Ngagel No.123, Surabaya', lat: null, lng: null },
+  { nama: 'Royal Plaza Surabaya', kota: 'Surabaya', alamat: 'Jl. Ahmad Yani No.16-18, Surabaya', lat: -7.3087, lng: 112.7348 },
+  { nama: 'Marvell City Surabaya', kota: 'Surabaya', alamat: 'Jl. Raya Ngagel No.123, Surabaya', lat: -7.2917, lng: 112.7458 },
+  { nama: 'Ciputra Hall Surabaya', kota: 'Surabaya', alamat: 'CitraLand Surabaya, Made, Sambikerep', lat: -7.2872, lng: 112.6394 },
+  { nama: 'Dyandra Convention Center Surabaya', kota: 'Surabaya', alamat: 'Jl. Basuki Rahmat No.93-105, Surabaya', lat: -7.2685, lng: 112.7412 },
+  { nama: 'Stadion Gajayana', kota: 'Malang', alamat: 'Jl. Tangkuban Perahu, Kauman, Malang', lat: -7.9739, lng: 112.6231 },
+  { nama: 'Graha Cakrawala UM', kota: 'Malang', alamat: 'Universitas Negeri Malang, Jl. Semarang No.5, Malang', lat: -7.9625, lng: 112.6178 },
+  { nama: 'Jatim Park 2', kota: 'Batu', alamat: 'Jl. Oro-Oro Ombo No.9, Temas, Batu', lat: -7.8887, lng: 112.5298 },
 
-  // Jakarta & Tangerang
-  { nama: 'Stadion Utama Gelora Bung Karno', kota: 'Jakarta', alamat: 'Jl. Pintu Satu Senayan, Jakarta', lat: -6.21858, lng: 106.80261 },
-  { nama: 'Jakarta Convention Center (JCC)', kota: 'Jakarta', alamat: 'Jl. Gatot Subroto, Senayan, Jakarta', lat: -6.21444, lng: 106.8075 },
-  { nama: 'Istora Senayan', kota: 'Jakarta', alamat: 'Jl. Pintu Satu Senayan, Jakarta', lat: -6.2203, lng: 106.8023 },
-  { nama: 'JIExpo Kemayoran', kota: 'Jakarta', alamat: 'Kemayoran, Jakarta Pusat', lat: -6.1478, lng: 106.8461 },
-  { nama: 'ICE BSD', kota: 'Tangerang', alamat: 'Jl. BSD Grand Boulevard Raya No.1, Tangerang', lat: -6.30026, lng: 106.6366 },
+  // Jakarta, Bogor, Depok, Tangerang, Bekasi (Jabodetabek)
+  { nama: 'Stadion Utama Gelora Bung Karno', kota: 'Jakarta', alamat: 'Jl. Pintu Satu Senayan, Gelora, Jakarta Pusat', lat: -6.21858, lng: 106.80261 },
+  { nama: 'Istora Senayan', kota: 'Jakarta', alamat: 'Jl. Pintu Satu Senayan, Gelora, Jakarta Pusat', lat: -6.2203, lng: 106.8023 },
+  { nama: 'Tennis Indoor Senayan', kota: 'Jakarta', alamat: 'Jl. Pintu Satu Senayan, Gelora, Jakarta Pusat', lat: -6.2162, lng: 106.8005 },
+  { nama: 'Jakarta Convention Center (JCC)', kota: 'Jakarta', alamat: 'Jl. Gatot Subroto, Senayan, Jakarta Pusat', lat: -6.21444, lng: 106.8075 },
+  { nama: 'Jakarta International Stadium (JIS)', kota: 'Jakarta', alamat: 'Papanggo, Tanjung Priok, Jakarta Utara', lat: -6.1256, lng: 106.8606 },
+  { nama: 'JIExpo Kemayoran', kota: 'Jakarta', alamat: 'Gedung Pusat Niaga Arena JIEXPO, Kemayoran, Jakarta Pusat', lat: -6.1478, lng: 106.8461 },
+  { nama: 'Beach City International Stadium (Ancol)', kota: 'Jakarta', alamat: 'Jl. Kawasan Wisata Ancol, Pademangan, Jakarta Utara', lat: -6.1194, lng: 106.8486 },
+  { nama: 'Balai Sarbini', kota: 'Jakarta', alamat: 'Jl. Jend. Sudirman Kav. 50, Setiabudi, Jakarta Selatan', lat: -6.2195, lng: 106.8152 },
+  { nama: 'Taman Ismail Marzuki (TIM)', kota: 'Jakarta', alamat: 'Jl. Cikini Raya No.73, Menteng, Jakarta Pusat', lat: -6.1901, lng: 106.8389 },
+  { nama: 'Grand Indonesia (CGV)', kota: 'Jakarta', alamat: 'Jl. M.H. Thamrin No.1, Kebon Melati, Jakarta Pusat', lat: -6.1963, lng: 106.8223 },
+  { nama: 'Plaza Senayan (XXI)', kota: 'Jakarta', alamat: 'Jl. Asia Afrika No.8, Gelora, Jakarta Pusat', lat: -6.2255, lng: 106.7997 },
+  { nama: 'Senayan City (XXI)', kota: 'Jakarta', alamat: 'Jl. Asia Afrika No.19, Gelora, Jakarta Pusat', lat: -6.2272, lng: 106.7975 },
+  { nama: 'ICE BSD', kota: 'Tangerang', alamat: 'Jl. BSD Grand Boulevard Raya No.1, Pagedangan, Tangerang', lat: -6.30026, lng: 106.6366 },
+  { nama: 'Sentul International Convention Center (SICC)', kota: 'Bogor', alamat: 'Jl. Jend. Sudirman No.1, Cipambuan, Babakan Madang, Bogor', lat: -6.5398, lng: 106.8615 },
+  { nama: 'Stadion Patriot Candrabhaga', kota: 'Bekasi', alamat: 'Jl. Ahmad Yani, Kayuringin Jaya, Bekasi Selatan', lat: -6.2369, lng: 106.9922 },
+  { nama: 'Stadion Pakansari', kota: 'Bogor', alamat: 'Pakansari, Cibinong, Bogor', lat: -6.4891, lng: 106.8344 },
 
-  // Bandung & Yogyakarta
-  { nama: 'Trans Studio Bandung', kota: 'Bandung', alamat: 'Jl. Gatot Subroto No.289, Bandung', lat: -6.926186, lng: 107.636222 },
-  { nama: 'Candi Prambanan', kota: 'Yogyakarta', alamat: 'Jl. Raya Solo - Yogyakarta No.16, Sleman', lat: -7.752, lng: 110.4915 },
+  // Bandung & Jawa Barat
+  { nama: 'Trans Studio Bandung', kota: 'Bandung', alamat: 'Jl. Gatot Subroto No.289, Cibangkong, Batununggal, Bandung', lat: -6.926186, lng: 107.636222 },
+  { nama: 'Sasana Budaya Ganesha (Sabuga ITB)', kota: 'Bandung', alamat: 'Jl. Tamansari No.73, Lb. Siliwangi, Coblong, Bandung', lat: -6.8869, lng: 107.6108 },
+  { nama: 'Eldorado Dome Lembang', kota: 'Bandung', alamat: 'Jl. Dr. Setiabudi No.438, Isola, Sukasari, Bandung', lat: -6.8465, lng: 107.5952 },
+  { nama: 'Stadion Gelora Bandung Lautan Api (GBLA)', kota: 'Bandung', alamat: 'Rancabolang, Gedebage, Bandung', lat: -6.9572, lng: 107.7121 },
+  { nama: 'Stadion Si Jalak Harupat', kota: 'Bandung', alamat: 'Kopo, Kutawaringin, Kabupaten Bandung', lat: -7.0016, lng: 107.5303 },
+  { nama: 'Paris Van Java (CGV)', kota: 'Bandung', alamat: 'Jl. Sukajadi No.131-139, Cipedes, Sukajadi, Bandung', lat: -6.8895, lng: 107.5961 },
+  { nama: 'Cihampelas Walk (XXI)', kota: 'Bandung', alamat: 'Jl. Cihampelas No.160, Cipaganti, Coblong, Bandung', lat: -6.8943, lng: 107.6049 },
+
+  // Yogyakarta & Solo (Jawa Tengah)
+  { nama: 'Candi Prambanan', kota: 'Yogyakarta', alamat: 'Jl. Raya Solo - Yogyakarta No.16, Kranggan, Bokoharjo, Sleman', lat: -7.752, lng: 110.4915 },
+  { nama: 'Jogja Expo Center (JEC)', kota: 'Yogyakarta', alamat: 'Jl. Raya Janti No.108, Wonocatur, Banguntapan, Bantul', lat: -7.7989, lng: 110.4079 },
+  { nama: 'Stadion Maguwoharjo', kota: 'Yogyakarta', alamat: 'Jl. Raya Maguwoharjo, Jenengan, Maguwoharjo, Sleman', lat: -7.7497, lng: 110.4261 },
+  { nama: 'Stadion Mandala Krida', kota: 'Yogyakarta', alamat: 'Semaki, Umbulharjo, Yogyakarta', lat: -7.7947, lng: 110.3892 },
+  { nama: 'Taman Budaya Yogyakarta (TBY)', kota: 'Yogyakarta', alamat: 'Jl. Sriwedani No.1, Ngupasan, Gondomanan, Yogyakarta', lat: -7.8005, lng: 110.3686 },
+  { nama: 'Plaza Ambarrukmo (XXI)', kota: 'Yogyakarta', alamat: 'Jl. Laksda Adisucipto No.80, Caturtunggal, Depok, Sleman', lat: -7.7828, lng: 110.4011 },
+  { nama: 'Stadion Manahan Solo', kota: 'Solo', alamat: 'Jl. Adi Sucipto No.1, Manahan, Banjarsari, Surakarta', lat: -7.5544, lng: 110.8066 },
+  { nama: 'De Tjolomadoe', kota: 'Solo', alamat: 'Jl. Adi Sucipto No.1, Paulan Wetan, Colomadu, Karanganyar', lat: -7.5284, lng: 110.7516 },
+  { nama: 'Solo Paragon Mall (XXI)', kota: 'Solo', alamat: 'Jl. Yosodipuro No.133, Mangkubumen, Banjarsari, Surakarta', lat: -7.5615, lng: 110.8118 },
+  { nama: 'PRPP Jawa Tengah', kota: 'Semarang', alamat: 'Jl. Anjasmoro Raya, Tawangsari, Semarang Barat', lat: -6.9592, lng: 110.3908 },
+  { nama: 'Stadion Jatidiri', kota: 'Semarang', alamat: 'Karangrejo, Gajahmungkur, Semarang', lat: -7.0264, lng: 110.4131 },
+  { nama: 'Holy Stadium Marina', kota: 'Semarang', alamat: 'Jl. Marina Grand Marina No.2, Tawangsari, Semarang Barat', lat: -6.9538, lng: 110.3846 },
+
+  // Bali
+  { nama: 'Garuda Wisnu Kencana (GWK Cultural Park)', kota: 'Bali', alamat: 'Jl. Raya Uluwatu, Ungasan, Kuta Selatan, Badung, Bali', lat: -8.8105, lng: 115.1668 },
+  { nama: 'Bali Nusa Dua Convention Center (BNDCC)', kota: 'Bali', alamat: 'Kawasan Terpadu ITDC Blok NW/1, Nusa Dua, Badung, Bali', lat: -8.7997, lng: 115.2259 },
+  { nama: 'Bali International Convention Centre (BICC)', kota: 'Bali', alamat: 'Kawasan Pariwisata Nusa Dua, BTDC Lot N-3, Badung, Bali', lat: -8.8033, lng: 115.2282 },
+  { nama: 'Stadion Kapten I Wayan Dipta', kota: 'Bali', alamat: 'Buruan, Blahbatuh, Kabupaten Gianyar, Bali', lat: -8.5469, lng: 115.3081 },
+  { nama: 'Atlas Beach Club', kota: 'Bali', alamat: 'Jl. Pantai Berawa No.88, Tibubeneng, Kuta Utara, Badung, Bali', lat: -8.6625, lng: 115.1386 },
+  { nama: 'Savaya Bali', kota: 'Bali', alamat: 'Jl. Belimbing Sari, Pecatu, Kuta Selatan, Badung, Bali', lat: -8.8475, lng: 115.1489 },
+  { nama: 'Beachwalk Shopping Center (XXI)', kota: 'Bali', alamat: 'Jl. Pantai Kuta, Kuta, Kabupaten Badung, Bali', lat: -8.7183, lng: 115.1692 },
+
+  // Medan, Balikpapan, Makassar & Kota Lainnya
+  { nama: 'Stadion Teladan', kota: 'Medan', alamat: 'Teladan Barat, Medan Kota, Medan', lat: 3.5684, lng: 98.6942 },
+  { nama: 'Regale International Convention Centre', kota: 'Medan', alamat: 'Jl. H. Adam Malik No.66-68, Silalas, Medan Barat', lat: 3.6022, lng: 98.6697 },
+  { nama: 'Centre Point Mall (XXI)', kota: 'Medan', alamat: 'Jl. Jawa No.8, Gang Buntu, Medan Timur', lat: 3.5919, lng: 98.6826 },
+  { nama: 'Stadion Batakan', kota: 'Balikpapan', alamat: 'Manggar, Balikpapan Timur, Kota Balikpapan', lat: -1.2183, lng: 116.9489 },
+  { nama: 'Celebes Convention Center (CCC)', kota: 'Makassar', alamat: 'Jl. Metro Tanjung Bunga, Mariso, Makassar', lat: -5.1558, lng: 119.4072 },
 ];
 
 const USERS = [
