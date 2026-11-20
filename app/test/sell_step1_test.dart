@@ -405,4 +405,83 @@ void main() {
 
     expect(find.text('Pilih venue untuk kategori Bioskop.'), findsOneWidget);
   });
+
+  testWidgets(
+      'Tahap 1 & 2: Kosongkan tanggal/jam opsional & Tahap 2 POV Penjual 1 Field Kursi',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final storage = TokenStorage();
+    await storage.saveSession(
+      'token-123',
+      const UserModel(id: 1, nama: 'Budi', email: 'budi@example.com', kota: 'Surabaya'),
+    );
+    final auth = AuthController(repository: _FakeAuthRepo(), tokenStorage: storage);
+    await auth.restoreSession();
+
+    final fakeEventRepo = _Step1FakeEventRepo();
+    final fakeListingRepo = _Step1FakeListingRepo();
+
+    await tester.pumpWidget(
+      AuthScope(
+        controller: auth,
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: Scaffold(
+            body: SellScreen(
+              eventRepository: fakeEventRepo,
+              listingRepository: fakeListingRepo,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Pilih event wisata (Jatim Park 3)
+    await tester.tap(find.text('Pilih atau tambah event...'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiket Masuk Jatim Park 3'));
+    await tester.pumpAndSettle();
+
+    // Jam acara opsional untuk wisata
+    expect(find.text('Jam acara (opsional)'), findsOneWidget);
+
+    // Buka pemilih jam
+    await tester.tap(find.text('Pilih jam acara (opsional)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Jam sudah terisi, tombol "Kosongkan" tampil
+    expect(find.text('Kosongkan'), findsOneWidget);
+
+    // Ketuk tombol "Kosongkan" jam
+    await tester.tap(find.text('Kosongkan'));
+    await tester.pumpAndSettle();
+
+    // Jam kembali kosong
+    expect(find.text('Pilih jam acara (opsional)'), findsOneWidget);
+
+    // Masuk ke Tahap 2
+    await tester.tap(find.text('Lanjut'));
+    await tester.pumpAndSettle();
+
+    // Verifikasi Tahap 2: Keterangan jenis resell POV Penjual
+    expect(
+      find.text('Tiket kategori langka atau sold out di platform resmi, banyak dicari pembeli'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Jual kilat mendekati hari acara, pasang harga bersaing agar cepat laku sebelum hangus'),
+      findsOneWidget,
+    );
+
+    // Verifikasi Tahap 2: 1 Field terpadu untuk kategori/seksi/kursi
+    expect(find.text('Kategori, seksi, atau posisi kursi (opsional)'), findsOneWidget);
+    expect(find.text('Nomor kursi (opsional)'), findsNothing);
+  });
 }

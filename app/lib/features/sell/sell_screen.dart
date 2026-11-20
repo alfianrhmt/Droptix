@@ -54,7 +54,6 @@ class _SellScreenState extends State<SellScreen> {
   String _jenis = 'limited';
   String _tipe = 'digital';
   final _seksiController = TextEditingController();
-  final _kursiController = TextEditingController();
 
   // Langkah 3: Harga & jumlah
   final _hargaController = TextEditingController();
@@ -112,7 +111,6 @@ class _SellScreenState extends State<SellScreen> {
     _customVenueController.dispose();
     _cityController.dispose();
     _seksiController.dispose();
-    _kursiController.dispose();
     _hargaController.dispose();
     _hargaAsliController.dispose();
     _lokasiPenjualController.dispose();
@@ -416,6 +414,21 @@ class _SellScreenState extends State<SellScreen> {
         _cityController.text.trim();
   }
 
+  DateTime get _effectiveWaktuAcara {
+    if (_waktuAcara != null) return _waktuAcara!;
+    if (_selectedDate != null) {
+      final time = _selectedTime ?? const TimeOfDay(hour: 23, minute: 59);
+      return DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        time.hour,
+        time.minute,
+      );
+    }
+    return DateTime.now().add(const Duration(days: 30));
+  }
+
   bool _validateCurrentStep() {
     String? error;
     switch (_step) {
@@ -442,7 +455,8 @@ class _SellScreenState extends State<SellScreen> {
                 : 'Pilih tanggal acara untuk tiket Anda.';
           } else if (requiresTimeInSell && _selectedTime == null) {
             error = 'Pilih jam tayang/acara untuk kategori ${cat.nama}.';
-          } else if (_waktuAcara == null ||
+          } else if (_selectedDate != null &&
+              _waktuAcara != null &&
               !_waktuAcara!.isAfter(DateTime.now())) {
             error = 'Pilih tanggal & jam acara di masa depan.';
           }
@@ -513,7 +527,6 @@ class _SellScreenState extends State<SellScreen> {
         ? null
         : int.parse(_hargaAsliController.text.trim());
     final seksi = _seksiController.text.trim();
-    final kursi = _kursiController.text.trim();
     final catatan = _catatanController.text.trim();
 
     return {
@@ -521,11 +534,11 @@ class _SellScreenState extends State<SellScreen> {
       'venue_id': _useCustomVenue ? null : _selectedVenue?.id,
       'venue_teks': _useCustomVenue ? _customVenueController.text.trim() : null,
       'kota': _effectiveCity,
-      'waktu_acara': _waktuAcara!.toUtc().toIso8601String(),
+      'waktu_acara': _effectiveWaktuAcara.toUtc().toIso8601String(),
       'jenis': _jenis,
       'tipe': _tipe,
       'seksi': seksi.isEmpty ? null : seksi,
-      'no_kursi': kursi.isEmpty ? null : kursi,
+      'no_kursi': null,
       'harga': harga,
       'harga_asli': hargaAsli,
       'jumlah_total': _jumlahTotal,
@@ -586,7 +599,6 @@ class _SellScreenState extends State<SellScreen> {
       _jenis = 'limited';
       _tipe = 'digital';
       _seksiController.clear();
-      _kursiController.clear();
       _hargaController.clear();
       _hargaAsliController.clear();
       _jumlahTotal = 1;
@@ -997,13 +1009,40 @@ class _SellScreenState extends State<SellScreen> {
           const SizedBox(height: AppSpacing.md),
 
           // Section Tanggal
-          Text(
-            hasEventDates
-                ? 'Tanggal acara'
-                : (requiresDate
-                    ? 'Tanggal acara (wajib)'
-                    : 'Tanggal acara (opsional)'),
-            style: AppTextStyles.label,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  hasEventDates
+                      ? 'Tanggal acara'
+                      : (requiresDate
+                          ? 'Tanggal acara (wajib)'
+                          : 'Tanggal acara (opsional)'),
+                  style: AppTextStyles.label,
+                ),
+              ),
+              if (!hasEventDates && !requiresDate && _selectedDate != null)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedDate = null;
+                      _updateWaktuAcara();
+                    });
+                  },
+                  icon: const Icon(Icons.close_rounded,
+                      size: 14, color: AppColors.urgent),
+                  label: Text(
+                    'Kosongkan',
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.urgent),
+                  ),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: AppSpacing.xs),
           if (_selectedEvent!.tanggalOpsi.isNotEmpty) ...[
@@ -1065,52 +1104,119 @@ class _SellScreenState extends State<SellScreen> {
               ],
             ),
           ] else ...[
-            OutlinedButton.icon(
-              onPressed: _pickCustomDate,
-              icon: const Icon(Icons.calendar_today_rounded, size: 18),
-              label: Text(
-                _selectedDate == null
-                    ? (requiresDate
-                        ? 'Pilih tanggal acara (wajib)'
-                        : 'Pilih tanggal acara (opsional)')
-                    : _formatIndoDate(_selectedDate!),
-              ),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, AppTouchTarget.min),
-                foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.divider),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickCustomDate,
+                    icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                    label: Text(
+                      _selectedDate == null
+                          ? (requiresDate
+                              ? 'Pilih tanggal acara (wajib)'
+                              : 'Pilih tanggal acara (opsional)')
+                          : _formatIndoDate(_selectedDate!),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, AppTouchTarget.min),
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.divider),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                if (!requiresDate && _selectedDate != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  IconButton(
+                    tooltip: 'Kosongkan tanggal',
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.urgent),
+                    onPressed: () {
+                      setState(() {
+                        _selectedDate = null;
+                        _updateWaktuAcara();
+                      });
+                    },
+                  ),
+                ],
+              ],
             ),
           ],
           const SizedBox(height: AppSpacing.md),
 
           // Section Jam
-          Text(
-            requiresTime ? 'Jam acara (wajib)' : 'Jam acara (opsional)',
-            style: AppTextStyles.label,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  requiresTime ? 'Jam acara (wajib)' : 'Jam acara (opsional)',
+                  style: AppTextStyles.label,
+                ),
+              ),
+              if (!requiresTime && _selectedTime != null)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedTime = null;
+                      _updateWaktuAcara();
+                    });
+                  },
+                  icon: const Icon(Icons.close_rounded,
+                      size: 14, color: AppColors.urgent),
+                  label: Text(
+                    'Kosongkan',
+                    style:
+                        AppTextStyles.caption.copyWith(color: AppColors.urgent),
+                  ),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          OutlinedButton.icon(
-            onPressed: _pickTime,
-            icon: const Icon(Icons.access_time_rounded, size: 18),
-            label: Text(
-              _selectedTime == null
-                  ? (requiresTime
-                      ? 'Pilih jam acara (wajib)'
-                      : 'Pilih jam acara (opsional)')
-                  : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')} WIB',
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, AppTouchTarget.min),
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.divider),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickTime,
+                  icon: const Icon(Icons.access_time_rounded, size: 18),
+                  label: Text(
+                    _selectedTime == null
+                        ? (requiresTime
+                            ? 'Pilih jam acara (wajib)'
+                            : 'Pilih jam acara (opsional)')
+                        : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')} WIB',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, AppTouchTarget.min),
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.divider),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              if (!requiresTime && _selectedTime != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(
+                  tooltip: 'Kosongkan jam',
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.urgent),
+                  onPressed: () {
+                    setState(() {
+                      _selectedTime = null;
+                      _updateWaktuAcara();
+                    });
+                  },
+                ),
+              ],
+            ],
           ),
         ],
       ],
@@ -1125,14 +1231,16 @@ class _SellScreenState extends State<SellScreen> {
         const SizedBox(height: AppSpacing.xs),
         _OptionCard(
           title: 'Limited',
-          subtitle: 'Tiket langka, cepat habis',
+          subtitle:
+              'Tiket kategori langka atau sold out di platform resmi, banyak dicari pembeli',
           selected: _jenis == 'limited',
           onTap: () => setState(() => _jenis = 'limited'),
         ),
         const SizedBox(height: AppSpacing.sm),
         _OptionCard(
           title: 'Last-Minute',
-          subtitle: 'Lebih murah, acara segera mulai',
+          subtitle:
+              'Jual kilat mendekati hari acara, pasang harga bersaing agar cepat laku sebelum hangus',
           selected: _jenis == 'last_minute',
           onTap: () => setState(() => _jenis = 'last_minute'),
         ),
@@ -1155,14 +1263,13 @@ class _SellScreenState extends State<SellScreen> {
         const SizedBox(height: AppSpacing.md),
         AppTextField(
           controller: _seksiController,
-          label: 'Seksi / Kategori kursi (opsional)',
-          hintText: 'Contoh: CAT 2, Festival A',
+          label: 'Kategori, seksi, atau posisi kursi (opsional)',
+          hintText: 'Contoh: CAT 1, Festival A, Kursi E12, atau Tiket Terusan',
         ),
-        const SizedBox(height: AppSpacing.md),
-        AppTextField(
-          controller: _kursiController,
-          label: 'Nomor kursi (opsional)',
-          hintText: 'Contoh: B12-B13',
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Isi informasi tambahan sesuai jenis tiket Anda, seperti kelas tiket, gate/tribun, studio bioskop, atau nomor kursi (opsional).',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -1506,12 +1613,15 @@ class _SellScreenState extends State<SellScreen> {
                       style: AppTextStyles.bodySmall
                           .copyWith(color: AppColors.textSecondary),
                     ),
-                    if (_waktuAcara != null)
-                      Text(
-                        _formatDateTime(_waktuAcara!),
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.primary),
-                      ),
+                    Text(
+                      _selectedDate != null
+                          ? (_selectedTime != null
+                              ? _formatDateTime(_effectiveWaktuAcara)
+                              : '${_formatIndoDate(_selectedDate!)} • Bebas Jam')
+                          : 'Tiket Fleksibel / Open Date (Berlaku 30 hari)',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.primary),
+                    ),
                   ],
                 ),
               ),
@@ -1520,6 +1630,8 @@ class _SellScreenState extends State<SellScreen> {
           const Divider(height: AppSpacing.xl, color: AppColors.divider),
           _PreviewRow('Jenis / Tipe',
               '${_jenis == 'last_minute' ? 'Last-Minute' : 'Limited'} • ${_tipe == 'digital' ? 'Digital' : 'Fisik'}'),
+          if (_seksiController.text.trim().isNotEmpty)
+            _PreviewRow('Kategori / Kursi', _seksiController.text.trim()),
           _PreviewRow('Harga per tiket', 'Rp $harga'),
           _PreviewRow('Jumlah',
               '$_jumlahTotal tiket (${_satuan ? 'Bisa satuan' : 'Ambil semua'})'),
