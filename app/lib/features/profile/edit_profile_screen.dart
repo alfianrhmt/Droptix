@@ -264,7 +264,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: AppSpacing.lg),
 
                 AppTextField(
-                  label: 'Nama lengkap',
+                  label: 'Nama tampilan',
                   controller: _namaCtrl,
                   errorText: _fieldErrors['nama'],
                 ),

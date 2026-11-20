@@ -38,7 +38,7 @@ class PrivacyScreen extends StatelessWidget {
               title: '1. Informasi yang Kami Kumpulkan',
               content:
                   'Kami mengumpulkan informasi yang Anda berikan saat mendaftar dan beraktivitas di Droptix:\n'
-                  '• Nama lengkap dan alamat email (untuk identitas akun dan autentikasi).\n'
+                  '• Nama tampilan dan alamat email (untuk identitas akun dan autentikasi).\n'
                   '• Kota domisili (untuk kurasi dan rekomendasi listing terdekat).\n'
                   '• Nomor WhatsApp (opsional, hanya dibagikan kepada calon pembeli jika Anda mengaktifkan opsi "Lanjut via WhatsApp").\n'
                   '• Pesan dan riwayat percakapan di dalam fitur chat Droptix.',

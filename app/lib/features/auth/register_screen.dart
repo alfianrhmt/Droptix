@@ -135,7 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: AppSpacing.lg),
                 ],
                 AppTextField(
-                  label: 'Nama lengkap',
+                  label: 'Nama tampilan',
                   controller: _namaCtrl,
                   hintText: 'Contoh: Raka Pratama',
                   textInputAction: TextInputAction.next,
