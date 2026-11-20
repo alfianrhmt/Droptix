@@ -208,6 +208,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Verifikasi bahwa sebelum memilih event, field venue dan tanggal TIDAK tampil
+    expect(find.text('Venue'), findsNothing);
+    expect(find.text('Tanggal acara'), findsNothing);
+    expect(find.text('Jam acara'), findsNothing);
+    expect(find.text('Pilih event terlebih dahulu untuk mengisi detail tiket.'), findsOneWidget);
+
     // 1. Ketuk pemilih event
     await tester.tap(find.text('Pilih atau tambah event...'));
     await tester.pumpAndSettle();
@@ -287,9 +293,17 @@ void main() {
     await tester.tap(find.text('Ubah venue'));
     await tester.pumpAndSettle();
 
-    // Buka modal tambah venue baru
-    expect(find.text('Venue tidak ada? Tambah baru'), findsOneWidget);
-    await tester.tap(find.text('Venue tidak ada? Tambah baru'));
+    // Pastikan tidak ada tombol redundan "Venue tidak ada? Tambah baru"
+    expect(find.text('Venue tidak ada? Tambah baru'), findsNothing);
+
+    // Buka modal pencarian venue
+    expect(find.text('Cari atau pilih venue...'), findsOneWidget);
+    await tester.tap(find.text('Cari atau pilih venue...'));
+    await tester.pumpAndSettle();
+
+    // Modal pencarian venue terbuka, ada tombol "Tambah Venue"
+    expect(find.text('Tambah Venue'), findsOneWidget);
+    await tester.tap(find.text('Tambah Venue'));
     await tester.pumpAndSettle();
 
     // Modal dialog tambah venue

@@ -879,19 +879,7 @@ class _CreateEventFormState extends State<_CreateEventForm> {
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _showAddVenueDialog,
-              icon: const Icon(Icons.add_location_alt_outlined, size: 16),
-              label: const Text('Venue tidak ada? Tambah baru'),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.md),
           Text(
             requiresDate
                 ? 'Tanggal acara (wajib)'
@@ -1162,7 +1150,9 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Pilih Venue', style: AppTextStyles.titleMedium),
+                  Expanded(
+                    child: Text('Pilih Venue', style: AppTextStyles.titleMedium),
+                  ),
                   TextButton.icon(
                     onPressed: () async {
                       final created = await widget.onAddNewVenue();
@@ -1170,11 +1160,12 @@ class _VenueSearchSheetState extends State<VenueSearchSheet> {
                         Navigator.of(context).pop(VenuePickerResult(created));
                       }
                     },
-                    icon: const Icon(Icons.add_location_alt_outlined, size: 16),
-                    label: const Text('+ Tambah Venue'),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Tambah Venue'),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                     ),
                   ),
                 ],
