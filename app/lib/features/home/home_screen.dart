@@ -467,7 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCategoryRow() {
     const categoriesWithSlugs = [
-      ('Konser & Festival', 'konser-festival', Icons.music_note_rounded),
+      ('Konser', 'konser-festival', Icons.music_note_rounded),
       ('Bioskop', 'bioskop', Icons.movie_rounded),
       ('Olahraga', 'olahraga', Icons.sports_soccer_rounded),
       ('Lainnya', 'hiburan-lain', Icons.more_horiz_rounded),

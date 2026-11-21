@@ -357,7 +357,7 @@ void main() {
 
       // 6. CategoryRow
       expect(find.byType(CategoryRow), findsOneWidget);
-      expect(find.text('Konser & Festival'), findsOneWidget);
+      expect(find.text('Konser'), findsOneWidget);
 
       // 7. Dekat Kamu
       expect(find.text('Dekat Kamu'), findsOneWidget);

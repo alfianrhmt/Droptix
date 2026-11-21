@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
-import '../theme/app_text_styles.dart';
 
 /// Data model kategori.
 class CategoryItem {
@@ -17,13 +16,13 @@ class CategoryItem {
 
 /// 4 Kategori bawaan: Konser, Bioskop, Olahraga, Lainnya.
 const List<CategoryItem> defaultCategories = [
-  CategoryItem(label: 'Konser & Festival', icon: Icons.music_note_rounded),
+  CategoryItem(label: 'Konser', icon: Icons.music_note_rounded),
   CategoryItem(label: 'Bioskop', icon: Icons.movie_rounded),
   CategoryItem(label: 'Olahraga', icon: Icons.sports_soccer_rounded),
   CategoryItem(label: 'Lainnya', icon: Icons.more_horiz_rounded),
 ];
 
-/// Baris 4 kategori statis (non-scrollable), terbagi rata secara simetris di layar.
+/// Baris 4 kategori statis, terbagi rata secara simetris di layar dan sejajar 100%.
 class CategoryRow extends StatelessWidget {
   const CategoryRow({
     super.key,
@@ -72,32 +71,29 @@ class _CategoryTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: AppColors.iconButtonFill,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              color: AppColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(
-                color: AppColors.outlineTeal.withAlpha(120),
+                color: Colors.white.withAlpha(16),
                 width: 1,
               ),
             ),
             child: Icon(category.icon, color: AppColors.primary, size: 26),
           ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 28,
-            child: Text(
-              category.label,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                height: 1.2,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 8),
+          Text(
+            category.label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
