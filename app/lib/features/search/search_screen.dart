@@ -9,6 +9,7 @@ import '../../core/widgets/widgets.dart';
 import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
 import '../listings/listing_detail_screen.dart';
+import '../events/event_detail_screen.dart';
 import 'recent_searches_storage.dart';
 
 /// Halaman pencarian dan kategori tiket Droptix.
@@ -924,38 +925,137 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
+    ListingEventSummary? matchedEvent;
+    if (_query.trim().isNotEmpty && _items.isNotEmpty) {
+      final qLower = _query.trim().toLowerCase();
+      for (final it in _items) {
+        if (it.event.nama.toLowerCase().contains(qLower)) {
+          matchedEvent = it.event;
+          break;
+        }
+      }
+    } else if (_items.isNotEmpty &&
+        _items.every((it) => it.event.id == _items.first.event.id)) {
+      matchedEvent = _items.first.event;
+    }
+
+    final listView = ListView.separated(
+      controller: _scrollController,
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: 40),
+      itemCount: _items.length + (_isLoadingMore ? 1 : 0),
+      separatorBuilder: (_, _) =>
+          const Divider(height: 1, color: AppColors.divider),
+      itemBuilder: (context, index) {
+        if (index >= _items.length) {
+          return const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          );
+        }
+        final item = _items[index];
+        return ListingRow(
+          listing: item.toListingData(),
+          onTap: () => _handleListingTap(item),
+        );
+      },
+    );
+
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceHigh,
       onRefresh: () => _fetchListings(refresh: true),
-      child: ListView.separated(
-        controller: _scrollController,
-        padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: 40),
-        itemCount: _items.length + (_isLoadingMore ? 1 : 0),
-        separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: AppColors.divider),
-        itemBuilder: (context, index) {
-          if (index >= _items.length) {
-            return const Padding(
-              padding: EdgeInsets.all(AppSpacing.md),
-              child: Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
+      child: matchedEvent != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildEventHighlightCard(matchedEvent),
+                Expanded(child: listView),
+              ],
+            )
+          : listView,
+    );
+  }
+
+  Widget _buildEventHighlightCard(ListingEventSummary event) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.screenH,
+        AppSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.primary.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'HALAMAN ACARA',
+                  style: AppTextStyles.caption.copyWith(
                     color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  event.nama,
+                  style: AppTextStyles.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Lihat semua tiket & aktifkan notifikasi',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(eventId: event.id),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.full),
               ),
-            );
-          }
-          final item = _items[index];
-          return ListingRow(
-            listing: item.toListingData(),
-            onTap: () => _handleListingTap(item),
-          );
-        },
+            ),
+            child: Text(
+              'Buka',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.onPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
