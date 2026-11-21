@@ -131,6 +131,14 @@ class _Step1FakeEventRepo implements EventRepository {
 
   @override
   Future<List<AppBanner>> getBanners() async => const [];
+
+  @override
+  Future<EventDetailModel> getEventDetail(int id, {String? sort, double? lat, double? lng, int? venueId, String? tanggal}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> toggleEventAlert(int eventId) async => true;
 }
 
 class _Step1FakeListingRepo implements ListingRepository {

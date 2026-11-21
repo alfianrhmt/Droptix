@@ -4,7 +4,7 @@ const express = require('express');
 const { z } = require('zod');
 const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
-const { formatListingCard } = require('./listings');
+const { formatListingCard, getWibDateRange } = require('./listings');
 
 const STRICT_VENUE_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
 const STRICT_TANGGAL_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
@@ -18,6 +18,14 @@ const getTrendingQuerySchema = z.object({
 const listEventsQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   category: z.string().trim().max(30).optional(),
+});
+
+const getEventDetailQuerySchema = z.object({
+  sort: z.enum(['termurah', 'terdekat', 'segera', 'terbaru']).optional().default('termurah'),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  venue_id: z.coerce.number().int().positive().optional(),
+  tanggal: z.string().trim().optional(),
 });
 
 const createEventSchema = z.object({
@@ -121,8 +129,9 @@ async function fetchEventById(db, id) {
 /**
  * Router master data & pembuatan event.
  */
-function createEventsRouter(db, requireAuth) {
+function createEventsRouter(db, requireAuth, optionalAuth) {
   const router = express.Router();
+  const authOptional = optionalAuth || ((_req, _res, next) => next());
 
   router.get('/trending', validate(getTrendingQuerySchema, 'query'), async (req, res, next) => {
     try {
@@ -488,6 +497,173 @@ function createEventsRouter(db, requireAuth) {
 
         const updated = await fetchEventById(db, eventId);
         return res.json({ data: formatEventRow(updated) });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.get(
+    '/:id',
+    authOptional,
+    validate(eventIdParamSchema, 'params'),
+    validate(getEventDetailQuerySchema, 'query'),
+    async (req, res, next) => {
+      try {
+        const eventId = req.params.id;
+        const { sort, lat, lng, venue_id, tanggal } = req.query;
+        const currentUserId = req.user?.id ?? null;
+
+        const eventRow = await fetchEventById(db, eventId);
+        if (!eventRow || eventRow.hidden) {
+          return next(Errors.notFound('Event tidak ditemukan.'));
+        }
+
+        let isAlertActive = false;
+        if (currentUserId) {
+          const alertRes = await db.query(
+            'SELECT is_active FROM event_alerts WHERE event_id = $1 AND user_id = $2',
+            [eventId, currentUserId]
+          );
+          if (alertRes.rows.length > 0) {
+            isAlertActive = Boolean(alertRes.rows[0].is_active);
+          }
+        }
+
+        const statsRes = await db.query(
+          `SELECT
+             COALESCE(SUM(l.jumlah_total - l.jumlah_terjual), 0)::int AS available_tickets_count,
+             MIN(l.harga)::int AS min_price,
+             MAX(l.harga)::int AS max_price,
+             COUNT(DISTINCT l.seller_id)::int AS sellers_count
+           FROM listings l
+           JOIN users u ON u.id = l.seller_id
+           WHERE l.event_id = $1
+             AND l.deleted_at IS NULL
+             AND l.hidden = false
+             AND l.waktu_acara > now()
+             AND (l.jumlah_total - l.jumlah_terjual) > 0
+             AND u.banned_at IS NULL`,
+          [eventId]
+        );
+        const statsRow = statsRes.rows[0] || {};
+        const stats = {
+          available_tickets_count: statsRow.available_tickets_count ?? 0,
+          min_price: statsRow.min_price ?? null,
+          max_price: statsRow.max_price ?? null,
+          sellers_count: statsRow.sellers_count ?? 0,
+        };
+
+        const conditions = [
+          'l.event_id = $1',
+          'l.deleted_at IS NULL',
+          'l.hidden = false',
+          'l.waktu_acara > now()',
+          '(l.jumlah_total - l.jumlah_terjual) > 0',
+          'u.banned_at IS NULL',
+        ];
+        const params = [eventId];
+
+        if (venue_id) {
+          params.push(venue_id);
+          conditions.push(`l.venue_id = $${params.length}`);
+        }
+
+        if (tanggal) {
+          const { start, end } = getWibDateRange(tanggal);
+          params.push(start.toISOString(), end.toISOString());
+          conditions.push(`l.waktu_acara >= $${params.length - 1} AND l.waktu_acara <= $${params.length}`);
+        }
+
+        let orderBy = 'l.harga ASC, l.waktu_acara ASC';
+        if (sort === 'terdekat' && lat !== undefined && lng !== undefined) {
+          params.push(lat, lng);
+          const latIdx = params.length - 1;
+          const lngIdx = params.length;
+          orderBy = `(6371 * 2 * asin(sqrt(power(sin(radians(l.ref_lat - $${latIdx}) / 2), 2) + cos(radians($${latIdx})) * cos(radians(l.ref_lat)) * power(sin(radians(l.ref_lng - $${lngIdx}) / 2), 2)))) ASC NULLS LAST, l.harga ASC`;
+        } else if (sort === 'segera') {
+          orderBy = 'l.waktu_acara ASC, l.harga ASC';
+        } else if (sort === 'terbaru') {
+          orderBy = 'l.id DESC';
+        }
+
+        const favSelect = currentUserId
+          ? `EXISTS (SELECT 1 FROM favorites f WHERE f.listing_id = l.id AND f.user_id = ${Number(currentUserId)}) AS is_favorite`
+          : 'false AS is_favorite';
+
+        const listingsSql = `
+          SELECT l.*,
+                 e.id AS event_id, e.nama AS event_nama, e.poster_url AS event_poster_url,
+                 c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama,
+                 v.nama AS venue_nama,
+                 u.id AS seller_id, u.nama AS seller_nama, u.username AS seller_username, u.foto_url AS seller_foto_url,
+                 (SELECT COUNT(*)::int FROM conversations conv WHERE conv.listing_id = l.id) AS tertarik,
+                 ${favSelect}
+          FROM listings l
+          JOIN events e ON e.id = l.event_id
+          JOIN categories c ON c.id = e.category_id
+          LEFT JOIN venues v ON v.id = l.venue_id
+          JOIN users u ON u.id = l.seller_id
+          WHERE ${conditions.join(' AND ')}
+          ORDER BY ${orderBy}
+        `;
+
+        const listingsRes = await db.query(listingsSql, params);
+        const listings = listingsRes.rows.map((row) => ({
+          ...formatListingCard(row, lat ?? null, lng ?? null),
+          seller: {
+            id: row.seller_id,
+            nama: row.seller_nama,
+            username: row.seller_username ?? null,
+            foto_url: row.seller_foto_url ?? null,
+          },
+        }));
+
+        return res.json({
+          data: {
+            event: formatEventRow(eventRow),
+            stats,
+            is_alert_active: isAlertActive,
+            listings,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
+  router.post(
+    '/:id/alert',
+    requireAuth,
+    validate(eventIdParamSchema, 'params'),
+    async (req, res, next) => {
+      try {
+        const eventId = req.params.id;
+        const event = await fetchEventById(db, eventId);
+        if (!event || event.hidden) {
+          return next(Errors.notFound('Event tidak ditemukan.'));
+        }
+
+        const upsertSql = `
+          INSERT INTO event_alerts (event_id, user_id, is_active, updated_at)
+          VALUES ($1, $2, true, now())
+          ON CONFLICT (event_id, user_id)
+          DO UPDATE SET is_active = NOT event_alerts.is_active, updated_at = now()
+          RETURNING is_active
+        `;
+        const result = await db.query(upsertSql, [eventId, req.user.id]);
+        const isActive = result.rows[0].is_active;
+
+        return res.json({
+          data: {
+            event_id: Number(eventId),
+            is_active: isActive,
+            message: isActive
+              ? 'Notifikasi tiket untuk event ini diaktifkan.'
+              : 'Notifikasi tiket untuk event ini dimatikan.',
+          },
+        });
       } catch (err) {
         return next(err);
       }

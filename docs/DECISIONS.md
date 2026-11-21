@@ -33,6 +33,8 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 27 | Batas laporan harian (maks. 10 per hari per pengguna) divalidasi langsung via query agregat interval 24 jam pada tabel `reports`, sedangkan relasi pemblokiran menggunakan `ON CONFLICT DO NOTHING` pada `blocks` | Menghindari status laporan yang hilang saat restart server dan menjamin idempotensi operasi blokir/unblokir |
 | 28 | `CountdownTimerProvider` memakai satu `MinuteNotifier` global yang mendetak pada detik 00 setiap menit bulat untuk seluruh `CountdownBadge` | Menghemat daya baterai dan memori perangkat serta menjamin semua countdown kedaluwarsa diperbarui secara sinkron |
 | 29 | Deployment produksi memisahkan `docker-compose.prod.yml` dengan Caddy reverse proxy (HTTPS otomatis), backup PostgreSQL terjadwal harian via cron, dan signing Android dengan fallback aman | Memenuhi standar keamanan HTTPS publik, proteksi kehilangan data lewat `pg_dump`, dan kemudahan build APK rilis |
+| 30 | Halaman Event (Event Hub ala TicketSwap) dengan dual entry point, filter & urutan (termurah, terdekat, segera, terbaru), ticket alert (tabel `event_alerts`), dan pintasan jual tiket pre-filled | Mengumpulkan seluruh tiket dari berbagai penjual dalam satu tempat untuk perbandingan mudah, mendukung kebutuhan pencarian event bioskop/konser tanpa kehilangan akses langsung tiket last-minute di Home |
+
 
 
 

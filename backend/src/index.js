@@ -67,7 +67,7 @@ function createApp({
   app.use('/api/v1/me', createMeRouter(db, requireAuth));
   app.use('/api/v1/categories', createCategoriesRouter(db));
   app.use('/api/v1/venues', createVenuesRouter(db));
-  app.use('/api/v1/events', createEventsRouter(db, requireAuth));
+  app.use('/api/v1/events', createEventsRouter(db, requireAuth, optionalAuth));
   app.use('/api/v1/uploads', createUploadsRouter(requireAuth, uploadsDir));
   app.use(
     '/api/v1/listings',

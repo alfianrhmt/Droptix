@@ -275,3 +275,75 @@ class TrendingBanner {
   }
 }
 
+/// Statistik ketersediaan tiket pada EventDetailModel.
+class EventStatsModel {
+  const EventStatsModel({
+    required this.availableTicketsCount,
+    this.minPrice,
+    this.maxPrice,
+    required this.sellersCount,
+  });
+
+  final int availableTicketsCount;
+  final int? minPrice;
+  final int? maxPrice;
+  final int sellersCount;
+
+  factory EventStatsModel.fromJson(Map<String, dynamic> json) {
+    return EventStatsModel(
+      availableTicketsCount:
+          (json['available_tickets_count'] as num?)?.toInt() ?? 0,
+      minPrice: (json['min_price'] as num?)?.toInt(),
+      maxPrice: (json['max_price'] as num?)?.toInt(),
+      sellersCount: (json['sellers_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Model data lengkap Halaman Event (Event Hub).
+class EventDetailModel {
+  const EventDetailModel({
+    required this.event,
+    required this.stats,
+    required this.isAlertActive,
+    required this.listings,
+  });
+
+  final EventItem event;
+  final EventStatsModel stats;
+  final bool isAlertActive;
+  final List<ListingItem> listings;
+
+  factory EventDetailModel.fromJson(Map<String, dynamic> json) {
+    final eventMap = Map<String, dynamic>.from(json['event'] as Map);
+    final statsMap =
+        Map<String, dynamic>.from(json['stats'] as Map? ?? const {});
+    final rawListings = json['listings'] as List<dynamic>? ?? const [];
+
+    return EventDetailModel(
+      event: EventItem.fromJson(eventMap),
+      stats: EventStatsModel.fromJson(statsMap),
+      isAlertActive: json['is_alert_active'] as bool? ?? false,
+      listings: rawListings
+          .map((item) =>
+              ListingItem.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList(),
+    );
+  }
+
+  EventDetailModel copyWith({
+    EventItem? event,
+    EventStatsModel? stats,
+    bool? isAlertActive,
+    List<ListingItem>? listings,
+  }) {
+    return EventDetailModel(
+      event: event ?? this.event,
+      stats: stats ?? this.stats,
+      isAlertActive: isAlertActive ?? this.isAlertActive,
+      listings: listings ?? this.listings,
+    );
+  }
+}
+
+

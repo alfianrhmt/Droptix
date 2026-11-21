@@ -15,12 +15,14 @@ import '../profile/edit_profile_screen.dart';
 class SellScreen extends StatefulWidget {
   const SellScreen({
     super.key,
+    this.initialEvent,
     this.eventRepository,
     this.listingRepository,
     this.pickPhotoBytes,
     this.onPosted,
   });
 
+  final EventItem? initialEvent;
   final EventRepository? eventRepository;
   final ListingRepository? listingRepository;
   final PosterBytesPicker? pickPhotoBytes;
@@ -83,6 +85,47 @@ class _SellScreenState extends State<SellScreen> {
     'Foto & Kontak',
     'Pratinjau',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialEvent != null) {
+      _applySelectedEvent(widget.initialEvent!);
+    }
+  }
+
+  void _applySelectedEvent(EventItem picked) {
+    _selectedEvent = picked;
+    _stepError = null;
+    _editingVenue = false;
+
+    // 1. Venue & Kota otomatis terisi dari template event jika ada
+    if (picked.venue != null) {
+      _useCustomVenue = false;
+      _selectedVenue = picked.venue;
+      _cityController.text = picked.venue!.kota;
+    }
+
+    // 2. Tanggal & Jam
+    if (picked.tanggal != null) {
+      _selectedDate = DateTime(
+        picked.tanggal!.year,
+        picked.tanggal!.month,
+        picked.tanggal!.day,
+      );
+      _selectedTime = TimeOfDay(
+        hour: picked.tanggal!.hour,
+        minute: picked.tanggal!.minute,
+      );
+    } else if (picked.tanggalOpsi.isNotEmpty) {
+      final parsed = DateTime.tryParse(picked.tanggalOpsi.first);
+      if (parsed != null) {
+        _selectedDate = DateTime(parsed.year, parsed.month, parsed.day);
+        _selectedTime = const TimeOfDay(hour: 19, minute: 0);
+      }
+    }
+    _updateWaktuAcara();
+  }
 
   @override
   void didChangeDependencies() {
@@ -154,36 +197,7 @@ class _SellScreenState extends State<SellScreen> {
     );
     if (picked == null || !mounted) return;
     setState(() {
-      _selectedEvent = picked;
-      _stepError = null;
-      _editingVenue = false;
-
-      // 1. Venue & Kota otomatis terisi dari template event jika ada
-      if (picked.venue != null) {
-        _useCustomVenue = false;
-        _selectedVenue = picked.venue;
-        _cityController.text = picked.venue!.kota;
-      }
-
-      // 2. Tanggal & Jam
-      if (picked.tanggal != null) {
-        _selectedDate = DateTime(
-          picked.tanggal!.year,
-          picked.tanggal!.month,
-          picked.tanggal!.day,
-        );
-        _selectedTime = TimeOfDay(
-          hour: picked.tanggal!.hour,
-          minute: picked.tanggal!.minute,
-        );
-      } else if (picked.tanggalOpsi.isNotEmpty) {
-        final parsed = DateTime.tryParse(picked.tanggalOpsi.first);
-        if (parsed != null) {
-          _selectedDate = DateTime(parsed.year, parsed.month, parsed.day);
-          _selectedTime = const TimeOfDay(hour: 19, minute: 0);
-        }
-      }
-      _updateWaktuAcara();
+      _applySelectedEvent(picked);
     });
   }
 

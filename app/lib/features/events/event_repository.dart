@@ -186,4 +186,42 @@ class EventRepository {
       throw ApiException.fromDio(e);
     }
   }
+
+  Future<EventDetailModel> getEventDetail(
+    int id, {
+    String? sort,
+    double? lat,
+    double? lng,
+    int? venueId,
+    String? tanggal,
+  }) async {
+    try {
+      final res = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/events/$id',
+        queryParameters: {
+          if (sort != null && sort.isNotEmpty) 'sort': sort,
+          'lat': ?lat,
+          'lng': ?lng,
+          'venue_id': ?venueId,
+          if (tanggal != null && tanggal.isNotEmpty) 'tanggal': tanggal,
+        },
+      );
+      final data = Map<String, dynamic>.from(res.data!['data'] as Map);
+      return EventDetailModel.fromJson(data);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<bool> toggleEventAlert(int eventId) async {
+    try {
+      final res = await _apiClient.dio.post<Map<String, dynamic>>(
+        '/events/$eventId/alert',
+      );
+      final data = Map<String, dynamic>.from(res.data!['data'] as Map);
+      return data['is_active'] as bool? ?? false;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

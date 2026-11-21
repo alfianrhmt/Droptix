@@ -13,6 +13,7 @@ import '../../core/widgets/stats_card.dart';
 import '../chat/chat_repository.dart';
 import '../chat/chat_screen.dart';
 import '../chat/chat_socket_service.dart';
+import '../events/event_detail_screen.dart';
 import '../moderation/moderation_repository.dart';
 import '../moderation/report_bottom_sheet.dart';
 import 'listing_models.dart';
@@ -505,6 +506,58 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               StatItem(value: '${item.jumlahTerjual}', label: 'Terjual'),
               StatItem(value: '${item.tertarik}', label: 'Tertarik'),
             ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Pintasan ke Halaman Khusus Event
+          InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(
+                    eventId: item.event.id,
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.primary.withAlpha(50)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Lihat semua tiket untuk acara ini',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
 
