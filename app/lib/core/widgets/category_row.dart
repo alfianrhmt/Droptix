@@ -15,16 +15,15 @@ class CategoryItem {
   final VoidCallback? onTap;
 }
 
-/// Kategori bawaan sesuai DESIGN.md.
+/// 4 Kategori bawaan: Konser, Bioskop, Olahraga, Lainnya.
 const List<CategoryItem> defaultCategories = [
   CategoryItem(label: 'Konser & Festival', icon: Icons.music_note_rounded),
   CategoryItem(label: 'Bioskop', icon: Icons.movie_rounded),
   CategoryItem(label: 'Olahraga', icon: Icons.sports_soccer_rounded),
-  CategoryItem(label: 'Wisata', icon: Icons.landscape_rounded),
   CategoryItem(label: 'Lainnya', icon: Icons.more_horiz_rounded),
 ];
 
-/// Baris horizontal kategori, kotak 64×64.
+/// Baris 4 kategori statis (non-scrollable), terbagi rata secara simetris di layar.
 class CategoryRow extends StatelessWidget {
   const CategoryRow({
     super.key,
@@ -37,18 +36,19 @@ class CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < categories.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.md),
-            _CategoryTile(
-              category: categories[i],
-              onTap: () =>
-                  (categories[i].onTap ?? () => onTap?.call(categories[i]))(),
+            if (i > 0) const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _CategoryTile(
+                category: categories[i],
+                onTap: () =>
+                    (categories[i].onTap ?? () => onTap?.call(categories[i]))(),
+              ),
             ),
           ],
         ],
@@ -67,32 +67,39 @@ class _CategoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppColors.iconButtonFill,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.outlineTeal, width: 1),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: AppColors.iconButtonFill,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: AppColors.outlineTeal.withAlpha(120),
+                width: 1,
               ),
-              child: Icon(category.icon, color: AppColors.primary, size: 28),
             ),
-            const SizedBox(height: 4),
-            Text(
+            child: Icon(category.icon, color: AppColors.primary, size: 26),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 28,
+            child: Text(
               category.label,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                height: 1.2,
+              ),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

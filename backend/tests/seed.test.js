@@ -17,7 +17,6 @@ describe('Seed data & idempotensi T1.2', () => {
       'konser-festival',
       'bioskop',
       'olahraga',
-      'wisata',
       'hiburan-lain',
     ]);
     expect(VENUES.length).toBeGreaterThanOrEqual(25);

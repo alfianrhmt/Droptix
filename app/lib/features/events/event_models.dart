@@ -18,7 +18,7 @@ class EventCategory {
   final int urutan;
 
   bool get requiresVenue =>
-      slug == 'konser-festival' || slug == 'olahraga' || slug == 'wisata';
+      slug == 'konser-festival' || slug == 'olahraga';
 
   bool get requiresDate =>
       slug == 'konser-festival' || slug == 'olahraga';

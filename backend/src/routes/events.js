@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate');
 const { Errors } = require('../utils/errors');
 const { formatListingCard } = require('./listings');
 
-const STRICT_VENUE_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga', 'wisata']);
+const STRICT_VENUE_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
 const STRICT_TANGGAL_CATEGORY_SLUGS = new Set(['konser-festival', 'olahraga']);
 const MAX_EVENTS_PER_DAY = 5;
 
@@ -185,7 +185,7 @@ function createEventsRouter(db, requireAuth) {
         });
       }
 
-      // 2. Kategori lokasi (Bioskop, Wisata) -> Banner "nearest"
+      // 2. Kategori lokasi (Bioskop) -> Banner "nearest"
       // Hanya jika koordinat pengguna diberikan
       if (hasLat && hasLng) {
         const nearestSql = `
@@ -208,7 +208,7 @@ function createEventsRouter(db, requireAuth) {
             JOIN categories c ON c.id = e.category_id
             LEFT JOIN venues v ON v.id = l.venue_id
             JOIN users u ON u.id = l.seller_id
-            WHERE c.slug IN ('bioskop', 'wisata')
+            WHERE c.slug IN ('bioskop')
               AND e.hidden = false
               AND l.deleted_at IS NULL
               AND l.hidden = false

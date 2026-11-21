@@ -47,17 +47,17 @@ class _Step1FakeEventRepo implements EventRepository {
     tanggalOpsi: const ['2026-11-28', '2026-11-29', '2026-11-30'],
   );
 
-  final wisataEvent = const EventItem(
+  final hiburanEvent = const EventItem(
     id: 100,
-    nama: 'Tiket Masuk Jatim Park 3',
+    nama: 'Standup Comedy Special',
     category: EventCategory(
       id: 4,
-      slug: 'wisata',
-      nama: 'Wisata',
-      ikon: 'attractions',
+      slug: 'hiburan-lain',
+      nama: 'Lainnya',
+      ikon: 'more_horiz',
       urutan: 4,
     ),
-    venue: VenueItem(id: 11, nama: 'Jatim Park 3', kota: 'Batu'),
+    venue: VenueItem(id: 11, nama: 'Balai Pemuda', kota: 'Surabaya'),
     tanggal: null,
     tanggalOpsi: [],
   );
@@ -80,7 +80,7 @@ class _Step1FakeEventRepo implements EventRepository {
   @override
   Future<List<EventCategory>> getCategories() async => [
         multiDateEvent.category,
-        wisataEvent.category,
+        hiburanEvent.category,
         bioskopEvent.category,
       ];
 
@@ -107,7 +107,7 @@ class _Step1FakeEventRepo implements EventRepository {
 
   @override
   Future<List<EventItem>> searchEvents({String? q, String? categorySlug}) async =>
-      [multiDateEvent, wisataEvent, bioskopEvent];
+      [multiDateEvent, hiburanEvent, bioskopEvent];
 
   @override
   Future<EventItem> createEvent({
@@ -444,10 +444,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Pilih event wisata (Jatim Park 3)
+    // Pilih event hiburan/lainnya (Standup Comedy Special)
     await tester.tap(find.text('Pilih atau tambah event...'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tiket Masuk Jatim Park 3'));
+    await tester.tap(find.text('Standup Comedy Special'));
     await tester.pumpAndSettle();
 
     // Jam acara opsional untuk wisata

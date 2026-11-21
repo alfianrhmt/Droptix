@@ -470,7 +470,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ('Konser & Festival', 'konser-festival', Icons.music_note_rounded),
       ('Bioskop', 'bioskop', Icons.movie_rounded),
       ('Olahraga', 'olahraga', Icons.sports_soccer_rounded),
-      ('Wisata', 'wisata', Icons.landscape_rounded),
       ('Lainnya', 'hiburan-lain', Icons.more_horiz_rounded),
     ];
 

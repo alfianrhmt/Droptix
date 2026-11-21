@@ -9,8 +9,7 @@ const CATEGORIES = [
   { urutan: 1, slug: 'konser-festival', nama: 'Konser & Festival', ikon: 'music_note' },
   { urutan: 2, slug: 'bioskop', nama: 'Bioskop', ikon: 'movie' },
   { urutan: 3, slug: 'olahraga', nama: 'Olahraga', ikon: 'sports_soccer' },
-  { urutan: 4, slug: 'wisata', nama: 'Wisata', ikon: 'landscape' },
-  { urutan: 5, slug: 'hiburan-lain', nama: 'Lainnya', ikon: 'more_horiz' },
+  { urutan: 4, slug: 'hiburan-lain', nama: 'Lainnya', ikon: 'more_horiz' },
 ];
 
 // 50+ venue event & konser populer di kota-kota besar Indonesia

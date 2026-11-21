@@ -19,8 +19,7 @@ function createTrendingMockDb() {
     { id: 1, slug: 'konser-festival', nama: 'Konser & Festival', urutan: 1 },
     { id: 2, slug: 'bioskop', nama: 'Bioskop', urutan: 2 },
     { id: 3, slug: 'olahraga', nama: 'Olahraga', urutan: 3 },
-    { id: 4, slug: 'wisata', nama: 'Wisata', urutan: 4 },
-    { id: 5, slug: 'hiburan-lain', nama: 'Lainnya', urutan: 5 },
+    { id: 4, slug: 'hiburan-lain', nama: 'Lainnya', urutan: 4 },
   ];
   const venues = [
     { id: 1, nama: 'Grand City Hall', kota: 'Surabaya', lat: -7.262, lng: 112.751 },
@@ -96,8 +95,8 @@ function createTrendingMockDb() {
       }
 
       if (q.includes('FROM ranked_listings')) {
-        // Kategori terdekat (bioskop, wisata)
-        const nearestCategories = new Set(['bioskop', 'wisata']);
+        // Kategori terdekat (bioskop)
+        const nearestCategories = new Set(['bioskop']);
         const userLat = params[0];
         const userLng = params[1];
 
@@ -328,8 +327,8 @@ describe('GET /events/trending (BR-6)', () => {
     const ev3 = insertEvent(db, { id: 30, category_id: 3, nama: 'Laga Akbar' });
     insertListing(db, { id: 300, event_id: ev3.id });
 
-    // Category 4: wisata (urutan: 4)
-    const ev4 = insertEvent(db, { id: 40, category_id: 4, nama: 'Wisata Safari' });
+    // Category 4: hiburan-lain (urutan: 4)
+    const ev4 = insertEvent(db, { id: 40, category_id: 4, nama: 'Standup Comedy' });
     insertListing(db, {
       id: 400,
       event_id: ev4.id,
@@ -342,11 +341,11 @@ describe('GET /events/trending (BR-6)', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBe(3);
-    // Urutan: konser-festival (1) -> olahraga (3) -> wisata (4)
+    // Urutan: konser-festival (1) -> olahraga (3) -> hiburan-lain (4)
     expect(res.body.data.map((b) => b.category_slug)).toEqual([
       'konser-festival',
       'olahraga',
-      'wisata',
+      'hiburan-lain',
     ]);
   });
 });
