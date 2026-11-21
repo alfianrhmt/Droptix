@@ -187,6 +187,20 @@ class EventRepository {
     }
   }
 
+  Future<List<PopularEventItem>> getPopularEvents() async {
+    try {
+      final res =
+          await _apiClient.dio.get<Map<String, dynamic>>('/events/popular');
+      final list = res.data?['data'] as List<dynamic>? ?? const [];
+      return list
+          .map((item) =>
+              PopularEventItem.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<EventDetailModel> getEventDetail(
     int id, {
     String? sort,

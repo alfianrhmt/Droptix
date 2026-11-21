@@ -6,6 +6,7 @@ import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../events/event_models.dart';
 import '../events/event_repository.dart';
+import '../events/event_detail_screen.dart';
 import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
 import '../listings/listing_detail_screen.dart';
@@ -61,6 +62,10 @@ class _HomeScreenState extends State<HomeScreen> {
   List<BannerItem> _banners = [];
   bool _isLoadingBanners = true;
   String? _bannersError;
+
+  // 1b. Acara Populer / Pilihan
+  List<PopularEventItem> _popularEvents = [];
+  bool _isLoadingPopular = true;
 
   // 2. Dekat Kamu
   List<ListingItem> _nearbyListings = [];
@@ -141,10 +146,33 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchHomeData() async {
     await Future.wait([
       _loadTrendingBanners(),
+      _loadPopularEvents(),
       _loadNearbyListings(),
       _loadEndingSoonListings(),
       _loadRecentListings(refresh: true),
     ]);
+  }
+
+  Future<void> _loadPopularEvents() async {
+    setState(() {
+      _isLoadingPopular = true;
+    });
+    try {
+      final list = await _eventRepo.getPopularEvents();
+      if (mounted) {
+        setState(() {
+          _popularEvents = list;
+          _isLoadingPopular = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _popularEvents = [];
+          _isLoadingPopular = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadTrendingBanners() async {
@@ -402,6 +430,17 @@ class _HomeScreenState extends State<HomeScreen> {
         final banner = item.appBanner;
         if (banner is AppBanner) {
           switch (banner.targetType) {
+            case 'event':
+              final eventId = int.tryParse(banner.targetPayload ?? '');
+              if (eventId != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => EventDetailScreen(eventId: eventId),
+                  ),
+                );
+                return;
+              }
+              break;
             case 'category':
               final catSlug = banner.targetPayload ?? '';
               if (widget.onCategoryTap != null) {
@@ -488,6 +527,156 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
 
     return CategoryRow(categories: items);
+  }
+
+  Widget _buildPopularEventsSection() {
+    if (_popularEvents.isEmpty && !_isLoadingPopular) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: 'Acara Populer',
+          onSeeAll: () => _openSearch(),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_isLoadingPopular)
+          Container(
+            height: 220,
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 260,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              itemCount: _popularEvents.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final item = _popularEvents[index];
+                return _buildPopularEventCard(item);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPopularEventCard(PopularEventItem item) {
+    return Container(
+      width: 140,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => EventDetailScreen(
+                  eventId: item.event.id,
+                  initialEvent: item.event,
+                ),
+              ),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.md),
+                ),
+                child: SizedBox(
+                  height: 160,
+                  child: EventPoster(
+                    title: item.event.nama,
+                    posterUrl: item.event.posterUrl,
+                    categorySlug: item.event.category.slug,
+                    width: 140,
+                    borderRadius: 0,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xs + 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        item.event.nama,
+                        style: AppTextStyles.label.copyWith(fontSize: 13),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.availableTicketsCount > 0
+                                ? '${item.availableTicketsCount} tiket tersedia'
+                                : 'Pantau tiket',
+                            style: AppTextStyles.caption.copyWith(
+                              color: item.availableTicketsCount > 0
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                          if (item.minPrice != null)
+                            Text(
+                              _formatPrice(item.minPrice!),
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatPrice(int harga) {
+    final s = harga.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
+    return 'Rp $s';
   }
 
   Widget _buildNearbySection() {
@@ -735,6 +924,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildResellTypeTiles(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildCategoryRow(),
+                const SizedBox(height: AppSpacing.xxl),
+                _buildPopularEventsSection(),
                 const SizedBox(height: AppSpacing.xxl),
                 _buildNearbySection(),
                 const SizedBox(height: AppSpacing.xxl),

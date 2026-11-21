@@ -250,6 +250,45 @@ function createEventsRouter(db, requireAuth, optionalAuth) {
     }
   });
 
+  router.get('/popular', async (req, res, next) => {
+    try {
+      const result = await db.query(
+        `SELECT e.id, e.nama, e.poster_url, e.tanggal, e.tanggal_opsi,
+                c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama, c.ikon AS category_ikon,
+                v.id AS venue_id, v.nama AS venue_nama, v.kota AS venue_kota,
+                v.alamat AS venue_alamat, v.lat AS venue_lat, v.lng AS venue_lng,
+                COALESCE(SUM(l.jumlah_total - l.jumlah_terjual), 0)::int AS available_tickets_count,
+                MIN(l.harga)::int AS min_price,
+                COUNT(DISTINCT l.seller_id)::int AS sellers_count
+         FROM events e
+         JOIN categories c ON c.id = e.category_id
+         LEFT JOIN venues v ON v.id = e.venue_id
+         LEFT JOIN listings l ON l.event_id = e.id
+           AND l.deleted_at IS NULL
+           AND l.hidden = false
+           AND l.waktu_acara > now()
+           AND (l.jumlah_total - l.jumlah_terjual) > 0
+         WHERE e.hidden = false
+         GROUP BY e.id, c.id, v.id
+         ORDER BY available_tickets_count DESC, e.tanggal ASC NULLS LAST, e.id DESC
+         LIMIT 10`
+      );
+
+      const data = result.rows.map((row) => ({
+        ...formatEventRow(row),
+        stats: {
+          available_tickets_count: row.available_tickets_count,
+          min_price: row.min_price,
+          sellers_count: row.sellers_count,
+        },
+      }));
+
+      return res.json({ data });
+    } catch (err) {
+      return next(err);
+    }
+  });
+
   router.get('/', validate(listEventsQuerySchema, 'query'), async (req, res, next) => {
     try {
       const { q, category } = req.query;

@@ -165,6 +165,9 @@ class _FakeEventRepository implements EventRepository {
   Future<List<AppBanner>> getBanners() async => editorialBanners;
 
   @override
+  Future<List<PopularEventItem>> getPopularEvents() async => const [];
+
+  @override
   Future<EventDetailModel> getEventDetail(int id, {String? sort, double? lat, double? lng, int? venueId, String? tanggal}) async {
     throw UnimplementedError();
   }

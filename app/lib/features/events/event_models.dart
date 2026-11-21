@@ -346,4 +346,32 @@ class EventDetailModel {
   }
 }
 
+/// Model data event populer untuk section Acara Pilihan di Home.
+class PopularEventItem {
+  const PopularEventItem({
+    required this.event,
+    required this.availableTicketsCount,
+    this.minPrice,
+    required this.sellersCount,
+  });
+
+  final EventItem event;
+  final int availableTicketsCount;
+  final int? minPrice;
+  final int sellersCount;
+
+  factory PopularEventItem.fromJson(Map<String, dynamic> json) {
+    final stats = json['stats'] is Map
+        ? Map<String, dynamic>.from(json['stats'] as Map)
+        : const <String, dynamic>{};
+    return PopularEventItem(
+      event: EventItem.fromJson(json),
+      availableTicketsCount:
+          (stats['available_tickets_count'] as num?)?.toInt() ?? 0,
+      minPrice: (stats['min_price'] as num?)?.toInt(),
+      sellersCount: (stats['sellers_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 

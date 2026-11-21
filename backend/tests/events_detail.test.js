@@ -134,6 +134,13 @@ describe('Events Detail and Alert Endpoints', () => {
     app = createApp({ db: mockDb, useRateLimit: false });
   });
 
+  it('GET /api/v1/events/popular mengembalikan daftar event populer dengan stats', async () => {
+    const res = await request(app).get('/api/v1/events/popular');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toBeDefined();
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
   it('GET /api/v1/events/:id berhasil mengembalikan detail event, stats, dan listings', async () => {
     const res = await request(app).get('/api/v1/events/1');
     expect(res.status).toBe(200);

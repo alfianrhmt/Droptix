@@ -64,6 +64,8 @@ class _FakeEventDetailRepo implements EventRepository {
   Future<List<TrendingBanner>> getTrending({double? lat, double? lng}) async => const [];
   @override
   Future<List<AppBanner>> getBanners() async => const [];
+  @override
+  Future<List<PopularEventItem>> getPopularEvents() async => const [];
 }
 
 void main() {
