@@ -149,6 +149,87 @@ class SimilarEventException implements Exception {
   final List<SimilarEventItem> similar;
 }
 
+/// Model ringkasan poster untuk banner hype triptych.
+class BannerPosterSummary {
+  const BannerPosterSummary({
+    required this.id,
+    required this.nama,
+    this.posterUrl,
+  });
+
+  final int id;
+  final String nama;
+  final String? posterUrl;
+
+  factory BannerPosterSummary.fromJson(Map<String, dynamic> json) {
+    return BannerPosterSummary(
+      id: (json['id'] as num).toInt(),
+      nama: json['nama'] as String? ?? '',
+      posterUrl: json['poster_url'] as String?,
+    );
+  }
+}
+
+/// Model data banner promosi & etalase editorial home.
+class AppBanner {
+  const AppBanner({
+    required this.id,
+    required this.type,
+    this.badge,
+    required this.title,
+    this.subtitle,
+    this.ctaLabel,
+    required this.targetType,
+    this.targetPayload,
+    this.imageUrl,
+    this.gradientColors = const [],
+    this.posters = const [],
+  });
+
+  final int id;
+  final String type; // 'standard' | 'hype_triptych'
+  final String? badge;
+  final String title;
+  final String? subtitle;
+  final String? ctaLabel;
+  final String targetType; // 'category' | 'search' | 'sell' | 'filter'
+  final String? targetPayload;
+  final String? imageUrl;
+  final List<String> gradientColors;
+  final List<BannerPosterSummary> posters;
+
+  factory AppBanner.fromJson(Map<String, dynamic> json) {
+    final rawColors = json['gradient_colors'] as List<dynamic>? ?? const [];
+    final rawPosters = json['posters'] as List<dynamic>? ?? const [];
+
+    return AppBanner(
+      id: (json['id'] as num).toInt(),
+      type: json['type'] as String? ?? 'standard',
+      badge: json['badge'] as String?,
+      title: json['title'] as String? ?? '',
+      subtitle: json['subtitle'] as String?,
+      ctaLabel: json['cta_label'] as String?,
+      targetType: json['target_type'] as String? ?? 'search',
+      targetPayload: json['target_payload'] as String?,
+      imageUrl: json['image_url'] as String?,
+      gradientColors: rawColors.map((c) => c.toString()).toList(),
+      posters: rawPosters
+          .map((p) =>
+              BannerPosterSummary.fromJson(Map<String, dynamic>.from(p as Map)))
+          .toList(),
+    );
+  }
+
+  BannerItem toBannerItem() {
+    return BannerItem(
+      imageUrl: imageUrl ?? '',
+      eventName: title,
+      keyword: targetPayload ?? title,
+      appBanner: this,
+    );
+  }
+}
+
 /// Banner trending hasil GET /events/trending (BR-6).
 class TrendingBanner {
   const TrendingBanner({

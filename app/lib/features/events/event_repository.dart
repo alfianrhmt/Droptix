@@ -173,4 +173,17 @@ class EventRepository {
       throw ApiException.fromDio(e);
     }
   }
+
+  Future<List<AppBanner>> getBanners() async {
+    try {
+      final res = await _apiClient.dio.get<Map<String, dynamic>>('/banners');
+      final list = res.data?['data'] as List<dynamic>? ?? const [];
+      return list
+          .map((item) =>
+              AppBanner.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

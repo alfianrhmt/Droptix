@@ -181,6 +181,12 @@ describe('Seed data & idempotensi T1.2', () => {
           store.favorites.add(`${params[0]}:${params[1]}`);
           return { rows: [] };
         }
+        if (q.startsWith('DELETE FROM banners')) {
+          return { rows: [] };
+        }
+        if (q.startsWith('INSERT INTO banners')) {
+          return { rows: [] };
+        }
         throw new Error(`Unhandled query in test: ${q}`);
       },
       release: () => {},

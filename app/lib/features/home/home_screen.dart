@@ -57,8 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _lat;
   double? _lng;
 
-  // 1. Trending Banners
-  List<TrendingBanner> _banners = [];
+  // 1. Trending / Promotional Banners
+  List<BannerItem> _banners = [];
   bool _isLoadingBanners = true;
   String? _bannersError;
 
@@ -153,10 +153,29 @@ class _HomeScreenState extends State<HomeScreen> {
       _bannersError = null;
     });
     try {
-      final banners = await _eventRepo.getTrending(lat: _lat, lng: _lng);
+      // 1. Coba ambil banner editorial / promosi dari GET /banners
+      List<AppBanner> appBanners = [];
+      try {
+        appBanners = await _eventRepo.getBanners();
+      } catch (_) {
+        appBanners = [];
+      }
+
+      if (appBanners.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _banners = appBanners.map((b) => b.toBannerItem()).toList();
+            _isLoadingBanners = false;
+          });
+        }
+        return;
+      }
+
+      // 2. Fallback ke trending banners jika banners kosong
+      final trending = await _eventRepo.getTrending(lat: _lat, lng: _lng);
       if (mounted) {
         setState(() {
-          _banners = banners;
+          _banners = trending.map((b) => b.toBannerItem()).toList();
           _isLoadingBanners = false;
         });
       }
@@ -377,10 +396,47 @@ class _HomeScreenState extends State<HomeScreen> {
       return const SizedBox.shrink();
     }
 
-    final bannerItems = _banners.map((b) => b.toBannerItem()).toList();
     return BannerCarousel(
-      items: bannerItems,
+      items: _banners,
       onTap: (item) {
+        final banner = item.appBanner;
+        if (banner is AppBanner) {
+          switch (banner.targetType) {
+            case 'category':
+              final catSlug = banner.targetPayload ?? '';
+              if (widget.onCategoryTap != null) {
+                widget.onCategoryTap!(catSlug, banner.title);
+              } else {
+                _openSearch(categorySlug: catSlug);
+              }
+              return;
+            case 'sell':
+              widget.onNavigateToTab?.call(2);
+              return;
+            case 'filter':
+              final payload = banner.targetPayload ?? 'last_minute';
+              if (widget.onResellTypeTap != null) {
+                widget.onResellTypeTap!(payload);
+              } else {
+                _openSearch(jenis: payload);
+              }
+              return;
+            case 'search':
+            default:
+              if (banner.targetPayload == 'trending') {
+                _openSearch(sort: 'tren');
+              } else {
+                final q = banner.targetPayload ?? banner.title;
+                if (widget.onSearchTap != null) {
+                  widget.onSearchTap!(q);
+                } else {
+                  _openSearch(query: q);
+                }
+              }
+              return;
+          }
+        }
+
         if (widget.onSearchTap != null) {
           widget.onSearchTap!(item.keyword ?? item.eventName);
         } else {

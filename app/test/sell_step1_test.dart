@@ -128,6 +128,9 @@ class _Step1FakeEventRepo implements EventRepository {
   @override
   Future<List<TrendingBanner>> getTrending({double? lat, double? lng}) async =>
       const [];
+
+  @override
+  Future<List<AppBanner>> getBanners() async => const [];
 }
 
 class _Step1FakeListingRepo implements ListingRepository {

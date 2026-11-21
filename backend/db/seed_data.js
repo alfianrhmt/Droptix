@@ -548,11 +548,67 @@ const LISTINGS = [
   },
 ];
 
+const BANNERS = [
+  {
+    type: 'standard',
+    badge: 'TIKET RESELL',
+    title: 'Kalah War Tiket? Cari Tiket Tangan Kedua di Sini',
+    subtitle: 'Beli tiket konser & festival yang sudah sold out langsung dari sesama penonton.',
+    cta_label: 'Cari Tiket Konser',
+    target_type: 'category',
+    target_payload: 'konser-festival',
+    image_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200&q=80',
+    gradient_colors: ['#0f172a', '#1e1b4b'],
+    urutan: 1,
+    is_active: true,
+  },
+  {
+    type: 'hype_triptych',
+    badge: '🔥 SEDANG RAMAI',
+    title: 'Tiket Paling Diburu Minggu Ini',
+    subtitle: 'Banyak tiket baru masuk dari penjual terpercaya.',
+    cta_label: 'Lihat Semua Event',
+    target_type: 'search',
+    target_payload: 'trending',
+    image_url: null,
+    gradient_colors: ['#18181b', '#27272a'],
+    urutan: 2,
+    is_active: true,
+  },
+  {
+    type: 'standard',
+    badge: 'JUAL TIKET',
+    title: 'Batal Nonton? Jangan Biarkan Tiketmu Hangus',
+    subtitle: 'Pasang tiketmu dalam 1 menit dan temukan pembeli sebelum hari H.',
+    cta_label: 'Jual Tiket Sekarang',
+    target_type: 'sell',
+    target_payload: '',
+    image_url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80',
+    gradient_colors: ['#022c22', '#064e3b'],
+    urutan: 3,
+    is_active: true,
+  },
+  {
+    type: 'standard',
+    badge: '⚡ LAST MINUTE',
+    title: 'Berburu Tiket Menit Terakhir dengan Harga Miring',
+    subtitle: 'Cek tiket acara hari ini & besok dari penjual yang butuh cepat laku.',
+    cta_label: 'Lihat Last-Minute',
+    target_type: 'filter',
+    target_payload: 'last_minute',
+    image_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80',
+    gradient_colors: ['#450a0a', '#7f1d1d'],
+    urutan: 4,
+    is_active: true,
+  },
+];
+
 module.exports = {
   CATEGORIES,
   VENUES,
   USERS,
   EVENTS,
   LISTINGS,
+  BANNERS,
 };
 

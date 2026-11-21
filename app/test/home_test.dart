@@ -150,6 +150,7 @@ class _FakeEventRepository implements EventRepository {
   _FakeEventRepository({this.trendingBanners = const []});
 
   List<TrendingBanner> trendingBanners;
+  List<AppBanner> editorialBanners = const [];
   double? lastLat;
   double? lastLng;
 
@@ -159,6 +160,9 @@ class _FakeEventRepository implements EventRepository {
     lastLng = lng;
     return trendingBanners;
   }
+
+  @override
+  Future<List<AppBanner>> getBanners() async => editorialBanners;
 
   @override
   Future<List<EventCategory>> getCategories() async => const [];

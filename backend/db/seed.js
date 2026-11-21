@@ -2,7 +2,7 @@
 
 const bcrypt = require('bcryptjs');
 const { pool, withTransaction } = require('../src/db/pool');
-const { CATEGORIES, VENUES, USERS, EVENTS, LISTINGS } = require('./seed_data');
+const { CATEGORIES, VENUES, USERS, EVENTS, LISTINGS, BANNERS } = require('./seed_data');
 
 const DEV_PASSWORD = 'Droptix123!';
 
@@ -304,8 +304,30 @@ async function runSeed({
       );
     }
 
+    // 7. Banners
+    await client.query('DELETE FROM banners');
+    for (const b of (BANNERS || [])) {
+      await client.query(
+        `INSERT INTO banners (type, badge, title, subtitle, cta_label, target_type, target_payload, image_url, gradient_colors, urutan, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          b.type,
+          b.badge,
+          b.title,
+          b.subtitle,
+          b.cta_label,
+          b.target_type,
+          b.target_payload,
+          b.image_url,
+          b.gradient_colors,
+          b.urutan,
+          b.is_active,
+        ]
+      );
+    }
+
     logger.log(
-      `[seed] Selesai: ${CATEGORIES.length} kategori, ${VENUES.length} venue, ${USERS.length} pengguna, ${EVENTS.length} event, ${LISTINGS.length} listing.`
+      `[seed] Selesai: ${CATEGORIES.length} kategori, ${VENUES.length} venue, ${USERS.length} pengguna, ${EVENTS.length} event, ${LISTINGS.length} listing, ${(BANNERS || []).length} banner.`
     );
 
     return {
@@ -314,6 +336,7 @@ async function runSeed({
       users: USERS.length,
       events: EVENTS.length,
       listings: LISTINGS.length,
+      banners: (BANNERS || []).length,
     };
   }, targetPool);
 }

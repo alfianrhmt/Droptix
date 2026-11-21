@@ -102,6 +102,9 @@ class _FakeEventRepository implements EventRepository {
   @override
   Future<List<TrendingBanner>> getTrending({double? lat, double? lng}) async =>
       const [];
+
+  @override
+  Future<List<AppBanner>> getBanners() async => const [];
 }
 
 class _FakeListingRepository implements ListingRepository {
