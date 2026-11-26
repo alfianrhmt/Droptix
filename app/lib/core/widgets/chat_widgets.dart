@@ -599,35 +599,89 @@ class DroptixBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.navBar,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.divider,
-            width: 0.7,
-          ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          6,
+          AppSpacing.screenH,
+          12,
         ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 58,
+        child: Container(
+          height: 62,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF132A2E),
+                Color(0xFF0C1D20),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            border: Border.all(
+              color: AppColors.primary.withAlpha(32),
+              width: 1,
+            ),
+          ),
           child: Row(
             children: List.generate(_items.length, (i) {
               final item = _items[i];
               final isSelected = currentIndex == i;
+              final isCenter = i == 2;
               final iconData = isSelected ? item.activeIcon : item.icon;
-              final iconColor =
-                  isSelected ? AppColors.primary : AppColors.textSecondary;
 
-              Widget iconWidget = i == 3
-                  ? _NavUnreadIcon(
-                      icon: iconData,
-                      unreadCount: unreadCount,
-                      color: iconColor,
-                    )
-                  : Icon(iconData, color: iconColor, size: 23);
+              Widget content;
+              if (isCenter) {
+                content = AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.primary.withAlpha(48),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: isSelected
+                        ? AppColors.onPrimary
+                        : AppColors.textPrimary,
+                    size: 22,
+                  ),
+                );
+              } else {
+                final iconColor = isSelected
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary.withAlpha(190);
+                final iconWidget = i == 3
+                    ? _NavUnreadIcon(
+                        icon: iconData,
+                        unreadCount: unreadCount,
+                        color: iconColor,
+                      )
+                    : Icon(iconData, color: iconColor, size: 22);
+
+                content = Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    iconWidget,
+                    const SizedBox(height: 5),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: isSelected ? 4 : 0,
+                      height: isSelected ? 4 : 0,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                );
+              }
 
               return Expanded(
                 child: Semantics(
@@ -636,27 +690,10 @@ class DroptixBottomNav extends StatelessWidget {
                   button: true,
                   child: Tooltip(
                     message: item.label,
-                    child: InkWell(
+                    child: GestureDetector(
                       onTap: () => onTap(i),
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          iconWidget,
-                          const SizedBox(height: 5),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            width: isSelected ? 14 : 0,
-                            height: 2.5,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.full),
-                            ),
-                          ),
-                        ],
-                      ),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(child: content),
                     ),
                   ),
                 ),
