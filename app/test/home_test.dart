@@ -443,14 +443,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.drag(
-        find.byWidgetPredicate(
-            (w) => w is ListView && w.scrollDirection == Axis.horizontal),
-        const Offset(-300, 0),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Limited'), warnIfMissed: false);
+      await tester.tap(find.text('Limited'));
       await tester.pumpAndSettle();
 
       expect(tappedResellType, 'limited');

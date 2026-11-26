@@ -65,6 +65,10 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _lat;
   double? _lng;
 
+  // 0. Banner Carousel
+  List<BannerItem> _banners = [];
+  bool _isLoadingBanners = true;
+
   // 1. Acara Populer (Featured Cards)
   List<PopularEventItem> _popularEvents = [];
   bool _isLoadingPopular = true;
@@ -144,10 +148,50 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchHomeData() async {
     await Future.wait([
+      _loadBanners(),
       _loadPopularEvents(),
       _loadEndingSoonListings(),
       _loadRecentListings(refresh: true),
     ]);
+  }
+
+  Future<void> _loadBanners() async {
+    setState(() {
+      _isLoadingBanners = true;
+    });
+    try {
+      List<AppBanner> appBanners = [];
+      try {
+        appBanners = await _eventRepo.getBanners();
+      } catch (_) {
+        appBanners = [];
+      }
+
+      if (appBanners.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _banners = appBanners.map((b) => b.toBannerItem()).toList();
+            _isLoadingBanners = false;
+          });
+        }
+        return;
+      }
+
+      final trending = await _eventRepo.getTrending(lat: _lat, lng: _lng);
+      if (mounted) {
+        setState(() {
+          _banners = trending.map((b) => b.toBannerItem()).toList();
+          _isLoadingBanners = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _banners = [];
+          _isLoadingBanners = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadPopularEvents() async {
@@ -475,9 +519,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 1 baris chip horizontal ramping untuk kategori & jenis resell.
+  /// 1 baris chip horizontal ramping khusus kategori (Konser, Bioskop, Olahraga, Lainnya).
   Widget _buildQuickFilterBar() {
-    final chips = <(String label, VoidCallback onTap, bool highlight)>[
+    final chips = <(String label, VoidCallback onTap)>[
       (
         'Konser',
         () {
@@ -487,7 +531,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _openSearch(categorySlug: 'konser-festival', categoryName: 'Konser');
           }
         },
-        false,
       ),
       (
         'Bioskop',
@@ -498,7 +541,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _openSearch(categorySlug: 'bioskop', categoryName: 'Bioskop');
           }
         },
-        false,
       ),
       (
         'Olahraga',
@@ -509,7 +551,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _openSearch(categorySlug: 'olahraga', categoryName: 'Olahraga');
           }
         },
-        false,
       ),
       (
         'Lainnya',
@@ -520,29 +561,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _openSearch(categorySlug: 'hiburan-lain', categoryName: 'Lainnya');
           }
         },
-        false,
-      ),
-      (
-        'Limited',
-        () {
-          if (widget.onResellTypeTap != null) {
-            widget.onResellTypeTap!('limited');
-          } else {
-            _openSearch(jenis: 'limited');
-          }
-        },
-        true,
-      ),
-      (
-        'Last-Minute',
-        () {
-          if (widget.onResellTypeTap != null) {
-            widget.onResellTypeTap!('last_minute');
-          } else {
-            _openSearch(jenis: 'last_minute');
-          }
-        },
-        true,
       ),
     ];
 
@@ -562,15 +580,13 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: chip.$3
-                    ? AppColors.primary.withAlpha(22)
-                    : AppColors.surface,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(AppRadius.full),
               ),
               child: Text(
                 chip.$1,
                 style: AppTextStyles.caption.copyWith(
-                  color: chip.$3 ? AppColors.primary : AppColors.textPrimary,
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -578,6 +594,111 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildBanners() {
+    if (_isLoadingBanners) {
+      return Container(
+        height: 248,
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_banners.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return BannerCarousel(
+      items: _banners,
+      onTap: (item) {
+        final banner = item.appBanner;
+        if (banner is AppBanner) {
+          switch (banner.targetType) {
+            case 'event':
+              final eventId = int.tryParse(banner.targetPayload ?? '');
+              if (eventId != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => EventDetailScreen(
+                      eventId: eventId,
+                      eventRepository: _eventRepo,
+                    ),
+                  ),
+                );
+                return;
+              }
+              break;
+            case 'category':
+              final catSlug = banner.targetPayload ?? '';
+              if (widget.onCategoryTap != null) {
+                widget.onCategoryTap!(catSlug, banner.title);
+              } else {
+                _openSearch(categorySlug: catSlug);
+              }
+              return;
+            case 'sell':
+              widget.onNavigateToTab?.call(2);
+              return;
+            case 'filter':
+              final payload = banner.targetPayload ?? 'last_minute';
+              if (widget.onResellTypeTap != null) {
+                widget.onResellTypeTap!(payload);
+              } else {
+                _openSearch(jenis: payload);
+              }
+              return;
+            case 'search':
+            default:
+              final q = banner.targetPayload ?? banner.title;
+              if (widget.onSearchTap != null) {
+                widget.onSearchTap!(q);
+              } else {
+                _openSearch(query: q);
+              }
+              return;
+          }
+        }
+
+        if (widget.onSearchTap != null) {
+          widget.onSearchTap!(item.keyword ?? item.eventName);
+        } else {
+          _openSearch(query: item.keyword ?? item.eventName);
+        }
+      },
+    );
+  }
+
+  Widget _buildResellTypeTiles() {
+    return ResellTypeTiles(
+      onLimitedTap: () {
+        if (widget.onResellTypeTap != null) {
+          widget.onResellTypeTap!('limited');
+        } else {
+          _openSearch(jenis: 'limited');
+        }
+      },
+      onLastMinuteTap: () {
+        if (widget.onResellTypeTap != null) {
+          widget.onResellTypeTap!('last_minute');
+        } else {
+          _openSearch(jenis: 'last_minute');
+        }
+      },
     );
   }
 
@@ -1027,9 +1148,13 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const SizedBox(height: AppSpacing.xs),
                 _buildSearchBar(),
-                _buildUpcomingCompactCard(),
                 const SizedBox(height: AppSpacing.md),
                 _buildQuickFilterBar(),
+                const SizedBox(height: AppSpacing.lg),
+                _buildBanners(),
+                const SizedBox(height: AppSpacing.lg),
+                _buildResellTypeTiles(),
+                _buildUpcomingCompactCard(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildPopularEventsSection(),
                 const SizedBox(height: AppSpacing.xl),
