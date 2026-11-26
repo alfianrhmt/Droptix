@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
+import '../theme/app_text_styles.dart';
 import 'empty_state.dart';
 import 'event_poster.dart';
 
@@ -173,22 +174,18 @@ class _StandardEditorialCard extends StatelessWidget {
                     (banner.badge as String).isNotEmpty) ...[
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(45),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      border: Border.all(
-                        color: AppColors.primary.withAlpha(120),
-                        width: 0.8,
-                      ),
+                      color: AppColors.primary.withAlpha(35),
+                      borderRadius: BorderRadius.circular(AppRadius.full),
                     ),
                     child: Text(
                       banner.badge as String,
-                      style: const TextStyle(
+                      style: AppTextStyles.caption.copyWith(
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.primary,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.4,
                       ),
                     ),
                   ),
@@ -198,23 +195,20 @@ class _StandardEditorialCard extends StatelessWidget {
                   banner.title as String,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: AppTextStyles.titleMedium.copyWith(
                     color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
                     height: 1.25,
                   ),
                 ),
                 if (banner.subtitle != null &&
                     (banner.subtitle as String).isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     banner.subtitle as String,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withAlpha(190),
-                      fontSize: 11,
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white.withAlpha(185),
                     ),
                   ),
                 ],
@@ -223,7 +217,7 @@ class _StandardEditorialCard extends StatelessWidget {
                     (banner.ctaLabel as String).isNotEmpty)
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(AppRadius.full),
@@ -233,16 +227,16 @@ class _StandardEditorialCard extends StatelessWidget {
                       children: [
                         Text(
                           banner.ctaLabel as String,
-                          style: const TextStyle(
+                          style: AppTextStyles.caption.copyWith(
                             fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.onPrimary,
                           ),
                         ),
                         const SizedBox(width: 4),
                         const Icon(
                           Icons.arrow_forward_rounded,
-                          size: 13,
+                          size: 12,
                           color: AppColors.onPrimary,
                         ),
                       ],

@@ -20,7 +20,7 @@ ThemeData buildAppTheme() {
       onError: AppColors.textPrimary,
       outline: AppColors.outlineTeal,
     ),
-    textTheme: GoogleFonts.poppinsTextTheme(base.textTheme).copyWith(
+    textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme).copyWith(
       displayLarge: AppTextStyles.titleLarge,
       displayMedium: AppTextStyles.titleMedium,
       bodyLarge: AppTextStyles.body,
@@ -36,15 +36,16 @@ ThemeData buildAppTheme() {
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final active = states.contains(WidgetState.selected);
         return AppTextStyles.caption.copyWith(
+          fontSize: 10.5,
           color: active ? AppColors.primary : AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
         );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final active = states.contains(WidgetState.selected);
         return IconThemeData(
           color: active ? AppColors.primary : AppColors.textSecondary,
-          size: 24,
+          size: 22,
         );
       }),
     ),

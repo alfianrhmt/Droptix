@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
+import '../theme/app_text_styles.dart';
 
 /// Data model kategori.
 class CategoryItem {
@@ -71,24 +72,23 @@ class _CategoryTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(
-                color: Colors.white.withAlpha(16),
+                color: AppColors.divider,
                 width: 1,
               ),
             ),
-            child: Icon(category.icon, color: AppColors.primary, size: 26),
+            child: Icon(category.icon, color: AppColors.primary, size: 22),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             category.label,
-            style: const TextStyle(
+            style: AppTextStyles.caption.copyWith(
               color: AppColors.textSecondary,
-              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,

@@ -241,11 +241,12 @@ class EventPosterCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              eventName.toUpperCase(),
+              eventName,
               style: AppTextStyles.label,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
             Text(
               subtitle,
               style: AppTextStyles.caption
@@ -253,10 +254,11 @@ class EventPosterCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
             Text(
               _priceLabel,
               style: minPrice != null
-                  ? AppTextStyles.label
+                  ? AppTextStyles.label.copyWith(fontSize: 13)
                   : AppTextStyles.caption
                       .copyWith(color: AppColors.textSecondary),
               maxLines: 1,

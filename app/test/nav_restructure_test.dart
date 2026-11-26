@@ -515,7 +515,7 @@ void main() {
       expect(savedText.style?.fontSize, equals(profileText.style?.fontSize));
       expect(chatText.style?.fontSize, equals(profileText.style?.fontSize));
       expect(sellText.style?.fontSize, equals(profileText.style?.fontSize));
-      expect(profileText.style?.fontSize, equals(22));
+      expect(profileText.style?.fontSize, equals(20));
     });
   });
 }

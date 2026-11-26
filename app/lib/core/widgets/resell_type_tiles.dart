@@ -24,15 +24,15 @@ class ResellTypeTiles extends StatelessWidget {
           Expanded(
             child: _Tile(
               title: 'Limited',
-              subtitle: 'Tiket langka, cepat habis',
+              subtitle: 'Tiket langka',
               onTap: onLimitedTap,
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm + 2),
           Expanded(
             child: _Tile(
               title: 'Last-Minute',
-              subtitle: 'Lebih murah, acara segera mulai',
+              subtitle: 'Acara segera mulai',
               onTap: onLastMinuteTap,
             ),
           ),
@@ -58,13 +58,15 @@ class _Tile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 72),
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        constraints: const BoxConstraints(minHeight: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.iconButtonFill,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.outlineTeal, width: 1),
+          border: Border.all(
+            color: AppColors.outlineTeal.withAlpha(115),
+            width: 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

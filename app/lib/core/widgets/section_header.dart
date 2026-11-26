@@ -28,10 +28,16 @@ class SectionHeader extends StatelessWidget {
           if (showSeeAll)
             GestureDetector(
               onTap: onSeeAll,
-              child: Text(
-                'Lihat semua',
-                style: AppTextStyles.label
-                    .copyWith(color: AppColors.primary),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'Lihat semua',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary.withAlpha(220),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
         ],

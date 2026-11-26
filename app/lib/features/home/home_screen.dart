@@ -559,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         else
           SizedBox(
-            height: 340,
+            height: 315,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding:
@@ -793,17 +793,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   readOnly: true,
                   onTap: () => _openSearch(),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 _buildBanners(),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.lg),
                 _buildResellTypeTiles(),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.lg),
                 _buildCategoryRow(),
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xl),
                 _buildPopularEventsSection(),
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xl),
                 _buildEndingSoonSection(),
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xl),
                 _buildRecentSection(),
               ],
             ),
