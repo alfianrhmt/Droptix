@@ -60,16 +60,13 @@ class _HomeScreenState extends State<HomeScreen> {
   late final EventRepository _eventRepo;
   late final ScrollController _scrollController;
   late final PageController _featuredPageController;
+  int _activePopularPage = 0;
 
   String _city = 'Surabaya';
   double? _lat;
   double? _lng;
 
-  // 0. Banner Carousel
-  List<BannerItem> _banners = [];
-  bool _isLoadingBanners = true;
-
-  // 1. Acara Populer (Featured Cards)
+  // 1. Acara Populer (Carousel kartu foto full-bleed)
   List<PopularEventItem> _popularEvents = [];
   bool _isLoadingPopular = true;
   String? _popularError;
@@ -98,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
-    _featuredPageController = PageController(viewportFraction: 0.88);
+    _featuredPageController = PageController(viewportFraction: 0.74);
   }
 
   @override
@@ -148,50 +145,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchHomeData() async {
     await Future.wait([
-      _loadBanners(),
       _loadPopularEvents(),
       _loadEndingSoonListings(),
       _loadRecentListings(refresh: true),
     ]);
-  }
-
-  Future<void> _loadBanners() async {
-    setState(() {
-      _isLoadingBanners = true;
-    });
-    try {
-      List<AppBanner> appBanners = [];
-      try {
-        appBanners = await _eventRepo.getBanners();
-      } catch (_) {
-        appBanners = [];
-      }
-
-      if (appBanners.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _banners = appBanners.map((b) => b.toBannerItem()).toList();
-            _isLoadingBanners = false;
-          });
-        }
-        return;
-      }
-
-      final trending = await _eventRepo.getTrending(lat: _lat, lng: _lng);
-      if (mounted) {
-        setState(() {
-          _banners = trending.map((b) => b.toBannerItem()).toList();
-          _isLoadingBanners = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _banners = [];
-          _isLoadingBanners = false;
-        });
-      }
-    }
   }
 
   Future<void> _loadPopularEvents() async {
@@ -597,92 +554,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBanners() {
-    if (_isLoadingBanners) {
-      return Container(
-        height: 248,
-        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_banners.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return BannerCarousel(
-      items: _banners,
-      onTap: (item) {
-        final banner = item.appBanner;
-        if (banner is AppBanner) {
-          switch (banner.targetType) {
-            case 'event':
-              final eventId = int.tryParse(banner.targetPayload ?? '');
-              if (eventId != null) {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => EventDetailScreen(
-                      eventId: eventId,
-                      eventRepository: _eventRepo,
-                    ),
-                  ),
-                );
-                return;
-              }
-              break;
-            case 'category':
-              final catSlug = banner.targetPayload ?? '';
-              if (widget.onCategoryTap != null) {
-                widget.onCategoryTap!(catSlug, banner.title);
-              } else {
-                _openSearch(categorySlug: catSlug);
-              }
-              return;
-            case 'sell':
-              widget.onNavigateToTab?.call(2);
-              return;
-            case 'filter':
-              final payload = banner.targetPayload ?? 'last_minute';
-              if (widget.onResellTypeTap != null) {
-                widget.onResellTypeTap!(payload);
-              } else {
-                _openSearch(jenis: payload);
-              }
-              return;
-            case 'search':
-            default:
-              final q = banner.targetPayload ?? banner.title;
-              if (widget.onSearchTap != null) {
-                widget.onSearchTap!(q);
-              } else {
-                _openSearch(query: q);
-              }
-              return;
-          }
-        }
-
-        if (widget.onSearchTap != null) {
-          widget.onSearchTap!(item.keyword ?? item.eventName);
-        } else {
-          _openSearch(query: item.keyword ?? item.eventName);
-        }
-      },
-    );
-  }
-
   Widget _buildResellTypeTiles() {
     return ResellTypeTiles(
       onLimitedTap: () {
@@ -702,7 +573,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Section utama "Acara Populer" bergaya kartu featured besar di referensi.
+  /// Section utama "Acara Populer" bergaya carousel kartu foto full-bleed
+  /// (dengan kartu berikutnya mengintip di kanan dan teks minimalis di bawah).
   Widget _buildPopularEventsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -718,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              borderRadius: BorderRadius.circular(22),
             ),
             child: const Center(
               child: SizedBox(
@@ -759,19 +631,25 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         else
           SizedBox(
-            height: 266,
+            height: 262,
             child: PageView.builder(
               controller: _featuredPageController,
               padEnds: false,
               itemCount: _popularEvents.length,
+              onPageChanged: (i) => setState(() => _activePopularPage = i),
               itemBuilder: (context, index) {
                 final item = _popularEvents[index];
+                final isActive = index == _activePopularPage;
                 final isFirst = index == 0;
                 final isLast = index == _popularEvents.length - 1;
-                return Padding(
+                return AnimatedPadding(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
                   padding: EdgeInsets.only(
                     left: isFirst ? AppSpacing.screenH : 6,
                     right: isLast ? AppSpacing.screenH : 6,
+                    top: isActive ? 0 : 10,
+                    bottom: isActive ? 0 : 10,
                   ),
                   child: _buildFeaturedEventCard(item),
                 );
@@ -786,133 +664,99 @@ class _HomeScreenState extends State<HomeScreen> {
     final event = item.event;
     final resolvedPoster = EventPoster.resolveUrl(event.posterUrl);
     final dateText = _formatEventDate(event);
-    final metaLine = [
-      event.category.nama,
-      if (dateText.isNotEmpty) dateText,
+    final overline = [
+      if (dateText.isNotEmpty) dateText else event.category.nama,
       if (item.minPrice != null) 'Mulai ${_formatPrice(item.minPrice!)}',
     ].join(' · ');
-
-    final locationLine = event.venue != null
-        ? '${event.venue!.nama}, ${event.venue!.kota}'
-        : (event.category.slug == 'bioskop'
-            ? 'Bioskop · Multi-Lokasi'
-            : 'Indonesia');
 
     final hasTickets = item.availableTicketsCount > 0;
 
     return GestureDetector(
       onTap: () => _openEventDetail(event),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            // Gambar atas lebar dengan badge jumlah tiket di sudut kanan atas
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (resolvedPoster != null)
-                      Image.network(
-                        resolvedPoster,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _cardImageFallback(event),
-                      )
-                    else
-                      _cardImageFallback(event),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(150),
-                          borderRadius: BorderRadius.circular(AppRadius.full),
-                        ),
-                        child: Text(
-                          hasTickets
-                              ? '${item.availableTicketsCount} tiket'
-                              : 'Pantau',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ),
-                    ),
+            if (resolvedPoster != null)
+              Image.network(
+                resolvedPoster,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _cardImageFallback(event),
+              )
+            else
+              _cardImageFallback(event),
+
+            // Gradasi gelap lembut dari bawah ke atas
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.45, 1.0],
+                  colors: [
+                    Colors.black.withAlpha(20),
+                    Colors.black.withAlpha(65),
+                    Colors.black.withAlpha(235),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
 
-            // Judul acara
-            Text(
-              event.nama,
-              style: AppTextStyles.label.copyWith(fontSize: 15),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-
-            // Kategori · Tanggal · Harga mulai
-            Text(
-              metaLine,
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textSecondary),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 10),
-
-            // Baris bawah: Lokasi di kiri + "Lihat tiket ->" di kanan
-            Row(
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 14,
-                  color: AppColors.textSecondary,
+            // Pill jumlah tiket di pojok kanan atas
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(135),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    locationLine,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
+                child: Text(
+                  hasTickets ? '${item.availableTicketsCount} tiket' : 'Pantau',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+
+            // Teks minimalis di pojok kiri bawah (gaya referensi)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    overline,
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white.withAlpha(200),
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Lihat tiket',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    event.nama,
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: Colors.white,
+                      fontSize: 17,
+                      height: 1.2,
                     ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 14,
-                      color: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ],
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -1149,11 +993,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: AppSpacing.xs),
                 _buildSearchBar(),
                 const SizedBox(height: AppSpacing.md),
-                _buildQuickFilterBar(),
-                const SizedBox(height: AppSpacing.lg),
-                _buildBanners(),
-                const SizedBox(height: AppSpacing.lg),
                 _buildResellTypeTiles(),
+                const SizedBox(height: AppSpacing.md),
+                _buildQuickFilterBar(),
                 _buildUpcomingCompactCard(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildPopularEventsSection(),

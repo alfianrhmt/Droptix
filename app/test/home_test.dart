@@ -389,10 +389,10 @@ void main() {
       expect(find.text('Konser'), findsOneWidget);
       expect(find.text('Bioskop'), findsOneWidget);
 
-      // 5. Acara Populer (kartu featured besar)
+      // 5. Acara Populer (carousel kartu foto full-bleed)
       expect(find.text('Acara Populer'), findsOneWidget);
       expect(find.text('Coldplay Music of the Spheres'), findsWidgets);
-      expect(find.text('Lihat tiket'), findsOneWidget);
+      expect(find.text('2 tiket'), findsOneWidget);
 
       // 6. Tiket Terbaru
       expect(find.text('Tiket Terbaru'), findsOneWidget);

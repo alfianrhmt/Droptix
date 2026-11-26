@@ -3,8 +3,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
 import '../theme/app_text_styles.dart';
 
-/// Dua kotak berdampingan: Limited dan Last-Minute.
-/// Tinggi 72, radius 16, border outlineTeal, isi iconButtonFill.
+/// Dua tombol pintasan jenis resell (Limited & Last-Minute) yang ramping
+/// untuk diletakkan di bagian atas halaman Home.
 class ResellTypeTiles extends StatelessWidget {
   const ResellTypeTiles({
     super.key,
@@ -22,17 +22,19 @@ class ResellTypeTiles extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _Tile(
+            child: _CompactResellPill(
               title: 'Limited',
-              subtitle: 'Tiket langka',
+              icon: Icons.confirmation_number_outlined,
+              accentColor: AppColors.primary,
               onTap: onLimitedTap,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm + 2),
+          const SizedBox(width: 10),
           Expanded(
-            child: _Tile(
+            child: _CompactResellPill(
               title: 'Last-Minute',
-              subtitle: 'Acara segera mulai',
+              icon: Icons.schedule_rounded,
+              accentColor: AppColors.urgent,
               onTap: onLastMinuteTap,
             ),
           ),
@@ -42,56 +44,55 @@ class ResellTypeTiles extends StatelessWidget {
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({
+class _CompactResellPill extends StatelessWidget {
+  const _CompactResellPill({
     required this.title,
-    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
     this.onTap,
   });
 
   final String title;
-  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 58),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: AppColors.divider,
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: accentColor.withAlpha(24),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: accentColor, size: 15),
+            ),
+            const SizedBox(width: 9),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(title, style: AppTextStyles.label),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+              child: Text(
+                title,
+                style: AppTextStyles.label.copyWith(fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 16,
-              color: AppColors.primary,
+              color: AppColors.textSecondary.withAlpha(180),
             ),
           ],
         ),
