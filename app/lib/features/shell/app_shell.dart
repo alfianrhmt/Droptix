@@ -8,6 +8,7 @@ import '../chat/chat_repository.dart';
 import '../chat/chat_socket_service.dart';
 import '../home/home_screen.dart';
 import '../location/location_picker_sheet.dart';
+import '../notifications/notification_repository.dart';
 import '../profile/profile_screen.dart';
 import '../saved/saved_screen.dart';
 import '../sell/sell_tab_screen.dart';
@@ -34,6 +35,7 @@ class _AppShellState extends State<AppShell> {
   late final ChatSocketService _socketService;
   late final bool _ownsSocketService;
   ChatRepository? _chatRepo;
+  NotificationRepository? _notificationRepo;
   bool _lastLoggedIn = false;
 
   @override
@@ -54,6 +56,7 @@ class _AppShellState extends State<AppShell> {
     final auth = AuthScope.of(context);
     final client = auth.repository.client;
     _chatRepo ??= widget.chatRepository ?? ChatRepository(client);
+    _notificationRepo ??= NotificationRepository(client);
 
     if (auth.isLoggedIn != _lastLoggedIn) {
       _lastLoggedIn = auth.isLoggedIn;
@@ -61,6 +64,9 @@ class _AppShellState extends State<AppShell> {
         _socketService.connect();
         _chatRepo!.getUnreadChatsCount().then((count) {
           if (mounted) _socketService.setUnreadCount(count);
+        }).catchError((_) {});
+        _notificationRepo!.getUnreadCount().then((count) {
+          if (mounted) _socketService.setUnreadNotificationsCount(count);
         }).catchError((_) {});
       } else {
         _socketService.disconnect();
@@ -135,6 +141,8 @@ class _AppShellState extends State<AppShell> {
       default:
         body = HomeScreen(
           onNavigateToTab: _onTabTap,
+          socketService: _socketService,
+          notificationRepository: _notificationRepo,
         );
         break;
     }

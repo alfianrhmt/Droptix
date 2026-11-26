@@ -20,6 +20,7 @@ const { createConversationsRouter } = require('./routes/conversations');
 const { createReportsRouter } = require('./routes/reports');
 const { createUsersRouter } = require('./routes/users');
 const { createBannersRouter } = require('./routes/banners');
+const { createNotificationsRouter } = require('./routes/notifications');
 const { initSocketIO } = require('./realtime');
 
 const DEFAULT_UPLOADS_DIR = path.resolve(__dirname, '../uploads');
@@ -80,6 +81,7 @@ function createApp({
   app.use('/api/v1/reports', createReportsRouter(db, requireAuth));
   app.use('/api/v1/users', createUsersRouter(db, requireAuth));
   app.use('/api/v1/banners', createBannersRouter(db));
+  app.use('/api/v1/notifications', createNotificationsRouter(db, requireAuth));
 
   // 404 fallback seragam
   app.use((_req, _res, next) => {

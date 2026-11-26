@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/auth/token_storage.dart';
 import '../../core/location/location_controller.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../chat/chat_socket_service.dart';
 import '../events/event_models.dart';
 import '../events/event_repository.dart';
 import '../events/event_detail_screen.dart';
@@ -11,6 +13,8 @@ import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
 import '../listings/listing_detail_screen.dart';
 import '../location/location_picker_sheet.dart';
+import '../notifications/notification_repository.dart';
+import '../notifications/notifications_screen.dart';
 import '../search/search_screen.dart';
 
 /// Halaman Home Droptix sesuai docs/DESIGN.md bagian 5 dan docs/PRD.md FR-3.
@@ -28,6 +32,8 @@ class HomeScreen extends StatefulWidget {
     super.key,
     this.listingRepository,
     this.eventRepository,
+    this.notificationRepository,
+    this.socketService,
     this.onNavigateToTab,
     this.onListingTap,
     this.onSearchTap,
@@ -38,6 +44,8 @@ class HomeScreen extends StatefulWidget {
 
   final ListingRepository? listingRepository;
   final EventRepository? eventRepository;
+  final NotificationRepository? notificationRepository;
+  final ChatSocketService? socketService;
   final void Function(int tabIndex)? onNavigateToTab;
   final void Function(ListingItem item)? onListingTap;
   final void Function(String query)? onSearchTap;
@@ -725,14 +733,49 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openNotifications() {
+    final auth = AuthScope.maybeOf(context);
+    void navigate() {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => NotificationsScreen(
+            notificationRepository: widget.notificationRepository,
+            socketService: widget.socketService,
+          ),
+        ),
+      );
+    }
+
+    if (auth != null) {
+      auth.requireAuthAction(context, navigate);
+    } else {
+      navigate();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final unreadNotifier = widget.socketService?.unreadNotificationsNotifier;
     return AppBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppHeader(
-          city: _city,
-          onLocationTap: () => showLocationPickerSheet(context),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: unreadNotifier != null
+              ? ValueListenableBuilder<int>(
+                  valueListenable: unreadNotifier,
+                  builder: (context, unreadCount, _) => AppHeader(
+                    city: _city,
+                    onLocationTap: () => showLocationPickerSheet(context),
+                    onNotificationTap: _openNotifications,
+                    unreadNotificationsCount: unreadCount,
+                  ),
+                )
+              : AppHeader(
+                  city: _city,
+                  onLocationTap: () => showLocationPickerSheet(context),
+                  onNotificationTap: _openNotifications,
+                ),
         ),
         body: RefreshIndicator(
           color: AppColors.primary,

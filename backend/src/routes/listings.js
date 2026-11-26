@@ -849,6 +849,52 @@ function createListingsRouter(
       }
 
       const created = await fetchListingDetail(db, newId, req.user.id);
+
+      // Kirim notifikasi ke pengguna yang memantau event ini (event_alerts)
+      try {
+        const subsRes = await db.query(
+          `SELECT user_id
+           FROM event_alerts
+           WHERE event_id = $1 AND is_active = true AND user_id <> $2`,
+          [body.event_id, req.user.id]
+        );
+        if (subsRes.rows.length > 0) {
+          const formattedHarga = Number(created.detail.harga)
+            .toString()
+            .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+          const notifTitle = 'Tiket Baru Tersedia';
+          const notifBody = `${created.detail.event.nama} · ${created.detail.jumlah_tersedia} tiket Rp ${formattedHarga} di ${created.detail.venue_nama}`;
+          const io = req.app.get('io');
+
+          for (const sub of subsRes.rows) {
+            const notifInsert = await db.query(
+              `INSERT INTO notifications (user_id, type, title, body, event_id, listing_id)
+               VALUES ($1, 'new_ticket', $2, $3, $4, $5)
+               RETURNING id, type, title, body, event_id, listing_id, is_read, created_at`,
+              [sub.user_id, notifTitle, notifBody, body.event_id, newId]
+            );
+            if (io && notifInsert.rows[0]) {
+              const countRes = await db.query(
+                `SELECT COUNT(*)::int AS unread_count
+                 FROM notifications
+                 WHERE user_id = $1 AND is_read = false`,
+                [sub.user_id]
+              );
+              io.to(`user:${sub.user_id}`).emit('notification:new', {
+                notification: {
+                  ...notifInsert.rows[0],
+                  event_nama: created.detail.event.nama,
+                  event_poster_url: created.detail.event.poster_url ?? null,
+                },
+                unread_count: Number(countRes.rows[0]?.unread_count ?? 1),
+              });
+            }
+          }
+        }
+      } catch (_) {
+        // Kegagalan notifikasi tidak boleh membatalkan pembuatan listing
+      }
+
       return res.status(201).json({ data: created.detail });
     } catch (err) {
       return next(err);

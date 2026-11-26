@@ -35,6 +35,7 @@ Catatan keputusan desain yang tidak tercakup di dokumen utama. Format: satu bari
 | 29 | Deployment produksi memisahkan `docker-compose.prod.yml` dengan Caddy reverse proxy (HTTPS otomatis), backup PostgreSQL terjadwal harian via cron, dan signing Android dengan fallback aman | Memenuhi standar keamanan HTTPS publik, proteksi kehilangan data lewat `pg_dump`, dan kemudahan build APK rilis |
 | 30 | Halaman Event (Event Hub ala TicketSwap) dengan dual entry point, filter & urutan (termurah, terdekat, segera, terbaru), ticket alert (tabel `event_alerts`), dan pintasan jual tiket pre-filled | Mengumpulkan seluruh tiket dari berbagai penjual dalam satu tempat untuk perbandingan mudah, mendukung kebutuhan pencarian event bioskop/konser tanpa kehilangan akses langsung tiket last-minute di Home |
 | 31 | Home hanya menampilkan 1 carousel horizontal ("Acara Populer") menggunakan desain poster-first (`EventPosterCard`, identik dengan `PosterCard` eks-"Dekat Kamu"), sementara section "Dekat Kamu" di Home dihapus | Menghindari redundansi 2 carousel horizontal yang berbeda gaya dan memfokuskan penemuan utama di Home pada halaman event ala TicketSwap |
+| 32 | Notifikasi in-app (`notifications` tabel 008) dipicu otomatis saat `POST /listings` bagi pengguna yang mengaktifkan `event_alerts`, disiarkan realtime via Socket.IO (`notification:new`), dan diakses dari tombol lonceng + badge di `AppHeader` | Menyambungkan fitur "Pantau Tiket" di Halaman Event menjadi fungsional penuh tanpa ketergantungan FCM eksternal |
 
 
 

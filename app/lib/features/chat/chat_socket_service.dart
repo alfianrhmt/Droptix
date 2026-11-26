@@ -23,10 +23,19 @@ class ChatSocketService {
   /// Jumlah percakapan belum dibaca secara global untuk badge di tab Activity.
   final ValueNotifier<int> unreadCountNotifier = ValueNotifier<int>(0);
 
+  /// Jumlah notifikasi belum dibaca secara global untuk badge lonceng di Home.
+  final ValueNotifier<int> unreadNotificationsNotifier = ValueNotifier<int>(0);
+
   /// Stream broadcast untuk event pesan baru masuk.
   final StreamController<Map<String, dynamic>> _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onNewMessage => _messageController.stream;
+
+  /// Stream broadcast untuk event notifikasi baru masuk.
+  final StreamController<Map<String, dynamic>> _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onNewNotification =>
+      _notificationController.stream;
 
   bool _isConnecting = false;
 
@@ -84,6 +93,20 @@ class ChatSocketService {
           unreadCountNotifier.value = count;
         }
       });
+
+      _socket!.on('notification:new', (data) {
+        if (data is Map) {
+          final map = Map<String, dynamic>.from(data);
+          _notificationController.add(map);
+          if (map['unread_count'] is num) {
+            unreadNotificationsNotifier.value =
+                (map['unread_count'] as num).toInt();
+          } else {
+            unreadNotificationsNotifier.value =
+                unreadNotificationsNotifier.value + 1;
+          }
+        }
+      });
     } catch (e) {
       debugPrint('[Socket.IO] Gagal inisialisasi: $e');
     } finally {
@@ -97,6 +120,7 @@ class ChatSocketService {
     _socket?.dispose();
     _socket = null;
     unreadCountNotifier.value = 0;
+    unreadNotificationsNotifier.value = 0;
   }
 
   /// Memperbarui nilai unread secara manual jika diperlukan.
@@ -104,9 +128,16 @@ class ChatSocketService {
     unreadCountNotifier.value = count;
   }
 
+  /// Memperbarui nilai unread notifikasi secara manual.
+  void setUnreadNotificationsCount(int count) {
+    unreadNotificationsNotifier.value = count;
+  }
+
   void dispose() {
     disconnect();
     _messageController.close();
+    _notificationController.close();
     unreadCountNotifier.dispose();
+    unreadNotificationsNotifier.dispose();
   }
 }
