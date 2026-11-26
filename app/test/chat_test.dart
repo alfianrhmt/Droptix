@@ -131,6 +131,11 @@ class _TestChatRepository implements ChatRepository {
   }
 
   @override
+  Future<void> deleteMessage(int conversationId, int messageId) async {
+    messages.removeWhere((m) => m.id == messageId);
+  }
+
+  @override
   Future<({int belumDibaca, int chatsBelumDibaca})> markAsRead(
     int conversationId,
   ) async {

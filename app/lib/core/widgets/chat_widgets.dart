@@ -280,6 +280,7 @@ class ChatBubble extends StatelessWidget {
     this.timeLabel,
     this.status = MessageSendStatus.sent,
     this.onRetry,
+    this.onLongPress,
   });
 
   final String message;
@@ -287,6 +288,7 @@ class ChatBubble extends StatelessWidget {
   final String? timeLabel;
   final MessageSendStatus status;
   final VoidCallback? onRetry;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -319,25 +321,28 @@ class ChatBubble extends StatelessWidget {
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.75,
                 ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color:
-                        isSelf ? AppColors.primary : AppColors.surfaceHigh,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isSelf ? 16 : 4),
-                      bottomRight: Radius.circular(isSelf ? 4 : 16),
+                child: GestureDetector(
+                  onLongPress: onLongPress,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelf ? AppColors.primary : AppColors.surfaceHigh,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: Radius.circular(isSelf ? 16 : 4),
+                        bottomRight: Radius.circular(isSelf ? 4 : 16),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    message,
-                    style: AppTextStyles.body.copyWith(
-                      color: isSelf
-                          ? AppColors.onPrimary
-                          : AppColors.textPrimary,
+                    child: Text(
+                      message,
+                      style: AppTextStyles.body.copyWith(
+                        color: isSelf
+                            ? AppColors.onPrimary
+                            : AppColors.textPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -405,8 +410,8 @@ class _ChatInputState extends State<ChatInput> {
   void _send() {
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
-    widget.onSend?.call(text);
     _ctrl.clear();
+    widget.onSend?.call(text);
   }
 
   @override

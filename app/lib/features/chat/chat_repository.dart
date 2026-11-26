@@ -126,6 +126,17 @@ class ChatRepository {
     }
   }
 
+  /// Menghapus pesan milik pengguna sendiri dalam percakapan.
+  Future<void> deleteMessage(int conversationId, int messageId) async {
+    try {
+      await _client.dio.delete<Map<String, dynamic>>(
+        '/conversations/$conversationId/messages/$messageId',
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   /// Menandai percakapan telah dibaca sampai sekarang.
   Future<({int belumDibaca, int chatsBelumDibaca})> markAsRead(
     int conversationId,

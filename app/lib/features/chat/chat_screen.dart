@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/api_config.dart';
@@ -64,6 +65,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Timer? _pollingTimer;
   StreamSubscription? _socketSubscription;
+  StreamSubscription? _socketDeleteSubscription;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _inputController = TextEditingController();
 
@@ -99,6 +101,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _pollingTimer?.cancel();
     _socketSubscription?.cancel();
+    _socketDeleteSubscription?.cancel();
     _scrollController.dispose();
     _inputController.dispose();
     super.dispose();
@@ -172,19 +175,52 @@ class _ChatScreenState extends State<ChatScreen> {
         final res = await _repo.getMessages(_conversationId!, limit: 30);
         if (!mounted) return;
 
-        // Gabungkan pesan baru yang belum ada di daftar
+        // Jangan duplikasi pesan yang sudah ada atau sedang dikirim secara optimistik
+        final serverList = res.messages;
+        final serverIds = serverList.map((m) => m.id).toSet();
         final existingIds = _messages.map((m) => m.id).toSet();
-        final newOnes =
-            res.messages.where((m) => !existingIds.contains(m.id)).toList();
 
-        if (newOnes.isNotEmpty) {
+        final newOnes = serverList.where((incoming) {
+          if (existingIds.contains(incoming.id)) return false;
+          // Cek apakah cocok dengan pesan optimistik yang masih berstatus sending
+          final matchesPending = _messages.any(
+            (m) =>
+                m.id < 0 &&
+                m.sendStatus == MessageSendStatus.sending &&
+                m.senderId == incoming.senderId &&
+                m.isi == incoming.isi,
+          );
+          return !matchesPending;
+        }).toList();
+
+        // Deteksi pesan terhapus di rentang 30 pesan terbaru server
+        final oldestServerId = serverList.isNotEmpty ? serverList.last.id : null;
+        final hasDeletedLocal = _messages.any(
+          (m) =>
+              m.id > 0 &&
+              (oldestServerId == null || m.id >= oldestServerId) &&
+              !serverIds.contains(m.id),
+        );
+
+        if (newOnes.isNotEmpty || hasDeletedLocal) {
           setState(() {
-            _messages = [...newOnes, ..._messages];
+            var updated = _messages.where((m) {
+              if (m.id <= 0) return true;
+              if (oldestServerId != null && m.id < oldestServerId) return true;
+              return serverIds.contains(m.id);
+            }).toList();
+
+            if (newOnes.isNotEmpty) {
+              updated = [...newOnes, ...updated];
+            }
+            _messages = updated;
           });
-          _repo.markAsRead(_conversationId!).catchError((_) => (
-                belumDibaca: 0,
-                chatsBelumDibaca: 0,
-              ));
+          if (newOnes.isNotEmpty) {
+            _repo.markAsRead(_conversationId!).catchError((_) => (
+                  belumDibaca: 0,
+                  chatsBelumDibaca: 0,
+                ));
+          }
         }
       } catch (_) {
         // Jangan tampilkan dialog error pada polling latar belakang
@@ -207,15 +243,41 @@ class _ChatScreenState extends State<ChatScreen> {
         final newMsg =
             ChatMessageModel.fromJson(Map<String, dynamic>.from(msgData));
 
-        if (!_messages.any((m) => m.id == newMsg.id)) {
-          setState(() {
+        if (_messages.any((m) => m.id == newMsg.id)) return;
+
+        // Jika cocok dengan pesan optimistik yang sedang dikirim, ganti saja
+        final pendingIdx = _messages.indexWhere(
+          (m) =>
+              m.id < 0 &&
+              m.sendStatus == MessageSendStatus.sending &&
+              m.senderId == newMsg.senderId &&
+              m.isi == newMsg.isi,
+        );
+
+        setState(() {
+          if (pendingIdx != -1) {
+            _messages[pendingIdx] = newMsg;
+          } else {
             _messages.insert(0, newMsg);
-          });
-          _repo.markAsRead(_conversationId!).catchError((_) => (
-                belumDibaca: 0,
-                chatsBelumDibaca: 0,
-              ));
-        }
+          }
+        });
+        _repo.markAsRead(_conversationId!).catchError((_) => (
+              belumDibaca: 0,
+              chatsBelumDibaca: 0,
+            ));
+      }
+    });
+
+    _socketDeleteSubscription = _socketService!.onMessageDeleted.listen((data) {
+      if (!mounted) return;
+      final incomingConvId = (data['conversation_id'] as num?)?.toInt();
+      final deletedMsgId = (data['message_id'] as num?)?.toInt();
+      if (_conversationId != null &&
+          incomingConvId == _conversationId &&
+          deletedMsgId != null) {
+        setState(() {
+          _messages.removeWhere((m) => m.id == deletedMsgId);
+        });
       }
     });
   }
@@ -273,9 +335,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final sent = await _repo.sendMessage(_conversationId!, trimmed);
         if (!mounted) return;
         setState(() {
+          // Hapus duplikat jika pesan dengan ID sama sudah masuk lewat polling/socket
+          _messages.removeWhere((m) => m.id == sent.id);
           final idx = _messages.indexWhere((m) => m.id == tempMsg.id);
           if (idx != -1) {
             _messages[idx] = sent;
+          } else {
+            _messages.insert(0, sent);
           }
         });
       } else if (_listingId != null) {
@@ -285,9 +351,12 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _conversationId = res.conversation.id;
           _conversation = res.conversation;
+          _messages.removeWhere((m) => m.id == res.message.id);
           final idx = _messages.indexWhere((m) => m.id == tempMsg.id);
           if (idx != -1) {
             _messages[idx] = res.message;
+          } else {
+            _messages.insert(0, res.message);
           }
         });
         _startPolling();
@@ -350,9 +419,12 @@ class _ChatScreenState extends State<ChatScreen> {
             await _repo.sendMessage(_conversationId!, failedMsg.isi);
         if (!mounted) return;
         setState(() {
+          _messages.removeWhere((m) => m.id == sent.id);
           final idx = _messages.indexWhere((m) => m.id == failedMsg.id);
           if (idx != -1) {
             _messages[idx] = sent;
+          } else {
+            _messages.insert(0, sent);
           }
         });
       }
@@ -366,6 +438,131 @@ class _ChatScreenState extends State<ChatScreen> {
           );
         }
       });
+    }
+  }
+
+  Future<void> _showMessageActions(ChatMessageModel msg, bool isSelf) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy_rounded,
+                    color: AppColors.textPrimary),
+                title: Text('Salin pesan', style: AppTextStyles.body),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  await Clipboard.setData(ClipboardData(text: msg.isi));
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Pesan disalin.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              if (isSelf && msg.sendStatus != MessageSendStatus.sending)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded,
+                      color: AppColors.urgent),
+                  title: Text(
+                    'Hapus pesan',
+                    style:
+                        AppTextStyles.body.copyWith(color: AppColors.urgent),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _confirmDeleteMessage(msg);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteMessage(ChatMessageModel msg) async {
+    // Jika pesan lokal gagal terkirim, langsung hapus tanpa perlu API
+    if (msg.id <= 0) {
+      setState(() {
+        _messages.removeWhere((m) => m.id == msg.id);
+      });
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Hapus pesan?', style: AppTextStyles.titleMedium),
+        content: Text(
+          'Pesan ini akan dihapus dari percakapan untuk semua peserta.',
+          style:
+              AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Batal',
+              style: AppTextStyles.label
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Hapus',
+              style: AppTextStyles.label.copyWith(color: AppColors.urgent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted || _conversationId == null) return;
+
+    final removedIdx = _messages.indexWhere((m) => m.id == msg.id);
+    if (removedIdx == -1) return;
+
+    setState(() {
+      _messages.removeAt(removedIdx);
+    });
+
+    try {
+      await _repo.deleteMessage(_conversationId!, msg.id);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.insert(removedIdx.clamp(0, _messages.length), msg);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messages.insert(removedIdx.clamp(0, _messages.length), msg);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal menghapus pesan.'),
+          backgroundColor: AppColors.urgent,
+        ),
+      );
     }
   }
 
@@ -824,6 +1021,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                               MessageSendStatus.failed
                                           ? () => _retryMessage(msg)
                                           : null,
+                                      onLongPress: () =>
+                                          _showMessageActions(msg, isSelf),
                                     ),
                                   ],
                                 );

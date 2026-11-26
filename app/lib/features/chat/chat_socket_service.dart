@@ -31,6 +31,12 @@ class ChatSocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onNewMessage => _messageController.stream;
 
+  /// Stream broadcast untuk event pesan dihapus.
+  final StreamController<Map<String, dynamic>> _messageDeletedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onMessageDeleted =>
+      _messageDeletedController.stream;
+
   /// Stream broadcast untuk event notifikasi baru masuk.
   final StreamController<Map<String, dynamic>> _notificationController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -87,6 +93,13 @@ class ChatSocketService {
         }
       });
 
+      _socket!.on('message:deleted', (data) {
+        if (data is Map) {
+          final map = Map<String, dynamic>.from(data);
+          _messageDeletedController.add(map);
+        }
+      });
+
       _socket!.on('unread:update', (data) {
         if (data is Map && data['chats'] != null) {
           final count = (data['chats'] as num).toInt();
@@ -136,6 +149,7 @@ class ChatSocketService {
   void dispose() {
     disconnect();
     _messageController.close();
+    _messageDeletedController.close();
     _notificationController.close();
     unreadCountNotifier.dispose();
     unreadNotificationsNotifier.dispose();

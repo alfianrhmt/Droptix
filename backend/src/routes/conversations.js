@@ -428,6 +428,99 @@ function createConversationsRouter(db, requireAuth, useRateLimit = true) {
     }
   );
 
+  // DELETE /api/v1/conversations/:id/messages/:messageId (Hapus pesan milik sendiri)
+  router.delete(
+    '/:id/messages/:messageId',
+    requireAuth,
+    validate(
+      z.object({
+        id: z.coerce.number().int().positive('ID percakapan tidak valid.'),
+        messageId: z.coerce.number().int().positive('ID pesan tidak valid.'),
+      }),
+      'params'
+    ),
+    async (req, res, next) => {
+      try {
+        const conversationId = req.params.id;
+        const messageId = req.params.messageId;
+        const currentUserId = req.user.id;
+
+        const convResult = await db.query(
+          'SELECT buyer_id, seller_id FROM conversations WHERE id = $1 LIMIT 1',
+          [conversationId]
+        );
+        const conv = convResult.rows[0];
+        if (
+          !conv ||
+          (Number(conv.buyer_id) !== Number(currentUserId) &&
+            Number(conv.seller_id) !== Number(currentUserId))
+        ) {
+          return next(Errors.notFound('Percakapan tidak ditemukan.'));
+        }
+
+        const delResult = await db.query(
+          `DELETE FROM messages
+           WHERE id = $1 AND conversation_id = $2 AND sender_id = $3
+           RETURNING id`,
+          [messageId, conversationId, currentUserId]
+        );
+        if (delResult.rows.length === 0) {
+          return next(
+            Errors.notFound('Pesan tidak ditemukan atau bukan milik Anda.')
+          );
+        }
+
+        // Perbarui preview pesan terakhir percakapan
+        const latestRes = await db.query(
+          `SELECT isi, created_at
+           FROM messages
+           WHERE conversation_id = $1
+           ORDER BY id DESC
+           LIMIT 1`,
+          [conversationId]
+        );
+        const latest = latestRes.rows[0];
+        await db.query(
+          `UPDATE conversations
+           SET last_message_preview = $2,
+               last_message_at = $3
+           WHERE id = $1`,
+          [
+            conversationId,
+            latest ? String(latest.isi).slice(0, 80) : null,
+            latest ? latest.created_at : null,
+          ]
+        );
+
+        const lawanId =
+          Number(conv.buyer_id) === Number(currentUserId)
+            ? Number(conv.seller_id)
+            : Number(conv.buyer_id);
+
+        const io = req.app.get('io');
+        if (io) {
+          try {
+            io.to(`user:${lawanId}`).emit('message:deleted', {
+              conversation_id: Number(conversationId),
+              message_id: Number(messageId),
+            });
+          } catch {
+            // Abaikan kegagalan broadcast
+          }
+        }
+
+        return res.json({
+          data: {
+            id: Number(messageId),
+            deleted: true,
+          },
+        });
+      } catch (err) {
+        return next(err);
+      }
+    }
+  );
+
   // POST /api/v1/conversations/:id/read (Tandai percakapan telah dibaca)
   router.post(
     '/:id/read',

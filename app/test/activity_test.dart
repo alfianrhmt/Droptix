@@ -231,6 +231,9 @@ class _FakeChatRepository implements ChatRepository {
   }
 
   @override
+  Future<void> deleteMessage(int conversationId, int messageId) async {}
+
+  @override
   Future<({ConversationModel conversation, ChatMessageModel message})>
       startListingConversation(int listingId, String isi) async {
     throw UnimplementedError();
