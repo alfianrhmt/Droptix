@@ -98,6 +98,9 @@ function formatEventRow(row) {
       : null,
     tanggal: row.tanggal ?? null,
     tanggal_opsi: tanggalOpsi,
+    ...(row.available_tickets_count !== undefined
+      ? { available_tickets_count: Number(row.available_tickets_count) }
+      : {}),
   };
 }
 
@@ -320,12 +323,23 @@ function createEventsRouter(db, requireAuth, optionalAuth) {
         `SELECT e.id, e.nama, e.poster_url, e.tanggal, e.tanggal_opsi,
                 c.id AS category_id, c.slug AS category_slug, c.nama AS category_nama, c.ikon AS category_ikon,
                 v.id AS venue_id, v.nama AS venue_nama, v.kota AS venue_kota,
-                v.alamat AS venue_alamat, v.lat AS venue_lat, v.lng AS venue_lng
+                v.alamat AS venue_alamat, v.lat AS venue_lat, v.lng AS venue_lng,
+                (
+                  SELECT COALESCE(SUM(l.jumlah_total - l.jumlah_terjual), 0)::int
+                  FROM listings l
+                  JOIN users u ON u.id = l.seller_id
+                  WHERE l.event_id = e.id
+                    AND l.deleted_at IS NULL
+                    AND l.hidden = false
+                    AND l.waktu_acara > now()
+                    AND (l.jumlah_total - l.jumlah_terjual) > 0
+                    AND u.banned_at IS NULL
+                ) AS available_tickets_count
          FROM events e
          JOIN categories c ON c.id = e.category_id
          LEFT JOIN venues v ON v.id = e.venue_id
          WHERE ${conditions.join(' AND ')}
-         ORDER BY e.tanggal ASC NULLS LAST, e.id DESC
+         ORDER BY available_tickets_count DESC, e.tanggal ASC NULLS LAST, e.id DESC
          LIMIT 10`,
         params
       );

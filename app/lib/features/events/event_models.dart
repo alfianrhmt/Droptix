@@ -79,6 +79,7 @@ class EventItem {
     this.venue,
     this.tanggal,
     this.tanggalOpsi = const [],
+    this.availableTicketsCount,
   });
 
   final int id;
@@ -88,6 +89,7 @@ class EventItem {
   final VenueItem? venue;
   final DateTime? tanggal;
   final List<String> tanggalOpsi;
+  final int? availableTicketsCount;
 
   factory EventItem.fromJson(Map<String, dynamic> json) {
     final rawTanggalOpsi = json['tanggal_opsi'];
@@ -117,6 +119,8 @@ class EventItem {
           : null,
       tanggal: parsedTanggal,
       tanggalOpsi: parsedTanggalOpsi,
+      availableTicketsCount:
+          (json['available_tickets_count'] as num?)?.toInt(),
     );
   }
 }

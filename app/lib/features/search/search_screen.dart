@@ -10,15 +10,19 @@ import '../listings/listing_models.dart';
 import '../listings/listing_repository.dart';
 import '../listings/listing_detail_screen.dart';
 import '../events/event_detail_screen.dart';
+import '../events/event_models.dart';
+import '../events/event_repository.dart';
 import 'recent_searches_storage.dart';
 
-/// Halaman pencarian dan kategori tiket Droptix.
-/// Mendukung filter chip (Tanggal, Urutkan, Lokasi, Jenis, Harga, Tersedia),
+/// Halaman pencarian dan kategori tiket & acara Droptix.
+/// Mendukung section Acara (Event) di atas dan Tiket Tersedia di bawah,
+/// filter chip (Tanggal, Urutkan, Lokasi, Jenis, Harga, Tersedia),
 /// 5 pencarian terakhir, pagination scroll tanpa batas, dan empty state.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({
     super.key,
     this.listingRepository,
+    this.eventRepository,
     this.recentSearchesStorage,
     this.categorySlug,
     this.categoryName,
@@ -36,6 +40,7 @@ class SearchScreen extends StatefulWidget {
   });
 
   final ListingRepository? listingRepository;
+  final EventRepository? eventRepository;
   final RecentSearchesStorage? recentSearchesStorage;
   final String? categorySlug;
   final String? categoryName;
@@ -57,6 +62,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   late final ListingRepository _repository;
+  late final EventRepository _eventRepo;
   late final RecentSearchesStorage _recentStorage;
 
   late final TextEditingController _searchController;
@@ -82,6 +88,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Timer? _searchDebounce;
 
   final List<ListingItem> _items = [];
+  List<EventItem> _events = [];
   int _page = 1;
   static const int _limit = 20;
   int _total = 0;
@@ -92,8 +99,9 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = widget.listingRepository ??
-        ListingRepository(ApiClient(tokenStorage: TokenStorage()));
+    final defaultClient = ApiClient(tokenStorage: TokenStorage());
+    _repository = widget.listingRepository ?? ListingRepository(defaultClient);
+    _eventRepo = widget.eventRepository ?? EventRepository(defaultClient);
     _recentStorage = widget.recentSearchesStorage ?? RecentSearchesStorage();
 
     _query = widget.initialQuery ?? '';
@@ -167,6 +175,31 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  bool get _shouldShowEventsSection {
+    final hasTicketOnlyFilter = (_jenis != null && _jenis!.isNotEmpty) ||
+        (_tanggal != null && _tanggal != 'semua') ||
+        _minHarga != null ||
+        _maxHarga != null ||
+        _maxKm != null ||
+        (_kota != null && _kota!.isNotEmpty);
+    if (hasTicketOnlyFilter && _query.trim().isEmpty) {
+      return false;
+    }
+    return true;
+  }
+
+  Future<List<EventItem>> _fetchEventsSafe() async {
+    if (!_shouldShowEventsSection) return const [];
+    try {
+      return await _eventRepo.searchEvents(
+        q: _query.trim().isNotEmpty ? _query.trim() : null,
+        categorySlug: _category,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> _fetchListings({required bool refresh}) async {
     if (refresh) {
       setState(() {
@@ -182,6 +215,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final targetPage = refresh ? 1 : _page + 1;
+      final eventsFuture = refresh ? _fetchEventsSafe() : Future.value(_events);
       final result = await _repository.getListings(
         q: _query.isNotEmpty ? _query : null,
         category: _category,
@@ -198,11 +232,13 @@ class _SearchScreenState extends State<SearchScreen> {
         page: targetPage,
         limit: _limit,
       );
+      final fetchedEvents = await eventsFuture;
 
       if (mounted) {
         setState(() {
           if (refresh) {
             _items.clear();
+            _events = fetchedEvents;
           }
           _items.addAll(result.items);
           _total = result.total;
@@ -910,7 +946,10 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
-    if (_items.isEmpty) {
+    final visibleEvents =
+        _shouldShowEventsSection ? _events.take(4).toList() : const <EventItem>[];
+
+    if (_items.isEmpty && visibleEvents.isEmpty) {
       final msg = _query.isNotEmpty
           ? "Belum ada tiket untuk '$_query'"
           : 'Belum ada tiket yang sesuai filter.';
@@ -925,137 +964,232 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
-    ListingEventSummary? matchedEvent;
-    if (_query.trim().isNotEmpty && _items.isNotEmpty) {
-      final qLower = _query.trim().toLowerCase();
-      for (final it in _items) {
-        if (it.event.nama.toLowerCase().contains(qLower)) {
-          matchedEvent = it.event;
-          break;
-        }
+    final children = <Widget>[];
+
+    if (visibleEvents.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            AppSpacing.xs,
+          ),
+          child: Text(
+            'Acara',
+            style: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+      );
+      for (final event in visibleEvents) {
+        children.add(_buildEventSearchCard(event));
       }
-    } else if (_items.isNotEmpty &&
-        _items.every((it) => it.event.id == _items.first.event.id)) {
-      matchedEvent = _items.first.event;
     }
 
-    final listView = ListView.separated(
-      controller: _scrollController,
-      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: 40),
-      itemCount: _items.length + (_isLoadingMore ? 1 : 0),
-      separatorBuilder: (_, _) =>
-          const Divider(height: 1, color: AppColors.divider),
-      itemBuilder: (context, index) {
-        if (index >= _items.length) {
-          return const Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
-            child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
+    if (_items.isNotEmpty) {
+      if (visibleEvents.isNotEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.lg,
+              AppSpacing.screenH,
+              AppSpacing.xs,
+            ),
+            child: Text(
+              'Tiket Tersedia',
+              style:
+                  AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+        );
+      }
+
+      for (var i = 0; i < _items.length; i++) {
+        final item = _items[i];
+        children.add(
+          ListingRow(
+            listing: item.toListingData(),
+            onTap: () => _handleListingTap(item),
+          ),
+        );
+        if (i < _items.length - 1) {
+          children.add(const Divider(height: 1, color: AppColors.divider));
+        }
+      }
+    } else if (visibleEvents.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            0,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Text(
+              'Belum ada tiket yang dijual untuk pencarian ini. Ketuk acara di atas untuk memantau tiket baru.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_isLoadingMore) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
               ),
             ),
-          );
-        }
-        final item = _items[index];
-        return ListingRow(
-          listing: item.toListingData(),
-          onTap: () => _handleListingTap(item),
-        );
-      },
-    );
+          ),
+        ),
+      );
+    }
 
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceHigh,
       onRefresh: () => _fetchListings(refresh: true),
-      child: matchedEvent != null
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildEventHighlightCard(matchedEvent),
-                Expanded(child: listView),
-              ],
-            )
-          : listView,
+      child: ListView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: 40),
+        children: children,
+      ),
     );
   }
 
-  Widget _buildEventHighlightCard(ListingEventSummary event) {
+  Widget _buildEventSearchCard(EventItem event) {
+    final ticketCount = event.availableTicketsCount ?? 0;
+    final hasTickets = ticketCount > 0;
+    final subtitle = event.venue != null
+        ? '${event.category.nama} · ${event.venue!.nama}'
+        : (event.category.slug == 'bioskop'
+            ? 'Bioskop · Multi-Lokasi'
+            : event.category.nama);
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        AppSpacing.xs,
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.xs,
       ),
-      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.primary.withAlpha(80)),
+        border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => EventDetailScreen(
+                  eventId: event.id,
+                  initialEvent: event,
+                  eventRepository: _eventRepo,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
               children: [
-                Text(
-                  'HALAMAN ACARA',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 44,
+                    height: 66,
+                    child: EventPoster(
+                      title: event.nama,
+                      posterUrl: event.posterUrl,
+                      categorySlug: event.category.slug,
+                      width: 44,
+                      borderRadius: 10,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  event.nama,
-                  style: AppTextStyles.titleMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.nama,
+                        style: AppTextStyles.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            hasTickets
+                                ? Icons.confirmation_number_outlined
+                                : Icons.notifications_none_rounded,
+                            size: 13,
+                            color: hasTickets
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              hasTickets
+                                  ? '$ticketCount tiket tersedia'
+                                  : 'Belum ada tiket · Pantau',
+                              style: AppTextStyles.caption.copyWith(
+                                color: hasTickets
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontWeight: hasTickets
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Lihat semua tiket & aktifkan notifikasi',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textSecondary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: AppSpacing.xs),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
                 ),
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => EventDetailScreen(eventId: event.id),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.full),
-              ),
-            ),
-            child: Text(
-              'Buka',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.onPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

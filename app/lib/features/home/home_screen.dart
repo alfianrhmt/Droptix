@@ -306,6 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute<void>(
         builder: (_) => SearchScreen(
           listingRepository: _listingRepo,
+          eventRepository: _eventRepo,
           initialQuery: query,
           categorySlug: categorySlug,
           categoryName: categoryName,
