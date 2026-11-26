@@ -379,36 +379,23 @@ void main() {
       expect(find.byType(AppHeader), findsOneWidget);
       expect(find.text('Droptix'), findsOneWidget);
 
-      // 2. SearchBar
-      expect(find.byType(AppSearchBar), findsOneWidget);
+      // 2. SearchBar ramping
+      expect(find.text('Cari acara, artis, bioskop…'), findsOneWidget);
 
-      // 3. BannerCarousel
-      expect(find.byType(BannerCarousel), findsOneWidget);
-
-      // 4. ResellTypeTiles
-      expect(find.byType(ResellTypeTiles), findsOneWidget);
-      expect(find.text('Limited'), findsOneWidget);
-      expect(find.text('Last-Minute'), findsOneWidget);
-
-      // 5. QuickDateGrid telah dihapus dari Home
-      expect(find.byType(QuickDateGrid), findsNothing);
-
-      // 6. CategoryRow
-      expect(find.byType(CategoryRow), findsOneWidget);
-      expect(find.text('Konser'), findsOneWidget);
-
-      // 7. Acara Populer (menggantikan Dekat Kamu dengan desain PosterCard)
-      expect(find.text('Acara Populer'), findsOneWidget);
-      expect(find.text('Dekat Kamu'), findsNothing);
-      expect(find.byType(EventPosterCard), findsOneWidget);
-      expect(find.text('Mulai Rp 1.500.000'), findsOneWidget);
-
-      // 8. Segera Berakhir
+      // 3. Kartu ringkas Segera Berakhir
       expect(find.text('Segera Berakhir'), findsOneWidget);
-      expect(find.text('Film Agak Laen'), findsOneWidget);
 
-      // 9. Baru Ditambahkan
-      expect(find.text('Baru Ditambahkan'), findsOneWidget);
+      // 4. Baris filter kategori & jenis
+      expect(find.text('Konser'), findsOneWidget);
+      expect(find.text('Bioskop'), findsOneWidget);
+
+      // 5. Acara Populer (kartu featured besar)
+      expect(find.text('Acara Populer'), findsOneWidget);
+      expect(find.text('Coldplay Music of the Spheres'), findsWidgets);
+      expect(find.text('Lihat tiket'), findsOneWidget);
+
+      // 6. Tiket Terbaru
+      expect(find.text('Tiket Terbaru'), findsOneWidget);
       expect(find.text('Dewa 19 All Stars Stadium Tour'), findsOneWidget);
     });
 
@@ -428,7 +415,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(AppSearchBar));
+      await tester.tap(find.text('Cari acara, artis, bioskop…'));
       await tester.pumpAndSettle();
 
       // Memastikan SearchScreen terbuka
@@ -456,7 +443,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Limited'));
+      await tester.drag(
+        find.byWidgetPredicate(
+            (w) => w is ListView && w.scrollDirection == Axis.horizontal),
+        const Offset(-300, 0),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Limited'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
       expect(tappedResellType, 'limited');
@@ -512,9 +506,7 @@ void main() {
 
       // Empty states tidak merusak layout
       expect(find.text('Belum ada acara populer saat ini.'), findsOneWidget);
-      expect(
-          find.text('Tidak ada acara yang segera berakhir dalam 24 jam.'),
-          findsOneWidget);
+      expect(find.text('Segera Berakhir'), findsNothing);
       expect(
           find.text('Belum ada tiket yang baru ditambahkan.'), findsOneWidget);
     });

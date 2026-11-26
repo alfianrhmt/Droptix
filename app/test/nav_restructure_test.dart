@@ -444,11 +444,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Home'), findsOneWidget);
-      expect(find.text('Saved'), findsOneWidget);
-      expect(find.text('Sell'), findsOneWidget);
-      expect(find.text('Chat'), findsOneWidget);
-      expect(find.text('Profile'), findsOneWidget);
+      expect(find.byTooltip('Home'), findsOneWidget);
+      expect(find.byTooltip('Saved'), findsOneWidget);
+      expect(find.byTooltip('Sell'), findsOneWidget);
+      expect(find.byTooltip('Chat'), findsOneWidget);
+      expect(find.byTooltip('Profile'), findsOneWidget);
     });
   });
 

@@ -569,68 +569,124 @@ class DroptixBottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
   final int unreadCount;
 
+  static const _items = [
+    (
+      label: 'Home',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+    ),
+    (
+      label: 'Saved',
+      icon: Icons.bookmark_outline_rounded,
+      activeIcon: Icons.bookmark_rounded,
+    ),
+    (
+      label: 'Sell',
+      icon: Icons.confirmation_number_outlined,
+      activeIcon: Icons.confirmation_number_rounded,
+    ),
+    (
+      label: 'Chat',
+      icon: Icons.chat_bubble_outline_rounded,
+      activeIcon: Icons.chat_bubble_rounded,
+    ),
+    (
+      label: 'Profile',
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return NavigationBar(
-      backgroundColor: AppColors.surface,
-      surfaceTintColor: Colors.transparent,
-      shadowColor: Colors.transparent,
-      elevation: 0,
-      height: 64,
-      selectedIndex: currentIndex,
-      onDestinationSelected: onTap,
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      indicatorColor: Colors.transparent,
-      destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded),
-          label: 'Home',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.bookmark_outline_rounded),
-          selectedIcon: Icon(Icons.bookmark_rounded),
-          label: 'Saved',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.sell_outlined),
-          selectedIcon: Icon(Icons.sell_rounded),
-          label: 'Sell',
-        ),
-        NavigationDestination(
-          icon: _NavUnreadIcon(
-            icon: Icons.chat_bubble_outline_rounded,
-            unreadCount: unreadCount,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withAlpha(12),
+            width: 0.8,
           ),
-          selectedIcon: _NavUnreadIcon(
-            icon: Icons.chat_bubble_rounded,
-            unreadCount: unreadCount,
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 58,
+          child: Row(
+            children: List.generate(_items.length, (i) {
+              final item = _items[i];
+              final isSelected = currentIndex == i;
+              final iconData = isSelected ? item.activeIcon : item.icon;
+              final iconColor =
+                  isSelected ? AppColors.primary : AppColors.textSecondary;
+
+              Widget iconWidget = i == 3
+                  ? _NavUnreadIcon(
+                      icon: iconData,
+                      unreadCount: unreadCount,
+                      color: iconColor,
+                    )
+                  : Icon(iconData, color: iconColor, size: 23);
+
+              return Expanded(
+                child: Semantics(
+                  label: item.label,
+                  selected: isSelected,
+                  button: true,
+                  child: Tooltip(
+                    message: item.label,
+                    child: InkWell(
+                      onTap: () => onTap(i),
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          iconWidget,
+                          const SizedBox(height: 5),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: isSelected ? 14 : 0,
+                            height: 2.5,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.full),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
           ),
-          label: 'Chat',
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline_rounded),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profile',
-        ),
-      ],
+      ),
     );
   }
 }
 
 class _NavUnreadIcon extends StatelessWidget {
-  const _NavUnreadIcon({required this.icon, required this.unreadCount});
+  const _NavUnreadIcon({
+    required this.icon,
+    required this.unreadCount,
+    this.color,
+  });
 
   final IconData icon;
   final int unreadCount;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    if (unreadCount <= 0) return Icon(icon);
+    if (unreadCount <= 0) return Icon(icon, color: color, size: 23);
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Icon(icon),
+        Icon(icon, color: color, size: 23),
         Positioned(
           right: -10,
           top: -6,

@@ -35,42 +35,45 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               'Droptix',
               style: AppTextStyles.titleMedium.copyWith(
                 color: AppColors.primary,
-                letterSpacing: 0.5,
+                fontSize: 18,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(width: AppSpacing.md),
-            // Pil lokasi
+            // Pil lokasi ramping
             Expanded(
               child: Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
                   onTap: onLocationTap,
+                  behavior: HitTestBehavior.opaque,
                   child: Container(
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md, vertical: 0),
+                    height: 34,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceHigh,
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(AppRadius.full),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.location_on_rounded,
-                            color: AppColors.primary, size: 16),
+                            color: AppColors.primary, size: 14),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
                             city,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.label
-                                .copyWith(color: AppColors.textPrimary),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                         const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: AppColors.textSecondary, size: 16),
+                            color: AppColors.textSecondary, size: 15),
                       ],
                     ),
                   ),
@@ -81,29 +84,28 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               const SizedBox(width: AppSpacing.sm),
               GestureDetector(
                 onTap: onNotificationTap,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: AppColors.surfaceHigh,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.notifications_none_rounded,
-                        color: AppColors.textPrimary,
-                        size: 20,
-                      ),
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Center(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(
+                          Icons.notifications_none_rounded,
+                          color: AppColors.textPrimary,
+                          size: 23,
+                        ),
+                        if (unreadNotificationsCount > 0)
+                          Positioned(
+                            top: -4,
+                            right: -5,
+                            child: UnreadBadge(count: unreadNotificationsCount),
+                          ),
+                      ],
                     ),
-                    if (unreadNotificationsCount > 0)
-                      Positioned(
-                        top: -2,
-                        right: -2,
-                        child: UnreadBadge(count: unreadNotificationsCount),
-                      ),
-                  ],
+                  ),
                 ),
               ),
             ],

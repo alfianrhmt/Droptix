@@ -250,7 +250,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Tamu mengetuk tab Sell
-    await tester.tap(find.text('Sell'));
+    await tester.tap(find.byTooltip('Sell'));
     await tester.pumpAndSettle();
 
     // Muncul LoginScreen
