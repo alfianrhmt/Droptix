@@ -149,6 +149,8 @@ class _AppShellState extends State<AppShell> {
 
     return AppBackground(
       child: Scaffold(
+        extendBody: true,
+        backgroundColor: Colors.transparent,
         body: body,
         bottomNavigationBar: ValueListenableBuilder<int>(
           valueListenable: _socketService.unreadCountNotifier,

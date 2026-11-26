@@ -574,26 +574,31 @@ class DroptixBottomNav extends StatelessWidget {
       label: 'Home',
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
+      size: 22.0,
     ),
     (
       label: 'Saved',
       icon: Icons.bookmark_outline_rounded,
       activeIcon: Icons.bookmark_rounded,
+      size: 21.0,
     ),
     (
       label: 'Sell',
-      icon: Icons.confirmation_number_outlined,
-      activeIcon: Icons.confirmation_number_rounded,
+      icon: Icons.sell_outlined,
+      activeIcon: Icons.sell_rounded,
+      size: 20.0,
     ),
     (
       label: 'Chat',
       icon: Icons.chat_bubble_outline_rounded,
       activeIcon: Icons.chat_bubble_rounded,
+      size: 19.5,
     ),
     (
       label: 'Profile',
       icon: Icons.person_outline_rounded,
       activeIcon: Icons.person_rounded,
+      size: 22.0,
     ),
   ];
 
@@ -650,7 +655,7 @@ class DroptixBottomNav extends StatelessWidget {
                     color: isSelected
                         ? AppColors.onPrimary
                         : AppColors.textPrimary,
-                    size: 22,
+                    size: item.size,
                   ),
                 );
               } else {
@@ -662,8 +667,9 @@ class DroptixBottomNav extends StatelessWidget {
                         icon: iconData,
                         unreadCount: unreadCount,
                         color: iconColor,
+                        size: item.size,
                       )
-                    : Icon(iconData, color: iconColor, size: 22);
+                    : Icon(iconData, color: iconColor, size: item.size);
 
                 content = Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -711,19 +717,21 @@ class _NavUnreadIcon extends StatelessWidget {
     required this.icon,
     required this.unreadCount,
     this.color,
+    this.size = 20,
   });
 
   final IconData icon;
   final int unreadCount;
   final Color? color;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    if (unreadCount <= 0) return Icon(icon, color: color, size: 23);
+    if (unreadCount <= 0) return Icon(icon, color: color, size: size);
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Icon(icon, color: color, size: 23),
+        Icon(icon, color: color, size: size),
         Positioned(
           right: -10,
           top: -6,
