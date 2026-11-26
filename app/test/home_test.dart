@@ -147,9 +147,13 @@ class _FakeListingRepository implements ListingRepository {
 }
 
 class _FakeEventRepository implements EventRepository {
-  _FakeEventRepository({this.trendingBanners = const []});
+  _FakeEventRepository({
+    this.trendingBanners = const [],
+    this.popularEvents = const [],
+  });
 
   List<TrendingBanner> trendingBanners;
+  List<PopularEventItem> popularEvents;
   List<AppBanner> editorialBanners = const [];
   double? lastLat;
   double? lastLng;
@@ -165,7 +169,7 @@ class _FakeEventRepository implements EventRepository {
   Future<List<AppBanner>> getBanners() async => editorialBanners;
 
   @override
-  Future<List<PopularEventItem>> getPopularEvents() async => const [];
+  Future<List<PopularEventItem>> getPopularEvents() async => popularEvents;
 
   @override
   Future<EventDetailModel> getEventDetail(int id, {String? sort, double? lat, double? lng, int? venueId, String? tanggal}) async {
@@ -338,6 +342,29 @@ void main() {
             ),
           ),
         ],
+        popularEvents: [
+          const PopularEventItem(
+            event: EventItem(
+              id: 10,
+              nama: 'Coldplay Music of the Spheres',
+              category: EventCategory(
+                id: 1,
+                slug: 'konser-festival',
+                nama: 'Konser & Festival',
+                ikon: 'music_note',
+                urutan: 1,
+              ),
+              venue: VenueItem(
+                id: 1,
+                nama: 'GBK Senayan',
+                kota: 'Jakarta',
+              ),
+            ),
+            availableTicketsCount: 2,
+            minPrice: 1500000,
+            sellersCount: 1,
+          ),
+        ],
       );
 
       await tester.pumpWidget(createTestApp(
@@ -370,9 +397,11 @@ void main() {
       expect(find.byType(CategoryRow), findsOneWidget);
       expect(find.text('Konser'), findsOneWidget);
 
-      // 7. Dekat Kamu
-      expect(find.text('Dekat Kamu'), findsOneWidget);
-      expect(find.byType(PosterCard), findsOneWidget);
+      // 7. Acara Populer (menggantikan Dekat Kamu dengan desain PosterCard)
+      expect(find.text('Acara Populer'), findsOneWidget);
+      expect(find.text('Dekat Kamu'), findsNothing);
+      expect(find.byType(EventPosterCard), findsOneWidget);
+      expect(find.text('Mulai Rp 1.500.000'), findsOneWidget);
 
       // 8. Segera Berakhir
       expect(find.text('Segera Berakhir'), findsOneWidget);
@@ -482,7 +511,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Empty states tidak merusak layout
-      expect(find.text('Belum ada tiket di sekitar Surabaya.'), findsOneWidget);
+      expect(find.text('Belum ada acara populer saat ini.'), findsOneWidget);
       expect(
           find.text('Tidak ada acara yang segera berakhir dalam 24 jam.'),
           findsOneWidget);

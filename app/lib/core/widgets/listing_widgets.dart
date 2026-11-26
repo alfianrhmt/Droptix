@@ -147,6 +147,129 @@ class PosterCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// EventPosterCard (carousel "Acara Populer" bergaya PosterCard)
+// ---------------------------------------------------------------------------
+
+class EventPosterCard extends StatelessWidget {
+  const EventPosterCard({
+    super.key,
+    required this.eventName,
+    required this.subtitle,
+    required this.ticketCount,
+    this.minPrice,
+    this.posterUrl,
+    this.onTap,
+  });
+
+  final String eventName;
+  final String subtitle;
+  final int ticketCount;
+  final int? minPrice;
+  final String? posterUrl;
+  final VoidCallback? onTap;
+
+  String get _priceLabel {
+    if (minPrice == null) return 'Belum ada tiket';
+    final formatted = minPrice.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    return 'Mulai Rp $formatted';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTickets = ticketCount > 0;
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 150,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Poster 2:3
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: AspectRatio(
+                aspectRatio: 2 / 3,
+                child: Stack(
+                  children: [
+                    _PosterImage(
+                      posterUrl: posterUrl,
+                      eventName: eventName,
+                    ),
+                    // Chip semi-transparan bawah
+                    Positioned(
+                      bottom: 8,
+                      left: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(140), // 55%
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.full),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              hasTickets
+                                  ? Icons.confirmation_number_outlined
+                                  : Icons.notifications_none_rounded,
+                              color: AppColors.primary,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                hasTickets
+                                    ? '$ticketCount tiket'
+                                    : 'Pantau tiket',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.primary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              eventName.toUpperCase(),
+              style: AppTextStyles.label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              subtitle,
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              _priceLabel,
+              style: minPrice != null
+                  ? AppTextStyles.label
+                  : AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // ListingRow (pencarian, kategori, Activity)
 // ---------------------------------------------------------------------------
 

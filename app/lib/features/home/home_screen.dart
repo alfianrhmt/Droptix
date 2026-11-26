@@ -63,16 +63,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingBanners = true;
   String? _bannersError;
 
-  // 1b. Acara Populer / Pilihan
+  // 1b. Acara Populer
   List<PopularEventItem> _popularEvents = [];
   bool _isLoadingPopular = true;
+  String? _popularError;
 
-  // 2. Dekat Kamu
-  List<ListingItem> _nearbyListings = [];
-  bool _isLoadingNearby = true;
-  String? _nearbyError;
-
-  // 3. Segera Berakhir
+  // 2. Segera Berakhir
   List<ListingItem> _endingSoonListings = [];
   bool _isLoadingEndingSoon = true;
   String? _endingSoonError;
@@ -147,7 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait([
       _loadTrendingBanners(),
       _loadPopularEvents(),
-      _loadNearbyListings(),
       _loadEndingSoonListings(),
       _loadRecentListings(refresh: true),
     ]);
@@ -156,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadPopularEvents() async {
     setState(() {
       _isLoadingPopular = true;
+      _popularError = null;
     });
     try {
       final list = await _eventRepo.getPopularEvents();
@@ -165,10 +161,11 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoadingPopular = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _popularEvents = [];
+          _popularError = e.toString();
           _isLoadingPopular = false;
         });
       }
@@ -212,38 +209,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _bannersError = e.toString();
           _isLoadingBanners = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadNearbyListings() async {
-    setState(() {
-      _isLoadingNearby = true;
-      _nearbyError = null;
-    });
-    try {
-      final hasCoords = _lat != null && _lng != null;
-      final result = await _listingRepo.getListings(
-        lat: hasCoords ? _lat : null,
-        lng: hasCoords ? _lng : null,
-        maxKm: hasCoords ? 20 : null,
-        kota: !hasCoords ? _city : null,
-        sort: hasCoords ? 'terdekat' : 'segera',
-        limit: 10,
-        tersedia: true,
-      );
-      if (mounted) {
-        setState(() {
-          _nearbyListings = result.items;
-          _isLoadingNearby = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _nearbyError = e.toString();
-          _isLoadingNearby = false;
         });
       }
     }
@@ -530,10 +495,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPopularEventsSection() {
-    if (_popularEvents.isEmpty && !_isLoadingPopular) {
-      return const SizedBox.shrink();
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -543,155 +504,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: AppSpacing.sm),
         if (_isLoadingPopular)
-          Container(
-            height: 220,
-            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: 260,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              itemCount: _popularEvents.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) {
-                final item = _popularEvents[index];
-                return _buildPopularEventCard(item);
-              },
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPopularEventCard(PopularEventItem item) {
-    return Container(
-      width: 140,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => EventDetailScreen(
-                  eventId: item.event.id,
-                  initialEvent: item.event,
-                ),
-              ),
-            );
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.md),
-                ),
-                child: SizedBox(
-                  height: 160,
-                  child: EventPoster(
-                    title: item.event.nama,
-                    posterUrl: item.event.posterUrl,
-                    categorySlug: item.event.category.slug,
-                    width: 140,
-                    borderRadius: 0,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.xs + 2),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        item.event.nama,
-                        style: AppTextStyles.label.copyWith(fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.availableTicketsCount > 0
-                                ? '${item.availableTicketsCount} tiket tersedia'
-                                : 'Pantau tiket',
-                            style: AppTextStyles.caption.copyWith(
-                              color: item.availableTicketsCount > 0
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                          ),
-                          if (item.minPrice != null)
-                            Text(
-                              _formatPrice(item.minPrice!),
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 11,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatPrice(int harga) {
-    final s = harga.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]}.',
-        );
-    return 'Rp $s';
-  }
-
-  Widget _buildNearbySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionHeader(
-          title: 'Dekat Kamu',
-          onSeeAll: () => _openSearch(
-            sort: _lat != null && _lng != null ? 'terdekat' : 'segera',
-            maxKm: _lat != null && _lng != null ? 20 : null,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (_isLoadingNearby)
           Container(
             height: 240,
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
@@ -710,16 +522,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           )
-        else if (_nearbyError != null)
+        else if (_popularError != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
             child: Text(
-              'Gagal memuat tiket dekat kamu.',
+              'Gagal memuat acara populer.',
               style:
                   AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
             ),
           )
-        else if (_nearbyListings.isEmpty)
+        else if (_popularEvents.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
             child: Container(
@@ -729,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: Text(
-                'Belum ada tiket di sekitar $_city.',
+                'Belum ada acara populer saat ini.',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodySmall
                     .copyWith(color: AppColors.textSecondary),
@@ -743,14 +555,33 @@ class _HomeScreenState extends State<HomeScreen> {
               scrollDirection: Axis.horizontal,
               padding:
                   const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              itemCount: _nearbyListings.length,
+              itemCount: _popularEvents.length,
               separatorBuilder: (_, _) =>
                   const SizedBox(width: AppSpacing.md),
               itemBuilder: (context, index) {
-                final item = _nearbyListings[index];
-                return PosterCard(
-                  listing: item.toListingData(),
-                  onTap: () => _handleListingTap(item),
+                final item = _popularEvents[index];
+                final event = item.event;
+                final subtitle = event.venue != null
+                    ? '${event.venue!.nama}, ${event.venue!.kota}'
+                    : (event.category.slug == 'bioskop'
+                        ? 'Bioskop · Multi-Lokasi'
+                        : event.category.nama);
+                return EventPosterCard(
+                  eventName: event.nama,
+                  subtitle: subtitle,
+                  ticketCount: item.availableTicketsCount,
+                  minPrice: item.minPrice,
+                  posterUrl: event.posterUrl,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => EventDetailScreen(
+                          eventId: event.id,
+                          initialEvent: event,
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -926,8 +757,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildCategoryRow(),
                 const SizedBox(height: AppSpacing.xxl),
                 _buildPopularEventsSection(),
-                const SizedBox(height: AppSpacing.xxl),
-                _buildNearbySection(),
                 const SizedBox(height: AppSpacing.xxl),
                 _buildEndingSoonSection(),
                 const SizedBox(height: AppSpacing.xxl),
