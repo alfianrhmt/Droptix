@@ -944,6 +944,11 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const SizedBox(height: AppSpacing.xs),
                 _buildSearchBar(),
+                const SizedBox(height: AppSpacing.lg),
+                SectionHeader(
+                  title: 'Kategori',
+                  onSeeAll: () => _openSearch(),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 _buildResellTypeTiles(),
                 const SizedBox(height: AppSpacing.md),
