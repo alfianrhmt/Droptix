@@ -51,8 +51,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                     height: 34,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      gradient: AppColors.cardGradient,
                       borderRadius: BorderRadius.circular(AppRadius.full),
+                      border: Border.all(color: AppColors.divider, width: 0.8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

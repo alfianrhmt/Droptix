@@ -600,12 +600,12 @@ class DroptixBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+      decoration: const BoxDecoration(
+        color: AppColors.navBar,
         border: Border(
           top: BorderSide(
-            color: Colors.white.withAlpha(12),
-            width: 0.8,
+            color: AppColors.divider,
+            width: 0.7,
           ),
         ),
       ),

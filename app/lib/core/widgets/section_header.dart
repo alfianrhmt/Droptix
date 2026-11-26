@@ -34,7 +34,7 @@ class SectionHeader extends StatelessWidget {
                 child: Text(
                   'Lihat semua',
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primary.withAlpha(220),
+                    color: AppColors.primaryMuted,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

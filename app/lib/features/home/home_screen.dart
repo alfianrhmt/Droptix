@@ -373,8 +373,9 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            gradient: AppColors.cardGradient,
             borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.divider, width: 0.8),
           ),
           child: Row(
             children: [
@@ -422,8 +423,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            gradient: AppColors.cardGradient,
             borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.divider, width: 0.8),
           ),
           child: Row(
             children: [
@@ -537,8 +539,9 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                gradient: AppColors.cardGradient,
                 borderRadius: BorderRadius.circular(AppRadius.full),
+                border: Border.all(color: AppColors.divider, width: 0.8),
               ),
               child: Text(
                 chip.$1,
@@ -844,8 +847,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          gradient: AppColors.cardGradient,
           borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.divider, width: 0.8),
         ),
         child: Row(
           children: [

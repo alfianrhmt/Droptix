@@ -66,8 +66,9 @@ class _CompactResellPill extends StatelessWidget {
         height: 46,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          gradient: AppColors.cardGradient,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.divider, width: 0.8),
         ),
         child: Row(
           children: [
