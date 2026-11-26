@@ -478,83 +478,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 1 baris chip horizontal ramping khusus kategori (Konser, Bioskop, Olahraga, Lainnya).
+  /// Baris 5 kategori lingkaran bulat (Konser, Bioskop, Olahraga, Voucher, Lainnya).
   Widget _buildQuickFilterBar() {
-    final chips = <(String label, VoidCallback onTap)>[
-      (
-        'Konser',
-        () {
-          if (widget.onCategoryTap != null) {
-            widget.onCategoryTap!('konser-festival', 'Konser');
-          } else {
-            _openSearch(categorySlug: 'konser-festival', categoryName: 'Konser');
-          }
-        },
-      ),
-      (
-        'Bioskop',
-        () {
-          if (widget.onCategoryTap != null) {
-            widget.onCategoryTap!('bioskop', 'Bioskop');
-          } else {
-            _openSearch(categorySlug: 'bioskop', categoryName: 'Bioskop');
-          }
-        },
-      ),
-      (
-        'Olahraga',
-        () {
-          if (widget.onCategoryTap != null) {
-            widget.onCategoryTap!('olahraga', 'Olahraga');
-          } else {
-            _openSearch(categorySlug: 'olahraga', categoryName: 'Olahraga');
-          }
-        },
-      ),
-      (
-        'Lainnya',
-        () {
-          if (widget.onCategoryTap != null) {
-            widget.onCategoryTap!('hiburan-lain', 'Lainnya');
-          } else {
-            _openSearch(categorySlug: 'hiburan-lain', categoryName: 'Lainnya');
-          }
-        },
-      ),
+    const categoriesWithSlugs = [
+      ('Konser', 'konser-festival', Icons.music_note_rounded),
+      ('Bioskop', 'bioskop', Icons.movie_rounded),
+      ('Olahraga', 'olahraga', Icons.sports_soccer_rounded),
+      ('Voucher', 'voucher', Icons.local_offer_rounded),
+      ('Lainnya', 'hiburan-lain', Icons.more_horiz_rounded),
     ];
 
-    return SizedBox(
-      height: 34,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-        itemCount: chips.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final chip = chips[index];
-          return GestureDetector(
-            onTap: chip.$2,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: AppColors.cardGradient,
-                borderRadius: BorderRadius.circular(AppRadius.full),
-                border: Border.all(color: AppColors.divider, width: 0.8),
-              ),
-              child: Text(
-                chip.$1,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+    final items = categoriesWithSlugs
+        .map((cat) => CategoryItem(
+              label: cat.$1,
+              icon: cat.$3,
+              onTap: () {
+                if (widget.onCategoryTap != null) {
+                  widget.onCategoryTap!(cat.$2, cat.$1);
+                } else {
+                  _openSearch(categorySlug: cat.$2, categoryName: cat.$1);
+                }
+              },
+            ))
+        .toList();
+
+    return CategoryRow(categories: items);
   }
 
   Widget _buildResellTypeTiles() {
@@ -998,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildSearchBar(),
                 const SizedBox(height: AppSpacing.md),
                 _buildResellTypeTiles(),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.lg),
                 _buildQuickFilterBar(),
                 _buildUpcomingCompactCard(),
                 const SizedBox(height: AppSpacing.xl),

@@ -15,15 +15,16 @@ class CategoryItem {
   final VoidCallback? onTap;
 }
 
-/// 4 Kategori bawaan: Konser, Bioskop, Olahraga, Lainnya.
+/// 5 Kategori bawaan: Konser, Bioskop, Olahraga, Voucher, Lainnya.
 const List<CategoryItem> defaultCategories = [
   CategoryItem(label: 'Konser', icon: Icons.music_note_rounded),
   CategoryItem(label: 'Bioskop', icon: Icons.movie_rounded),
   CategoryItem(label: 'Olahraga', icon: Icons.sports_soccer_rounded),
+  CategoryItem(label: 'Voucher', icon: Icons.local_offer_rounded),
   CategoryItem(label: 'Lainnya', icon: Icons.more_horiz_rounded),
 ];
 
-/// Baris 4 kategori statis, terbagi rata secara simetris di layar dan sejajar 100%.
+/// Baris kategori lingkaran bulat minimalis di bawah tombol Limited & Last-Minute.
 class CategoryRow extends StatelessWidget {
   const CategoryRow({
     super.key,
@@ -42,9 +43,9 @@ class CategoryRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < categories.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.sm),
+            if (i > 0) const SizedBox(width: 6),
             Expanded(
-              child: _CategoryTile(
+              child: _CategoryCircleTile(
                 category: categories[i],
                 onTap: () =>
                     (categories[i].onTap ?? () => onTap?.call(categories[i]))(),
@@ -57,8 +58,8 @@ class CategoryRow extends StatelessWidget {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({required this.category, required this.onTap});
+class _CategoryCircleTile extends StatelessWidget {
+  const _CategoryCircleTile({required this.category, required this.onTap});
 
   final CategoryItem category;
   final VoidCallback onTap;
@@ -72,24 +73,29 @@ class _CategoryTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              gradient: AppColors.cardGradient,
+              shape: BoxShape.circle,
               border: Border.all(
                 color: AppColors.divider,
-                width: 1,
+                width: 0.8,
               ),
             ),
-            child: Icon(category.icon, color: AppColors.primary, size: 22),
+            child: Icon(
+              category.icon,
+              color: AppColors.primary,
+              size: 21,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             category.label,
             style: AppTextStyles.caption.copyWith(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w500,
+              fontSize: 11,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
