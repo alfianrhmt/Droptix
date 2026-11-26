@@ -24,14 +24,16 @@ class ResellTypeTiles extends StatelessWidget {
           Expanded(
             child: _CompactResellPill(
               title: 'Limited',
+              subtitle: 'Tiket langka',
               isLimited: true,
               onTap: onLimitedTap,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: _CompactResellPill(
               title: 'Last-Minute',
+              subtitle: 'Segera mulai',
               isLimited: false,
               onTap: onLastMinuteTap,
             ),
@@ -45,11 +47,13 @@ class ResellTypeTiles extends StatelessWidget {
 class _CompactResellPill extends StatelessWidget {
   const _CompactResellPill({
     required this.title,
+    required this.subtitle,
     required this.isLimited,
     this.onTap,
   });
 
   final String title;
+  final String subtitle;
   final bool isLimited;
   final VoidCallback? onTap;
 
@@ -59,45 +63,51 @@ class _CompactResellPill extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          gradient: AppColors.cardGradient,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.divider, width: 0.8),
+          color: AppColors.surfaceHigh,
+          borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceHigh,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: SizedBox(
-                  width: 19,
-                  height: 19,
-                  child: CustomPaint(
-                    painter: _ResellDuotonePainter(isLimited: isLimited),
-                  ),
-                ),
+            SizedBox(
+              width: 30,
+              height: 30,
+              child: CustomPaint(
+                painter: _ResellDuotonePainter(isLimited: isLimited),
               ),
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                title,
-                style: AppTextStyles.label.copyWith(fontSize: 13),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.label.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      height: 1.15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.caption.copyWith(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      height: 1.15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: AppColors.textSecondary.withAlpha(180),
             ),
           ],
         ),

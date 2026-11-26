@@ -946,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildSearchBar(),
                 const SizedBox(height: AppSpacing.md),
                 _buildResellTypeTiles(),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 _buildQuickFilterBar(),
                 _buildUpcomingCompactCard(),
                 const SizedBox(height: AppSpacing.xl),
